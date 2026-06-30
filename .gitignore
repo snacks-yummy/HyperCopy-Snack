@@ -1,0 +1,12 @@
+/.gradle
+/.idea
+/.kotlin
+/.workbuddy
+local.properties
+build/
+release.keystore
+
+# 本地工具脚本（构建/预检/上传）不入版本库
+*.sh
+/scripts/
+*.py

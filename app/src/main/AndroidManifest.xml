@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <permission
+        android:name="io.github.hypercopy.permission.CLEAR_CLIPBOARD"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- v1.141.9 日志落盘到公共 Download/HyperCopy（shell 可直接读取运行日志），需所有文件访问权限 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <!-- v1.119 开机自启：重启后自动恢复保活/监听（对齐 Shizuku保活守护 BootReceiver） -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="io.github.hypercopy.permission.CLEAR_CLIPBOARD" />
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:extractNativeLibs="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true">
+
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="@string/xposed_description" />
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
+        <meta-data
+            android:name="libxposed"
+            android:value="true" />
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity
+            android:name=".ui.framework.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activities.RuleBrowserActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.RuleEditorActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.RuleSuggestionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.LogViewerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.activities.StatsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.ThemeSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.AppListActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.activities.SystemLinkAppDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".clipboard.handling.ClipboardFloatingActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/ClipboardFloatingTheme" />
+
+        <activity-alias
+            android:name=".ui.framework.MainActivityAlias"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.framework.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <service
+            android:name=".clipboard.monitor.ClipboardMonitorForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintains the user-enabled Shizuku clipboard monitor." />
+        </service>
+        <service
+            android:name=".clipboard.monitor.ClipboardAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+        <service
+            android:name=".clipboard.monitor.MonitorTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_monitor"
+            android:label="@string/tile_monitor_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".clipboard.handling.ClipboardTextReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.github.hypercopy.action.HANDLE_CLIPBOARD_TEXT" />
+                <action android:name="io.github.hypercopy.action.TEST_CLIPBOARD" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".clipboard.jump.JumpConfirmReceiver"
+            android:exported="false" />
+        <!-- v1.118 解锁自检：解锁时立即检查服务状态（无障碍管理器 USER_PRESENT 机制借鉴） -->
+        <receiver
+            android:name=".clipboard.monitor.UnlockSelfHealReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.USER_PRESENT" />
+            </intent-filter>
+        </receiver>
+        <!-- v1.119 开机自启：重启后自动恢复监听/保活（对齐 Shizuku保活守护 BootReceiver） -->
+        <receiver
+            android:name=".clipboard.monitor.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name=".ui.activities.ShareIntentActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

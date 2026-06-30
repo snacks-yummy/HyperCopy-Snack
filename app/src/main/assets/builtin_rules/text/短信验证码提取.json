@@ -1,0 +1,13 @@
+{
+  "name": "短信验证码提取",
+  "category": "text",
+  "enabled": true,
+  "actionMode": "clipboard_write",
+  "priority": 100,
+  "matchRegex": ".*(?:验证码|校验码|动态码)(?:是|为)?[:：]?\\s*\\d{4,8}(?!\\d).*",
+  "extractionRegexes": [".*(?:验证码|校验码|动态码)(?:是|为)?[:：]?\\s*(\\d{4,8})(?!\\d).*"],
+  "target": {
+    "type": "url",
+    "template": "${r1}"
+  }
+}

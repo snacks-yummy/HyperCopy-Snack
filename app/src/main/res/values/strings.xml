@@ -1,0 +1,733 @@
+<resources>
+    <string name="app_name">HyperCopy</string>
+    <string name="xposed_description">HyperCopy Xposed 模块</string>
+
+    <!-- 底栏 -->
+    <string name="tab_home">主页</string>
+    <string name="tab_cloud_rules">云规则</string>
+    <string name="tab_rules">规则</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- 首页状态 -->
+    <string name="status_working">工作中</string>
+    <string name="status_not_active">未激活</string>
+    <string name="status_module_connected">模块服务已连接</string>
+    <string name="status_module_disconnected">模块服务未连接</string>
+    <string name="status_battery_abnormal">省电设置异常</string>
+
+    <!-- 首页信息 -->
+    <string name="info_system_version">系统版本</string>
+    <string name="info_app_version">应用版本</string>
+    <string name="info_android_version">Android 版本</string>
+    <string name="info_lsposed_version">LSPosed 版本</string>
+    <string name="info_device_model">设备型号</string>
+    <string name="info_unknown">未知</string>
+    <string name="home_work_mode">工作模式</string>
+    <string name="home_rule_count">规则</string>
+    <string name="home_enabled_rule_count">已启用 %1$d 条</string>
+    <string name="permission_root_status">Root 权限状态</string>
+    <string name="permission_shizuku_status">Shizuku 权限状态</string>
+    <string name="permission_granted">已授权</string>
+    <string name="permission_missing">权限不足</string>
+    <string name="battery_status">省电设置</string>
+
+    <!-- 外观设置 -->
+    <string name="appearance">外观</string>
+    <string name="language">语言</string>
+    <string name="language_summary">选择软件显示的语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_chinese">中文</string>
+    <string name="language_english">英文</string>
+    <string name="theme">主题</string>
+    <string name="theme_summary">颜色模式</string>
+    <string name="color_mode">颜色模式</string>
+    <string name="color_mode_summary">控制应用浅色或深色显示</string>
+    <string name="color_mode_system">跟随系统</string>
+    <string name="color_mode_light">亮色</string>
+    <string name="color_mode_dark">暗色</string>
+
+    <!-- 软件设置 -->
+    <string name="software_settings">软件设置</string>
+    <string name="clipboard_monitor_mode">监听方案</string>
+    <string name="clipboard_monitor_mode_summary">选择监听剪贴板变化的方案</string>
+    <string name="clipboard_monitor_mode_lsposed">LSPosed</string>
+    <string name="clipboard_monitor_mode_shizuku">Shizuku</string>
+    <string name="jump_notification_mode">跳转通知</string>
+    <string name="jump_notification_mode_summary">复制命中规则后是否先通知确认再跳转</string>
+    <string name="text_notification_mode">文本类通知方式</string>
+    <string name="text_notification_mode_summary">取件码/短信验证码等文本类规则的通知渠道，与跳转通知相互独立</string>
+    <string name="jump_notification_mode_none">无（直接跳转）</string>
+    <string name="jump_notification_mode_normal">普通通知</string>
+    <string name="jump_notification_mode_live">实时通知</string>
+    <string name="jump_notification_mode_miui_island">灵动岛</string>
+    <string name="miui_island_bypass_restriction">绕过灵动岛限制</string>
+    <string name="miui_island_bypass_restriction_summary">发送灵动岛通知前临时断开 xmsf 网络，仅 Shizuku 模式可用</string>
+    <string name="detect_cloned_app">检测双开应用</string>
+    <string name="detect_cloned_app_summary">检测目标应用安装在哪些系统用户中，并按选择的用户启动</string>
+    <string name="cloned_app_user">双开用户</string>
+    <string name="cloned_app_user_summary">自动显示主用户和所有可用分身，也可限定为主用户和指定分身</string>
+    <string name="cloned_app_user_auto">自动</string>
+    <string name="cloned_app_user_format">%1$s（user %2$d）</string>
+    <string name="cloned_app_user_fallback">用户 %1$d</string>
+    <string name="log_level">日志级别</string>
+    <string name="log_level_summary">控制模块输出日志的详细程度</string>
+    <string name="log_off">关闭</string>
+    <string name="log_basic">基础</string>
+    <string name="log_debug">调试</string>
+    <string name="check_update">检查更新</string>
+    <string name="check_update_summary">通过 GitHub Release 检查最新版本</string>
+    <string name="auto_check_update">自动检查更新</string>
+    <string name="auto_check_update_summary">启动时检查 GitHub Release 是否有新版本</string>
+    <string name="hide_from_recents">从最近任务隐藏</string>
+    <string name="hide_from_recents_summary">开启后应用不会显示在系统最近任务列表中</string>
+    <string name="hide_desktop_icon">隐藏桌面图标</string>
+    <string name="hide_desktop_icon_summary">开启后启动器中不显示应用图标，仍可从 LSPosed 模块设置打开</string>
+
+    <!-- 应用名单 -->
+    <string name="app_list">应用名单</string>
+    <string name="app_list_summary">管理白名单和黑名单应用</string>
+    <string name="app_list_search_hint">搜索应用名称或包名</string>
+    <string name="app_list_menu_options">应用名单选项</string>
+    <string name="app_list_work_mode">工作模式</string>
+    <string name="app_list_whitelist">白名单</string>
+    <string name="app_list_blacklist">黑名单</string>
+    <string name="app_list_ignore_jump">避免跳回来源应用</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="app_list_ignore_jump_summary">复制内容的来源应用与链接目标应用相同时，不显示跳转提示</string>
+
+    <!-- 主页链接 -->
+    <string name="support_development">支持开发</string>
+    <string name="support_development_summary">支持项目开发</string>
+    <string name="open_home_page">打开主页</string>
+    <string name="open_home_page_summary">打开 HyperCopy 项目主页</string>
+    <string name="fork_project">二改项目地址</string>
+    <string name="fork_project_summary">基于原作者 1812z 项目二次开发，已获作者授权</string>
+
+    <!-- 通用操作 -->
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_close">关闭</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_delete">删除</string>
+    <string name="action_trash">移入回收站</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_open">打开</string>
+    <string name="action_jump">跳转</string>
+    <string name="action_jump_main_user">主用户</string>
+    <string name="action_jump_cloned_user">分身</string>
+    <string name="action_jump_user_format">%1$s（%2$d）</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_retry">重试</string>
+    <string name="action_select_all">全选</string>
+    <string name="action_select_none">全不选</string>
+    <string name="action_cancel_selection">取消选择</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="action_edit_rules">编辑规则</string>
+    <string name="action_sort_rule">排序规则</string>
+    <string name="action_run_test">执行测试</string>
+    <string name="action_save_rule">保存规则</string>
+    <string name="action_add_rule">添加规则</string>
+    <string name="action_import_rule">导入规则</string>
+    <!-- v1.66 顶栏文字按钮短文案 -->
+    <string name="action_sort_short">排序</string>
+    <string name="action_edit_short">编辑</string>
+    <string name="action_import_short">导入</string>
+    <string name="system_user_short">多开</string>
+    <string name="cloud_menu_short">菜单</string>
+    <string name="cloud_source_picker">源: %1$s</string>
+    <string name="cloud_source_add">添加源</string>
+    <string name="cloud_source_title">切换规则源</string>
+    <string name="cloud_source_add_title">添加自定义源</string>
+    <string name="cloud_source_add_hint">支持粘贴 GitHub 仓库链接（https://github.com/owner/repo）或加速站链接（https://xxx.top/rules）</string>
+    <string name="cloud_source_add_placeholder">粘贴链接…</string>
+    <string name="cloud_source_add_invalid">链接格式无效，请粘贴 GitHub 仓库或加速站链接</string>
+    <string name="cloud_source_add_ok">源已添加</string>
+    <string name="cloud_source_add_unreachable">源不可达，请检查链接是否正确</string>
+    <string name="settings_group_notification">通知与提示</string>
+    <string name="settings_group_log">日志与统计</string>
+    <string name="settings_group_monitor">监听与检测</string>
+    <string name="settings_group_update_privacy">更新与隐私</string>
+    <string name="editor_time_format_hint">格式 09:00（24 小时制）</string>
+    <string name="editor_label_match_all_triggers">所有触发条件都需匹配（AND）</string>
+    <string name="editor_label_match_all_triggers_hint">开启后所有触发正则都命中才触发，防止「沾边就跳」的误触</string>
+    <string name="editor_label_delay_millis">延迟跳转（毫秒）</string>
+    <string name="editor_label_delay_millis_hint">0 = 立即跳转；命中后先提示识别结果，延迟结束再跳（建议 ≤3000）</string>
+    <string name="clipboard_write_toast">已复制：%1$s</string>
+    <string name="editor_regex_options_hint">i=忽略大小写，s=点匹配换行，m=多行模式</string>
+    <string name="editor_source_packages_hint">来源应用包名，逗号分隔；留空=所有应用</string>
+    <string name="action_export_short">导出</string>
+    <string name="action_share_short">分享</string>
+    <string name="app_list_empty">未找到匹配的应用</string>
+    <string name="domain_verified_hint">已验证域名，自动放行</string>
+    <!-- v1.71 编辑器说明补齐 -->
+    <string name="editor_open_mode_direct_app_hint">直接把复制内容交给目标 App 处理（App 自己识别并跳转），适合地址/快递单号等</string>
+    <string name="editor_open_mode_url_hint">从复制内容提取链接并打开（系统浏览器或应用处理），适合包含网页地址的内容</string>
+    <string name="editor_trigger_regexes_hint">复制内容命中其中任一正则即触发本规则（可多条，用 | 也可写在一条里）</string>
+    <string name="editor_extraction_regexes_hint">从命中内容中提取参数，供跳转模板 ${r1} / ${p1} 使用（需带捕获组）</string>
+    <string name="editor_group_hint">场景激活时，新建规则自动归入当前场景组；场景切换时按组启用/禁用</string>
+    <string name="editor_placeholder_help_p"><![CDATA[${p1}、${p2}：提取正则第 1、2 个捕获组（官方命名，与 ${r1} 等价）。]]></string>
+    <string name="editor_placeholder_help_pkg"><![CDATA[${pkg}：目标包名。]]></string>
+    <string name="editor_placeholder_help_time"><![CDATA[${time:格式}：当前时间，如 ${time:yyyy-MM-dd HH:mm}。]]></string>
+    <string name="editor_placeholder_help_lower"><![CDATA[${lower:key}：参数转小写。]]></string>
+    <string name="editor_placeholder_help_upper"><![CDATA[${upper:key}：参数转大写。]]></string>
+    <string name="editor_placeholder_help_encode"><![CDATA[${encode:key}：参数做 URL 编码。]]></string>
+    <string name="editor_placeholder_help_url_key"><![CDATA[${url:key}：从参数中提取第一个 URL。]]></string>
+    <string name="editor_template_examples_title">平台示例规则（官方文档）</string>
+    <string name="editor_template_examples_hint">点击一键填充整个规则（名称/正则/模板/包名/执行模式）</string>
+    <string name="editor_example_applied">已填充示例：%1$s</string>
+    <!-- v1.72 建议页增强 -->
+    <string name="suggestion_save_all">全部保存</string>
+    <string name="suggestion_save_all_done">已保存 %1$d 条规则</string>
+    <string name="suggestion_save_all_done_with_skip">已保存 %1$d 条，跳过 %2$d 条重复</string>
+    <string name="suggestion_target_preview">将打开：%1$s</string>
+    <string name="suggestion_target_parse_later">保存后解析短链/口令直达「%1$s」内容页（内容 ID 需跳转后提取）</string>
+    <string name="suggestion_platform_count">%1$s 已有 %2$d 条规则</string>
+    <string name="suggestion_match_fragment">匹配内容：%1$s</string>
+    <string name="suggestion_open_browser">模拟浏览器抓取（短链）</string>
+    <string name="suggestion_too_long">内容过长（%1$d 字符，上限 %2$d），超长部分可能无法识别</string>
+    <string name="suggestion_preview_copied">已复制识别内容</string>
+    <!-- v1.74 新装一键配置 -->
+    <string name="setup_card_title">新装一键配置</string>
+    <string name="setup_card_summary">基于 Shizuku 自动完成通知/省电/后台弹出页面等配置，复制直达开箱即用</string>
+    <string name="setup_card_action">开始配置</string>
+    <string name="setup_card_later">稍后再说</string>
+    <string name="setup_dialog_title">一键配置</string>
+    <string name="setup_dialog_summary">将自动完成以下设置（Shizuku 已授权时全部静默执行；未授权会先弹出系统授权）</string>
+    <string name="setup_item_notification">通知权限（跳转/未命中提醒）</string>
+    <string name="setup_item_battery">省电无限制（电池优化白名单）</string>
+    <string name="setup_item_background">后台弹出页面（MIUI 权限）</string>
+    <string name="setup_item_autostart">自启动（MIUI 权限）</string>
+    <string name="setup_item_applist">应用列表（黑名单模式已启用）</string>
+    <string name="setup_item_shizuku">Shizuku 权限</string>
+    <string name="setup_item_pending">待执行</string>
+    <string name="setup_item_running">配置中…</string>
+    <string name="setup_item_ok">已完成</string>
+    <string name="setup_item_failed">失败，可稍后手动设置</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="setup_item_skip">无需配置</string>
+    <string name="setup_start">开始配置</string>
+    <string name="setup_close">关闭</string>
+    <string name="setup_done_toast">一键配置完成，开始使用吧！</string>
+    <!-- v1.76 规则数量显示 -->
+    <string name="rule_list_count">共 %1$d 条规则</string>
+    <string name="rule_list_count_apps">共 %1$d 个应用</string>
+    <!-- v1.77 编辑器返回保护/删除 -->
+    <string name="editor_discard_title">放弃修改？</string>
+    <string name="editor_discard_summary">当前修改尚未保存，放弃后将丢失。确定退出？</string>
+    <string name="editor_discard_continue">继续编辑</string>
+    <string name="editor_discard_confirm">放弃修改</string>
+    <string name="editor_delete_title">删除规则？</string>
+    <string name="editor_delete_summary">该规则将被移入回收站，可在回收站恢复。确定删除？</string>
+    <string name="editor_delete_confirm">删除</string>
+    <string name="rule_toast_moved_to_trash">已移入回收站</string>
+    <string name="rule_test_collapse">收起</string>
+    <string name="rule_test_collapsed">已折叠，点此展开</string>
+    <string name="settings_rerun_setup">一键配置（重新运行）</string>
+    <string name="settings_rerun_setup_summary">系统权限可能被重置，重新运行新装引导（通知/省电/后台弹出/自启动）</string>
+    <string name="settings_rerun_setup_done">已重置引导，打开首页即可重新一键配置</string>
+    <string name="suggestion_discard_title">放弃分析？</string>
+    <string name="suggestion_discard_summary">已输入的内容尚未保存，放弃后将丢失。确定退出？</string>
+    <string name="action_export_rule">导出规则</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="action_share_rule">分享到云规则仓库</string>
+    <string name="action_download_rule">下载规则</string>
+    <string name="action_update_rule">更新规则</string>
+    <string name="action_request_permission">请求权限</string>
+    <string name="action_battery_settings">打开省电设置</string>
+
+    <!-- 规则分类 -->
+    <string name="category_link">链接</string>
+    <string name="category_system">系统</string>
+    <string name="category_text">文本</string>
+    <string name="category_address">地址</string>
+    <string name="category_express">快递</string>
+
+    <!-- 规则页 -->
+    <string name="rule_test_link_hint">输入复制后的 URL 或文本</string>
+    <string name="rule_test_text_hint">输入复制后的口令或文本</string>
+    <string name="rule_empty_link_description">点击右下角 + 打开内置浏览器，或手动添加链接规则。</string>
+    <string name="rule_empty_text_description">口令和文本规则支持直接打开 App 或打开 URL。默认规则可点进编辑修改。</string>
+    <string name="rule_test_title">测试%1$s复制内容</string>
+    <string name="rule_empty_title">还没有%1$s规则</string>
+    <string name="rule_selected_count">已选择 %1$d 项</string>
+    <string name="rule_menu_browser">模拟浏览器</string>
+    <string name="rule_system_link_title">系统链接处理</string>
+    <string name="rule_system_link_summary">开启后，复制普通网页链接时优先交给安卓“打开受支持的链接”处理；没有专属 App 处理时再继续匹配规则。</string>
+    <string name="rule_system_clear_clipboard_title">跳转后清空剪贴板</string>
+    <string name="rule_system_clear_clipboard_summary">系统链接确认跳转后自动清空当前剪贴板</string>
+    <string name="rule_search_hint">搜索名称或包名</string>
+    <string name="rule_system_empty_description">未读取到系统链接应用，或当前 user 没有可管理的受支持链接。</string>
+    <string name="rule_system_test_running">正在通过 user %1$d 打开系统链接</string>
+    <string name="rule_system_test_started">已通过 user %1$s 交给系统打开链接</string>
+    <string name="rule_system_load_failed">系统链接读取失败：%1$s</string>
+    <string name="rule_system_app_link_allowed">在应用中打开</string>
+    <string name="rule_system_app_link_allowed_summary">控制该应用是否允许接管受支持链接</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="rule_system_user_menu">系统链接用户</string>
+    <string name="rule_sort_tip">规则从上往下顺序命中</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="rule_system_user_0">主用户 user 0</string>
+    <string name="rule_result_waiting">等待测试</string>
+    <string name="rule_result_input_required">请输入要测试的%1$s内容</string>
+    <string name="rule_result_no_match">未命中%1$s规则</string>
+    <string name="rule_result_match_no_param">命中 %1$s，但参数正则没有提取到内容</string>
+    <string name="rule_result_match_parse_open">命中 %1$s，解析参数打开：%2$s</string>
+    <string name="rule_result_match_direct_open">命中 %1$s，直接打开：%2$s</string>
+    <string name="rule_result_match_webview">命中 %1$s，正在用 WebView 模拟打开。页面加载后会通用点击一次，2 秒无跳转则直接打开目标 App。</string>
+    <string name="rule_result_match_redirect_parse">命中 %1$s，正在解析一次重定向。</string>
+    <string name="rule_result_match_clipboard_write">命中 %1$s，将复制：%2$s</string>
+    <string name="rule_result_redirect_parse_no_param">重定向后未提取到参数：%1$s</string>
+    <string name="rule_result_webview_resolved">WebView 解析成功：%1$s</string>
+    <string name="rule_result_webview_no_jump">WebView 未解析到跳转</string>
+    <string name="rule_result_webview_fallback">WebView 未解析到跳转，改为直接打开：%1$s</string>
+    <string name="rule_result_launch_failed">启动失败：%1$s</string>
+    <string name="rule_toast_page_loaded">页面已加载，如无跳转可改用直接打开模式</string>
+    <string name="rule_toast_imported">已导入 %1$d 条规则</string>
+    <string name="rule_toast_import_failed">导入失败：%1$s</string>
+    <string name="rule_toast_exported">规则 JSON 已复制到剪贴板</string>
+    <string name="rule_import_empty">没有可导入的规则</string>
+    <string name="rule_dialog_import_title">导入规则</string>
+    <string name="rule_dialog_import_summary">粘贴单条规则 JSON、规则数组，或包含 rules 字段的规则文件内容。</string>
+    <string name="rule_dialog_import_hint">规则 JSON</string>
+    <string name="rule_dialog_delete_title">移入回收站</string>
+    <string name="rule_dialog_delete_summary">确定将所选 %1$d 项规则移入回收站？可在回收站中恢复。</string>
+    <string name="rule_action_parse_and_open">解析参数打开</string>
+    <string name="rule_action_direct_open_app">直接打开 App</string>
+    <string name="rule_action_webview_open">WebView 模拟打开</string>
+    <string name="rule_action_clipboard_write">复制到剪贴板</string>
+    <string name="rule_action_open_url">打开 URL</string>
+
+    <!-- 规则编辑器 -->
+    <string name="editor_title_add">添加%1$s规则</string>
+    <string name="editor_title_edit">编辑%1$s规则</string>
+    <string name="editor_label_name">名称</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="editor_label_match_regex">匹配正则</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="editor_label_parameter_regex">参数正则</string>
+    <string name="editor_label_trigger_regexes">触发正则</string>
+    <string name="editor_label_extraction_regexes">提取正则</string>
+    <string name="editor_label_target_template">URL 跳转模板</string>
+    <string name="editor_label_open_content_template">打开内容模板</string>
+    <string name="editor_label_package_name_optional">包名，可留空</string>
+    <string name="editor_label_package_name_required">包名，必填</string>
+    <string name="editor_action_mode">执行类型</string>
+    <string name="editor_open_mode">打开方式</string>
+    <string name="editor_link_action_parse">解析参数</string>
+    <string name="editor_link_action_direct">直接打开</string>
+    <string name="editor_link_action_webview">模拟打开</string>
+    <string name="editor_link_action_clipboard_write">复制剪贴板</string>
+    <string name="editor_open_app">直接打开 App</string>
+    <string name="editor_open_url">打开 URL</string>
+    <string name="editor_parse_after_redirect">跳转后解析</string>
+    <string name="editor_parse_after_redirect_summary">只跟随一次 HTTP 重定向，不加载网页，再用展开后的 URL 提取参数并跳转</string>
+    <string name="editor_clear_clipboard_after_jump">跳转后清空剪贴板</string>
+    <string name="editor_clear_clipboard_after_jump_summary">确认跳转后自动清空当前剪贴板，避免进入目标软件后再次询问跳转</string>
+    <string name="editor_action_add_regex">添加正则</string>
+    <string name="editor_placeholder_help_title">占位符说明</string>
+    <string name="editor_placeholder_help_copy_hint">点一下说明可复制对应占位符。</string>
+    <string name="editor_placeholder_help_input"><![CDATA[${input}：完整复制内容。]]></string>
+    <string name="editor_placeholder_help_url_input"><![CDATA[${url:input}：从完整复制内容中提取第一个 URL，适合带前后缀文案的链接。]]></string>
+    <string name="editor_placeholder_help_redirect"><![CDATA[${redirectUrl}：跳转后解析模式下的一次重定向后 URL。]]></string>
+    <string name="editor_placeholder_help_regex"><![CDATA[${r1}、${r2}：第 1、2 条提取正则的第一个捕获组。]]></string>
+    <string name="editor_placeholder_help_regex_group"><![CDATA[${r1_2}：第 1 条提取正则的第 2 个捕获组。]]></string>
+    <string name="editor_placeholder_help_raw"><![CDATA[${raw:r1}：原样插入参数，不做 URL 编码，适合 intent:// 模板。]]></string>
+    <string name="editor_placeholder_copied">已复制：%1$s</string>
+    <string name="editor_default_address_name">地址规则</string>
+    <string name="editor_rule_name_new">新规则</string>
+    <string name="editor_rule_name_from_scheme">%1$s 跳转</string>
+    <string name="rule_unnamed">未命名规则</string>
+    <string name="rule_toast_saved">规则已保存</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="rule_toast_duplicate">已存在相同的规则，未重复添加</string>
+    <string name="rule_toast_copied">规则已复制到剪贴板</string>
+    <string name="rule_builtin_badge">内置</string>
+    <string name="rule_cloud_badge">云端</string>
+    <string name="rule_custom_badge">自定义</string>
+    <string name="rule_source_all">全部</string>
+    <string name="rule_source_builtin">内置</string>
+    <string name="rule_source_cloud">云端</string>
+    <string name="rule_source_custom">自定义</string>
+    <string name="action_copy_rule">复制规则</string>
+    <string name="rule_toast_package_required">直接打开 App 必须填写包名</string>
+    <string name="rule_toast_trigger_required">请填写至少一个触发器正则</string>
+    <string name="rule_toast_merged_same_target">已合并到同类规则（同一目标 App），未新增</string>
+    <!-- v1.37 保活与稳定性 -->
+    <string name="keep_alive_title">保活与稳定性</string>
+    <string name="keep_alive_auto_activate">启动自动激活</string>
+    <string name="keep_alive_auto_activate_summary">打开 App 时自动授权 Shizuku 并开启无障碍，无需手动操作</string>
+    <string name="keep_alive_battery">电池优化白名单</string>
+    <string name="keep_alive_battery_summary">允许后台运行，防止监听被系统杀掉</string>
+    <string name="keep_alive_app_detail">应用详情与后台锁定</string>
+    <string name="keep_alive_app_detail_summary">MIUI 需允许自启动 + 省电策略无限制</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="keep_alive_accessibility">无障碍服务设置</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="keep_alive_accessibility_summary">开启后作为剪贴板监听兜底通道</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="keep_alive_shizuku">Shizuku 授权与自启</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="keep_alive_shizuku_summary">重启后需重新授权，建议开启自动启动</string>
+    <string name="rule_toast_template_or_package_required">跳转模板和包名至少填写一个</string>
+
+    <!-- 规则浏览器 -->
+    <string name="browser_hint_url">分享链接或网址</string>
+    <string name="browser_dialog_jump_detected">检测到 App 跳转</string>
+    <string name="browser_dialog_jump_hint">下面内容可以长按复制。浏览器只负责拦截，规则请手动添加。</string>
+    <string name="browser_label_web_page">网页</string>
+    <string name="browser_label_jump">跳转</string>
+
+    <!-- 默认规则名 -->
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="default_address_rule_name">默认地址规则</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="default_express_rule_name">默认快递规则</string>
+
+    <!-- 云规则 -->
+    <string name="cloud_rules_count">%1$d 条%2$s规则</string>
+    <string name="cloud_loading">正在加载云端规则…</string>
+    <string name="cloud_load_failed">加载失败</string>
+    <string name="cloud_error_load">加载失败</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="cloud_error_download">下载失败</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="cloud_error_network">网络错误</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="cloud_error_missing_url">缺少下载地址</string>
+    <string name="cloud_empty">云端暂无规则</string>
+    <string name="cloud_empty_hint">仓库还没有上传规则。可在 https://github.com/1812z/HyperCopy_Rules 提交。</string>
+    <string name="cloud_no_match">没有匹配的规则</string>
+    <string name="cloud_no_match_hint">换个关键词试试，或点击右上角刷新。</string>
+    <string name="cloud_generic_rule">通用规则</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="cloud_menu_options">云规则选项</string>
+    <string name="cloud_menu_show_installed_only">仅显示已安装应用</string>
+    <string name="cloud_menu_download_installed">一键下载已安装应用</string>
+    <string name="cloud_menu_switch_source">切换数据源</string>
+    <string name="cloud_source_github">GitHub</string>
+    <string name="cloud_source_accelerated">加速源</string>
+    <string name="cloud_toast_added">已添加：%1$s</string>
+    <string name="cloud_toast_updated">已更新：%1$s</string>
+    <string name="cloud_toast_latest">已是最新版本：%1$s</string>
+    <string name="cloud_toast_batch_added">已添加 %1$d 条规则</string>
+    <string name="cloud_toast_download_failed">下载失败：%1$s</string>
+    <string name="cloud_toast_no_installed_rules_to_download">没有可下载的已安装应用规则</string>
+    <string name="cloud_toast_refresh_success">刷新成功</string>
+    <string name="cloud_toast_channel">下载通道：%1$s</string>
+
+    <!-- Toast -->
+    <string name="toast_open_target_failed">打开目标应用失败</string>
+    <string name="toast_shizuku_unavailable">Shizuku 不可用，请先启动 Shizuku</string>
+    <string name="toast_shizuku_permission_denied">Shizuku 授权被拒绝</string>
+    <string name="update_new_version">发现新版本</string>
+    <string name="update_current_latest_version">当前版本：%1$s\n最新版本：%2$s</string>
+    <string name="update_latest_version">已是最新版本</string>
+    <string name="update_current_version">当前版本：%1$s</string>
+    <string name="update_check_failed">检查更新失败</string>
+    <string name="notification_channel_jump_normal_name">跳转普通通知</string>
+    <string name="notification_channel_jump_normal_description">复制命中规则后的普通跳转确认</string>
+    <string name="notification_channel_jump_live_name">实时通知</string>
+    <string name="notification_channel_jump_live_description">复制命中规则后的实时跳转确认</string>
+    <string name="notification_channel_jump_miui_island_name">灵动岛通知</string>
+    <string name="notification_channel_jump_miui_island_description">复制命中规则后通过灵动岛确认跳转</string>
+    <string name="notification_jump_title">等待跳转确认</string>
+    <string name="notification_jump_text">点击"跳转"以进入应用</string>
+    <string name="notification_channel_foreground_service_name">后台剪贴板监听</string>
+    <string name="notification_channel_foreground_service_description">Shizuku 剪贴板监听运行时显示的常驻通知</string>
+    <string name="notification_foreground_service_title">HyperCopy 剪贴板监听</string>
+    <string name="notification_foreground_service_checking">正在检查 Shizuku 状态和权限</string>
+    <string name="notification_foreground_service_running_shizuku">监听已启动，正在通过 Shizuku 监听剪贴板</string>
+    <string name="notification_foreground_service_running_read_logs">监听已启动，正在通过 READ_LOGS 权限监听剪贴板</string>
+    <string name="notification_foreground_service_permission_denied">Shizuku 权限不足，剪贴板监听未启动</string>
+    <string name="notification_foreground_service_unavailable">Shizuku 未运行且无 READ_LOGS 权限，剪贴板监听未启动</string>
+    <string name="notification_foreground_service_stopped">剪贴板监听已停止</string>
+    <string name="notification_channel_unmatched_name">未命中规则提醒</string>
+    <!-- v1.50 剪贴板读取失败兜底通知 -->
+    <string name="notification_channel_fallback_name">复制内容待处理</string>
+    <string name="fallback_notification_title">检测到复制内容，点击跳转</string>
+    <string name="fallback_notification_text">点击后在 HyperCopy 中处理复制的口令/链接</string>
+    <string name="notification_unmatched_title">未命中任何规则</string>
+    <string name="notification_unmatched_text">点击为复制内容自动分析并一键添加规则</string>
+    <string name="setting_notify_unmatched">未命中时提醒</string>
+    <string name="setting_notify_unmatched_summary">复制内容未命中任何规则时发通知，可一键分析添加规则</string>
+    <string name="setting_notify_pickup_code">取件码通知</string>
+    <string name="setting_notify_pickup_code_summary">复制含取件码/取货码/口令码的短信时，通知栏提醒（不写剪贴板）</string>
+    <string name="setting_notify_include_platform">通知显示平台名</string>
+    <string name="setting_notify_include_platform_summary">通知内容包含短信中的【平台名】，如【菜鸟驿站】</string>
+    <string name="notification_channel_notify_only_name">取件码通知</string>
+    <string name="rule_action_notify_only">仅通知</string>
+    <string name="editor_link_action_notify_only">仅通知</string>
+    <string name="editor_action_mode_notify_only_hint">命中后发通知栏通知（不跳转、不改剪贴板），适合取件码/取货码场景</string>
+    <string name="mode_notify_only">仅通知</string>
+    <string name="rule_result_notify_only">仅通知模式（%1$s）→ 将通知：%2$s</string>
+    <string name="suggestion_title">规则建议</string>
+    <string name="suggestion_input_hint">复制内容</string>
+    <string name="action_paste_from_clipboard">从剪贴板粘贴</string>
+    <string name="action_analyze">分析</string>
+    <string name="action_clear">清空</string>
+    <string name="suggestion_empty">无法自动识别</string>
+    <string name="suggestion_empty_hint">未能识别出口令或已知链接，请使用编辑器手动添加规则</string>
+    <string name="suggestion_save_only">保存规则</string>
+    <!-- v1.46 执行模式标签（对齐官方规范） -->
+    <string name="mode_parse_and_open">执行模式：解析后打开</string>
+    <string name="mode_direct_open">执行模式：直接打开</string>
+    <string name="mode_webview_resolve">执行模式：网页解析后打开</string>
+    <string name="mode_clipboard_write">执行模式：复制到剪贴板</string>
+    <string name="suggestion_edit_save">保存并编辑</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="action_add_from_clipboard">从剪贴板添加</string>
+    <string name="rule_menu_clipboard">从剪贴板添加规则</string>
+    <string name="action_merge_duplicate">合并重复规则</string>
+    <string name="action_export_all">导出全部规则</string>
+    <string name="action_export_file">导出到文件</string>
+    <string name="action_import_file">从文件导入</string>
+    <string name="rule_toast_export_file_ok">已导出 %1$d 条规则到文件</string>
+    <string name="rule_toast_export_file_failed">导出失败：%1$s</string>
+    <string name="rule_toast_import_file_ok">已从文件导入 %1$d 条规则</string>
+    <string name="rule_toast_import_file_failed">导入文件失败：%1$s</string>
+    <string name="rule_group_all">全部</string>
+    <string name="action_restore_builtin">还原内置规则</string>
+    <string name="rule_toast_restored_builtin">已还原 %1$d 条内置规则</string>
+    <string name="editor_source_packages">来源 App 白名单（逗号分隔包名，空=不限）</string>
+    <string name="editor_active_time_start">生效起（HH:mm）</string>
+    <string name="editor_active_time_end">生效止（HH:mm）</string>
+    <string name="editor_template_insert">插入常用正则模板</string>
+    <string name="editor_template_title">常用正则模板</string>
+    <string name="editor_template_summary">点击插入到触发器正则（首个为空则替换，否则追加）</string>
+    <string name="editor_test_groups">捕获组：%1$s</string>
+    <string name="stats_title">规则统计</string>
+    <string name="stats_total_hits">累计命中 %1$d 次</string>
+    <string name="stats_total_rules">规则总数 %1$d · 有命中 %2$d</string>
+    <string name="stats_empty">暂无命中记录，复制内容并触发跳转后统计将显示在这里</string>
+    <string name="setting_view_stats">规则统计</string>
+    <string name="setting_view_stats_summary">查看总命中与规则排行</string>
+    <string name="rule_trash">回收站</string>
+    <string name="rule_trash_summary">回收站：%1$d 条</string>
+    <string name="rule_trash_empty">清空回收站</string>
+    <string name="rule_trash_restore">恢复</string>
+    <string name="rule_trash_purge">彻底删除</string>
+    <string name="rule_trash_back">返回</string>
+    <string name="rule_trash_bar_title">回收站（%1$d）</string>
+    <!-- v1.65 破坏性操作确认 + 空态引导 + 浏览器导航 -->
+    <string name="trash_empty_confirm_title">清空回收站？</string>
+    <string name="trash_empty_confirm_summary">将永久删除回收站中的 %1$d 条规则，且不可恢复。确定继续？</string>
+    <string name="trash_purge_confirm_title">彻底删除？</string>
+    <string name="trash_purge_confirm_summary">该规则将被永久删除，且不可恢复。确定继续？</string>
+    <string name="restore_builtin_confirm_title">恢复内置规则？</string>
+    <string name="restore_builtin_confirm_summary">将删除并重建全部内置规则，你对内置规则的修改和从云规则下载的同源版本会被覆盖为出厂内容（自定义规则不受影响）。确定继续？</string>
+    <string name="stats_clear_title">清空统计？</string>
+    <string name="stats_clear_summary">将清空全部规则的命中统计与跳转历史，且不可恢复。确定继续？</string>
+    <string name="rule_empty_add">添加规则</string>
+    <string name="browser_nav_back">后退</string>
+    <string name="browser_nav_forward">前进</string>
+    <string name="browser_nav_reload">刷新</string>
+    <string name="browser_nav_home">主页</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="onboarding_title">欢迎使用 HyperCopy</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="onboarding_summary">复制即直达</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="onboarding_content">复制淘宝口令、链接等内容后自动直达对应 App。首次使用建议开启无障碍剪贴板检测（免 root、后台实时监听）。</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="onboarding_skip">稍后再说</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="onboarding_open_accessibility">开启无障碍检测</string>
+    <string name="action_share_rule_cloud">分享规则到云仓库</string>
+    <string name="rule_dialog_share_title">选择要分享的规则</string>
+    <string name="rule_dialog_share_summary">生成 GitHub HyperCopy_Rules 提交链接（最多显示 50 条）</string>
+    <string name="tile_monitor_label">复制直达</string>
+    <string name="tile_monitor_on">监听已开启</string>
+    <string name="tile_monitor_off">监听已暂停</string>
+    <string name="setting_monitor_enabled">剪贴板监听</string>
+    <string name="setting_monitor_enabled_summary">关闭后复制内容不再触发直达（快捷磁贴可一键切换）</string>
+    <string name="setting_show_hit_toast">命中即时提示</string>
+    <string name="setting_show_hit_toast_summary">复制命中规则时 Toast 提示规则名与目标 App</string>
+    <string name="setting_cloud_source_title">云端规则源</string>
+    <string name="setting_cloud_source_summary">当前: %1$s（点击管理/切换规则源）</string>
+    <string name="settings_sub_keep_alive_summary">自动激活 / 立即自愈 / 电池白名单 / 后台锁定</string>
+    <string name="settings_sub_notify">通知设置</string>
+    <string name="settings_sub_notify_summary">跳转通知 / 未命中提醒 / 取件码 / 即时提示</string>
+    <string name="settings_sub_jump">跳转设置</string>
+    <string name="settings_sub_jump_summary">Scheme 直达 / 网页兜底 / 跳转预检</string>
+    <string name="settings_sub_express">快递设置</string>
+    <string name="settings_sub_express_summary">快递检测 / 直接跳转 / 菜鸟自动化</string>
+    <string name="settings_sub_monitor">监听与辅助</string>
+    <string name="settings_sub_monitor_summary">监听开关 / 无障碍 / 重复窗口 / 克隆应用 / 应用列表</string>
+    <string name="settings_sub_update">更新与隐私</string>
+    <string name="settings_sub_update_summary">检查更新 / 隐藏最近 / 隐藏桌面图标</string>
+    <string name="setting_cloud_express_detect">云端快递识别（默认关闭）</string>
+    <string name="setting_cloud_express_detect_summary">本地规则未命中时调用快递100 在线识别快递公司并查件（需联网，会上传单号）</string>
+    <string name="setting_express_direct_jump">快递直达（默认开启）</string>
+    <string name="setting_express_direct_jump_summary">快递单号命中时直接跳转查件，不弹通知确认（覆盖规则级通知模式）</string>
+    <string name="setting_cainiao_auto_confirm">菜鸟查件自动确认（默认开启）</string>
+    <string name="setting_cainiao_auto_confirm_summary">直达菜鸟后自动点击「检测到快递单号」弹窗确认，直达物流详情页（需无障碍服务）</string>
+    <string name="setting_cainiao_auto_expand">菜鸟详情页自动展开（默认开启）</string>
+    <string name="setting_cainiao_auto_expand_summary">到达物流详情页后自动点击「展开」按钮展示完整物流轨迹（需无障碍服务）</string>
+    <string name="setting_scheme_direct_jump">Scheme 直达优先</string>
+    <string name="setting_scheme_direct_jump_summary">规则目标使用 URL scheme 时直达功能页（如支付宝我的快递），优于纯包名进首页</string>
+    <string name="setting_jump_fallback_web">跳转失败网页兜底</string>
+    <string name="setting_jump_fallback_web_summary">目标 App 未安装或无法处理时，自动用浏览器搜索兜底</string>
+    <string name="setting_jump_precheck">跳转前预检</string>
+    <string name="setting_jump_precheck_summary">跳转前检测 intent 是否有处理器，避免无效跳转（黑屏/无响应）</string>
+
+
+    <string name="toast_hit_rule">命中：%1$s → %2$s</string>
+    <string name="rule_sort_frequency">常用优先</string>
+    <string name="stats_clear">清零</string>
+    <!-- v1.33 分享面板直达 -->
+    <string name="share_empty">分享内容为空</string>
+    <string name="share_handled">已处理分享内容</string>
+    <!-- v1.33 监听状态自检 -->
+    <string name="monitor_status_title">监听状态</string>
+    <string name="monitor_status_ok">监听正常</string>
+    <string name="monitor_status_broken">监听失效</string>
+    <string name="monitor_status_shizuku_ok">Shizuku 服务运行中，剪贴板监听正常</string>
+    <string name="monitor_status_shizuku_broken">Shizuku 服务不可用（重启后需重新授权），剪贴板监听已停止</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="monitor_status_accessibility_ok">无障碍服务运行中，剪贴板监听正常</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="monitor_status_accessibility_broken">无障碍服务未开启，剪贴板监听已停止</string>
+    <string name="monitor_status_lsposed">LSPosed 模式：激活状态请查看模块框架</string>
+    <string name="monitor_status_fix">一键恢复</string>
+    <string name="monitor_status_no_shizuku_app">未找到 Shizuku 应用</string>
+    <string name="keep_alive_self_heal">立即自愈</string>
+    <string name="keep_alive_self_heal_summary">检查并恢复无障碍绑定与 Shizuku 授权（后台每 60s 自动执行）</string>
+    <string name="keep_alive_self_heal_done">自愈检查完成，服务状态已刷新</string>
+    <!-- v1.33 去重窗口 -->
+    <string name="setting_duplicate_window">复制去重窗口</string>
+    <string name="setting_duplicate_window_summary">相同内容在窗口期内不重复触发跳转</string>
+    <string name="duplicate_window_0_5s">0.5 秒</string>
+    <string name="duplicate_window_1s">1 秒</string>
+    <string name="duplicate_window_1_5s">1.5 秒</string>
+    <string name="duplicate_window_2s">2 秒</string>
+    <string name="duplicate_window_3s">3 秒</string>
+    <string name="duplicate_window_5s">5 秒</string>
+    <string name="duplicate_window_10s">10 秒</string>
+    <!-- v1.33 场景规则集 -->
+    <string name="rule_scene_button">场景</string>
+    <string name="rule_scene_active">场景模式：%1$s</string>
+    <string name="rule_scene_exit">退出场景</string>
+    <string name="rule_scene_dialog_title">选择场景</string>
+    <string name="rule_scene_dialog_summary">仅启用所选分组的规则，退出时自动恢复原状态</string>
+    <string name="rule_scene_applied">场景已启用</string>
+    <string name="rule_scene_no_group">暂无分组，请先给规则设置分组</string>
+    <string name="stats_recent_jumps">最近跳转</string>
+    <string name="stats_recent_empty">暂无跳转记录</string>
+    <string name="action_log_copy">复制</string>
+    <string name="log_copied">日志已复制到剪贴板</string>
+    <string name="log_filter_all">全部</string>
+    <string name="log_filter_error">错误</string>
+    <string name="log_filter_warn">警告</string>
+    <string name="log_filter_debug">调试</string>
+    <string name="log_empty">暂无日志</string>
+    <string name="rule_toast_export_all">已复制全部规则 JSON 到剪贴板</string>
+    <string name="action_enable">启用</string>
+    <string name="action_disable">禁用</string>
+    <string name="rule_toast_merged">已合并重复规则，删除 %1$d 条</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="editor_priority">优先级</string>
+    <string name="editor_priority_summary">数值越大越优先（默认 0）</string>
+    <string name="editor_notification_mode">通知模式</string>
+    <string name="editor_notification_mode_summary">覆盖全局设置（空 = 跟随全局）</string>
+    <string name="editor_auto_recognize">智能识别（粘贴口令/短链自动填正则）</string>
+    <string name="editor_auto_recognize_none">未能识别内容类型，请粘贴口令或链接</string>
+    <string name="editor_auto_recognize_ok">已自动识别：%1$s</string>
+    <string name="clipboard_manual_title">手动输入内容</string>
+    <string name="clipboard_manual_summary">剪贴板读取失败，请粘贴或输入要添加的内容</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="clipboard_manual_hint">请先复制内容再点智能识别，或粘贴到触发器输入框</string>
+    <string name="editor_group">分组/标签</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="editor_exclude_regex">排除正则（负规则）</string>
+    <string name="editor_exclude_regex_summary">命中该正则的内容将跳过此规则</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="editor_regex_options">正则选项</string>
+    <string name="editor_regex_options_summary">i=忽略大小写 s=匹配换行 m=多行（可组合）</string>
+    <string name="editor_advanced_title">高级选项</string>
+    <string name="log_viewer_title">运行日志</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="action_log_refresh">刷新</string>
+    <string name="action_log_clear">清空</string>
+    <string name="setting_view_log">查看运行日志</string>
+    <string name="setting_view_log_summary">查看最近 3000 条调试/匹配日志（内存缓冲）</string>
+    <string name="rule_hit_count">命中 %1$d 次</string>
+    <string name="setting_match_debug_log">匹配调试日志</string>
+    <string name="setting_match_debug_log_summary">记录每条规则的匹配过程（写入 logcat，供排查规则不生效问题）</string>
+    <string name="editor_label_test_input">输入测试文本，实时验证正则</string>
+    <string name="editor_regex_invalid">⚠ 正则语法错误：%1$s</string>
+    <string name="editor_regex_danger">⚠ 该正则匹配所有内容，将拦截一切复制，请确认是有意为之</string>
+    <string name="editor_test_matched">✓ 命中：此文本会触发本规则</string>
+    <string name="editor_jump_precheck_ok">✓ 目标可达，可正常跳转</string>
+    <string name="editor_jump_precheck_fail">⚠️ 目标不可达（App 未安装或 scheme 无处理器）</string>
+    <string name="editor_test_jump">测试跳转</string>
+    <string name="editor_test_jump_sent">已发起测试跳转</string>
+    <string name="editor_test_jump_failed">跳转构建失败，请检查目标设置</string>
+    <string name="editor_scheme_help">Scheme 大全</string>
+    <string name="editor_test_unmatched">✗ 未命中：此文本不会触发本规则</string>
+    <string name="editor_test_extracted">提取参数：%1$s</string>
+    <string name="rule_toast_regex_invalid">正则语法错误，无法保存：%1$s</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="suggestion_exists">✓ 已添加</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="suggestion_duplicate_of">✓ 已添加（与『%1$s』相同）</string>
+    <string name="suggestion_analyzed_count">识别到 %1$d 个候选规则</string>
+    <!-- v1.62 UI 人性化 -->
+    <string name="suggestion_behavior">复制匹配内容后打开「%1$s」</string>
+    <string name="suggestion_preview_label">识别内容：%1$s</string>
+    <string name="suggestion_view_details">查看详情</string>
+    <string name="suggestion_hide_details">收起详情</string>
+    <string name="suggestion_duplicate_ok">✓ 已有相同规则</string>
+    <string name="editor_section_basic">基础信息</string>
+    <string name="editor_section_match">匹配与跳转</string>
+    <string name="editor_section_test">测试验证</string>
+    <string name="editor_advanced_expand">展开</string>
+    <string name="editor_advanced_collapse">收起</string>
+    <string name="editor_action_mode_parse_hint">提取链接中的关键内容（如视频 ID），拼接 App 跳转地址后打开</string>
+    <string name="editor_action_mode_direct_hint">直接打开对应 App，由 App 自行识别剪贴板内容</string>
+    <string name="editor_action_mode_webview_hint">先用内置网页打开短链，解析重定向后的真实地址再跳转 App（推荐短链）</string>
+    <string name="editor_action_mode_clipboard_write_hint">命中后把模板渲染结果写回剪贴板（不跳转），如复制「验证码：123456」自动提取 123456 供粘贴</string>
+    <string name="rule_toast_duplicate_with_name">已存在相同的规则：『%1$s』</string>
+    <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
+    <string name="clipboard_empty">剪贴板为空，请先复制内容</string>
+    <string name="accessibility_service_label">HyperCopy 剪贴板检测</string>
+    <string name="accessibility_service_description">实时监听剪贴板变化（后台运行），用于复制内容自动识别与直达跳转。无需读取窗口内容，请在开启时授予剪贴板访问权限。</string>
+    <string name="setting_accessibility_clipboard">无障碍剪贴板检测</string>
+    <string name="setting_accessibility_clipboard_summary_on">已开启：后台实时检测，无需系统日志，无悬浮窗打扰</string>
+    <string name="setting_accessibility_clipboard_summary_off">未开启：点击开关一键开启（需 Shizuku，免跳系统设置）</string>
+    <string name="accessibility_enabled_ok">无障碍检测已开启</string>
+    <string name="accessibility_disabled_ok">无障碍检测已关闭</string>
+    <string name="jump_short">跳转</string>
+    <string name="content_desc_search">搜索</string>
+    <string name="update_failed_no_release">未找到 Release 版本号</string>
+    <string name="update_failed_network">检查更新失败</string>
+    <string name="editor_test_group_format">组%1$d：%2$s</string>
+    <string name="template_generic_url">通用 URL</string>
+    <string name="template_taobao_command">淘宝口令（新旧围栏）</string>
+    <string name="template_jd_command">京东口令</string>
+    <string name="template_taobao_short">淘口令短码</string>
+    <string name="template_taobao_order">淘宝订单号</string>
+    <string name="template_tracking">快递单号</string>
+    <string name="template_phone">手机号</string>
+    <string name="template_email">邮箱</string>
+    <string name="template_id_card">身份证号</string>
+    <string name="template_date">日期</string>
+    <string name="template_douyin_short">抖音短链</string>
+    <string name="template_kuaishou_short">快手短链</string>
+    <string name="template_bilibili_short">B站短链</string>
+    <string name="template_xhs_short">小红书短链</string>
+    <string name="template_weibo_link">微博链接</string>
+    <string name="template_meituan_link">美团链接</string>
+    <string name="example_bilibili_name">B站视频</string>
+    <string name="example_bilibili_desc">复制 bilibili.com/video/BV1xx → 打开对应视频</string>
+    <string name="example_amap_name">高德地址</string>
+    <string name="example_amap_desc">复制含地址/省/市/镇的文本 → 高德搜索该地址</string>
+    <string name="example_douyin_name">抖音短链</string>
+    <string name="example_douyin_desc">复制 v.douyin.com 短链 → 网页解析后打开对应视频</string>
+    <string name="notif_follow_global">跟随全局</string>
+    <string name="notif_normal_click">普通通知</string>
+    <string name="notif_live">实时通知</string>
+    <string name="notif_miui_island">灵动岛</string>
+    <string name="notif_none_direct">无通知</string>
+    <string name="deleted">删除</string>
+    <string name="suggestion_parse_after_redirect">跳转后解析再打开 → %1$s</string>
+</resources>

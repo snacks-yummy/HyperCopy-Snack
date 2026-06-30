@@ -1,0 +1,770 @@
+package io.github.hypercopy.ui.components
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import io.github.hypercopy.R
+import io.github.hypercopy.data.rules.BuiltinRules
+import io.github.hypercopy.data.rules.RuleCategory
+import io.github.hypercopy.data.rules.RuleConfig
+import io.github.hypercopy.data.rules.toJson
+import io.github.hypercopy.data.systemlink.SystemLinkApp
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRowColors
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.ChevronForward
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.ListView
+import top.yukonga.miuix.kmp.icon.extended.SelectAll
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+@Composable
+internal fun RuleCategoryTabs(
+    selectedCategory: RulePageCategory,
+    onSelected: (RulePageCategory) -> Unit,
+    modifier: Modifier = Modifier,
+    includeSystem: Boolean = false,
+    colors: TabRowColors = TabRowDefaults.tabRowColors(),
+    // v1.76 各 Tab 数量（与 titles 顺序对应；null=不显示），如「链接 (33)」
+    counts: List<Int>? = null,
+) {
+    val titles = if (includeSystem) localRuleCategoryTabTitles else cloudRuleCategoryTabTitles
+    TabRowWithContour(
+        tabs = titles.mapIndexed { index, res ->
+            val title = stringResource(res)
+            if (counts != null && index < counts.size) "$title (${counts[index]})" else title
+        },
+        selectedTabIndex = if (includeSystem) selectedCategory.tabIndex() else selectedCategory.cloudTabIndex(),
+        onTabSelected = { onSelected(if (includeSystem) localRulePageCategoryFromTab(it) else cloudRulePageCategoryFromTab(it)) },
+        modifier = modifier.fillMaxWidth(),
+        colors = colors,
+    )
+}
+
+@Composable
+internal fun TestRuleCard(
+    category: RulePageCategory,
+    value: String,
+    resultText: String,
+    onValueChange: (String) -> Unit,
+    onExecute: () -> Unit,
+    onClear: () -> Unit = {},
+) {
+    // v1.77 可折叠：默认展开，点标题收起（为规则列表让出空间）
+    var collapsed by remember { mutableStateOf(false) }
+    Card {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable { collapsed = !collapsed },
+                // v1.131 标题行间距统一：收起提示与清空按钮间加 spacing，避免按钮自带内边距导致的视觉间距异常
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(text = stringResource(R.string.rule_test_title, stringResource(category.titleRes())), style = MiuixTheme.textStyles.title3, modifier = Modifier.weight(1f))
+                // v1.77 折叠状态提示（收起时仍可点标题展开）
+                Text(
+                    text = stringResource(if (collapsed) R.string.rule_test_collapsed else R.string.rule_test_collapse),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+                // v1.65 测试输入清空
+                TextButton(
+                    text = stringResource(R.string.action_clear),
+                    onClick = onClear,
+                )
+            }
+            if (!collapsed) {
+                TextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(category.testHintRes()),
+                    singleLine = false,
+                    maxLines = 3,
+                )
+                Text(
+                    text = resultText,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+                TextButton(
+                    text = stringResource(R.string.action_run_test),
+                    onClick = onExecute,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun SystemLinkHandlingCard(
+    checked: Boolean,
+    clearClipboardAfterJump: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onClearClipboardAfterJumpChange: (Boolean) -> Unit,
+) {
+    Card {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = stringResource(R.string.rule_system_link_title), style = MiuixTheme.textStyles.headline1)
+                    Text(
+                        text = stringResource(R.string.rule_system_link_summary),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+                Switch(checked = checked, onCheckedChange = { onCheckedChange(!checked) })
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = stringResource(R.string.rule_system_clear_clipboard_title), style = MiuixTheme.textStyles.headline1)
+                    Text(
+                        text = stringResource(R.string.rule_system_clear_clipboard_summary),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+                Switch(
+                    checked = clearClipboardAfterJump,
+                    onCheckedChange = { onClearClipboardAfterJumpChange(!clearClipboardAfterJump) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun SystemLinkAppListCard(
+    app: SystemLinkApp,
+    onClick: () -> Unit,
+    onAppEnabledChange: (Boolean) -> Unit,
+) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PackageIcon(packageName = app.packageName, modifier = Modifier.padding(end = 12.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = app.label, style = MiuixTheme.textStyles.headline1)
+                Text(
+                    text = app.packageName,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Switch(
+                checked = app.linkHandlingAllowed,
+                onCheckedChange = { onAppEnabledChange(!app.linkHandlingAllowed) },
+            )
+            IconButton(
+                onClick = onClick,
+                minWidth = 32.dp,
+                minHeight = 32.dp,
+                cornerRadius = 16.dp,
+                backgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.08f),
+                modifier = Modifier.padding(start = 10.dp),
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.ChevronForward,
+                    contentDescription = stringResource(R.string.action_open),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+@Composable
+internal fun EmptyRulesCard(
+    category: RulePageCategory,
+    onAddClick: (() -> Unit)? = null,
+) {
+    Card {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = stringResource(R.string.rule_empty_title, stringResource(category.titleRes())), style = MiuixTheme.textStyles.title3)
+            Text(
+                text = stringResource(category.emptyDescriptionRes()),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            // v1.65 空态引导：一键添加规则
+            if (onAddClick != null) {
+                TextButton(
+                    text = stringResource(R.string.rule_empty_add),
+                    onClick = onAddClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun RuleSelectionBar(
+    selectedCount: Int,
+    allSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onCloseClick: () -> Unit,
+    onSelectAllClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onEnableClick: () -> Unit = {},
+    onDisableClick: () -> Unit = {},
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            // 第一行：关闭 + 已选数量 + 全选/取消全选
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = onCloseClick,
+                    minWidth = 36.dp,
+                    minHeight = 36.dp,
+                    cornerRadius = 18.dp,
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.Close,
+                        contentDescription = stringResource(R.string.action_cancel_selection),
+                        tint = MiuixTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.rule_selected_count, selectedCount),
+                    style = MiuixTheme.textStyles.headline1,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp),
+                )
+                TextButton(
+                    text = stringResource(if (allSelected) R.string.action_select_none else R.string.action_select_all),
+                    onClick = onSelectAllClick,
+                )
+            }
+            // 第二行：操作按钮（图标 + 文字，直观不误点）
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SelectionActionButton(
+                    icon = MiuixIcons.SelectAll,
+                    text = stringResource(R.string.action_enable),
+                    onClick = onEnableClick,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionActionButton(
+                    icon = MiuixIcons.Close,
+                    text = stringResource(R.string.action_disable),
+                    onClick = onDisableClick,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionActionButton(
+                    icon = MiuixIcons.Delete,
+                    text = stringResource(R.string.action_trash),
+                    onClick = onDeleteClick,
+                    danger = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+/** v1.37 选择操作按钮：图标 + 文字（红色为危险操作） */
+@Composable
+private fun SelectionActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    danger: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val tint = if (danger) Color(0xFFF44336) else MiuixTheme.colorScheme.primary
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Icon(imageVector = icon, contentDescription = text, tint = tint, modifier = Modifier.size(20.dp))
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body2,
+            color = tint,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+internal fun RuleEditBar(
+    modifier: Modifier = Modifier,
+    onCloseClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IconButton(
+                onClick = onCloseClick,
+                minWidth = 36.dp,
+                minHeight = 36.dp,
+                cornerRadius = 18.dp,
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Close,
+                    contentDescription = stringResource(R.string.action_close),
+                    tint = MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Text(
+                text = stringResource(R.string.rule_sort_tip),
+                style = MiuixTheme.textStyles.headline1,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** v1.63 回收站顶栏：返回按钮 + 标题 + 数量（修复回收站无法返回规则列表） */
+@Composable
+internal fun RuleTrashBar(
+    modifier: Modifier = Modifier,
+    count: Int,
+    onBackClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IconButton(
+                onClick = onBackClick,
+                minWidth = 36.dp,
+                minHeight = 36.dp,
+                cornerRadius = 18.dp,
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Back,
+                    contentDescription = stringResource(R.string.action_back),
+                    tint = MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Text(
+                text = stringResource(R.string.rule_trash_bar_title, count),
+                style = MiuixTheme.textStyles.headline1,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun RuleCard(
+    rule: RuleConfig,
+    selected: Boolean,
+    selectionMode: Boolean,
+    sortMode: Boolean,
+    dragging: Boolean,
+    dragOffsetY: Float,
+    hitCount: Int = 0,
+    // v1.139.1c 用户修改过的内置规则 id（修改过=内置/我的；未修改的作者原版=云端）
+    modifiedBuiltinIds: Set<String> = emptySet(),
+    modifier: Modifier = Modifier,
+    onEnabledChange: (Boolean) -> Unit,
+    onEditClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onSelectionToggle: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+) {
+    val context = LocalContext.current
+    // v1.139.1b 规则来源：我的内置(蓝) / 作者原版内置+云端下载(橙, 细化源名) / 自定义(绿)
+    val isBuiltin = rule.id in MY_BUILTIN_RULE_IDS || rule.id in modifiedBuiltinIds
+    val isCloud = !isBuiltin && (rule.id.startsWith(BuiltinRules.ID_PREFIX) || rule.id.startsWith("cloud_"))
+    val isCustom = !isBuiltin && !isCloud
+    // v1.139.1b 云端源名细化：cloud_1812z_/作者原版内置=作者 / cloud_snacks_=零食仓库 / cloud_custom_=自定义源
+    val cloudBadgeText = when {
+        rule.id.startsWith("cloud_1812z_") || (rule.id.startsWith(BuiltinRules.ID_PREFIX) && !isBuiltin) -> "云端·作者"
+        rule.id.startsWith(BuiltinRules.ID_PREFIX) -> "内置"
+        rule.id.startsWith("cloud_snacks_") -> "云端·零食"
+        rule.id.startsWith("cloud_custom_") -> "云端·自定义"
+        else -> stringResource(R.string.rule_cloud_badge)
+    }
+    Card(
+        modifier = modifier
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer { translationY = dragOffsetY },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { rowModifier ->
+                    if (sortMode) {
+                        rowModifier
+                    } else {
+                        rowModifier.combinedClickable(
+                            onClick = { if (selectionMode) onSelectionToggle() else onEditClick() },
+                            onLongClick = onLongClick,
+                        )
+                    }
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PackageIcon(
+                packageName = rule.target.packageName,
+                fallbackText = rule.name,
+                modifier = Modifier.padding(end = 12.dp),
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = rule.name,
+                        style = MiuixTheme.textStyles.headline1,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        // v1.127b 名称占剩余空间收缩（防多徽标挤压名称溢出）
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (isBuiltin) {
+                        Text(
+                            text = stringResource(R.string.rule_builtin_badge),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .background(
+                                    color = MiuixTheme.colorScheme.primary.copy(alpha = 0.10f),
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    } else if (isCloud) {
+                        // v1.139.1 作者云端规则：橙色徽标（与内置/自定义区分，便于识别不适配规则）
+                        val cloudColor = Color(0xFFF97316)
+                        Text(
+                            text = cloudBadgeText,
+                            style = MiuixTheme.textStyles.body2,
+                            color = cloudColor,
+                            modifier = Modifier
+                                .background(
+                                    color = cloudColor.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    } else if (isCustom) {
+                        // v1.139.1 自定义规则：绿色徽标
+                        val customColor = Color(0xFF16A34A)
+                        Text(
+                            text = stringResource(R.string.rule_custom_badge),
+                            style = MiuixTheme.textStyles.body2,
+                            color = customColor,
+                            modifier = Modifier
+                                .background(
+                                    color = customColor.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
+                    // v1.126 跳转方式徽标：⚡Scheme直达 / 🔗包名(首页) / 🌐网页
+                    val jumpBadge = jumpModeBadge(rule)
+                    if (jumpBadge != null) {
+                        Text(
+                            text = jumpBadge.first,
+                            style = MiuixTheme.textStyles.body2,
+                            color = jumpBadge.second,
+                            modifier = Modifier
+                                .background(
+                                    color = jumpBadge.second.copy(alpha = 0.10f),
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
+                    if (rule.group.isNotBlank()) {
+                        Text(
+                            text = rule.group,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .background(
+                                    color = MiuixTheme.colorScheme.surfaceContainerHigh,
+                                    shape = RoundedCornerShape(4.dp),
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(ruleActionLabelRes(rule)),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.primary,
+                )
+                if (hitCount > 0) {
+                    Text(
+                        text = stringResource(R.string.rule_hit_count, hitCount),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+            }
+            if (sortMode) {
+                Icon(
+                    imageVector = MiuixIcons.ListView,
+                    contentDescription = stringResource(R.string.action_sort_rule),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier
+                        .padding(start = 12.dp)
+                        .size(24.dp)
+                        .pointerInput(rule.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { onDragStart() },
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragEnd,
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onDrag(dragAmount.y)
+                                },
+                            )
+                        },
+                )
+            } else if (selectionMode) {
+                Checkbox(
+                    state = if (selected) ToggleableState.On else ToggleableState.Off,
+                    onClick = onSelectionToggle,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+            if (!selectionMode && !sortMode) {
+                Switch(checked = rule.enabled, onCheckedChange = { onEnabledChange(!rule.enabled) })
+                IconButton(
+                    onClick = { copyRuleToClipboard(context, rule) },
+                    minWidth = 32.dp,
+                    minHeight = 32.dp,
+                    cornerRadius = 16.dp,
+                    backgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    modifier = Modifier.padding(start = 10.dp),
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.Copy,
+                        contentDescription = stringResource(R.string.action_copy_rule),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                IconButton(
+                    onClick = onEditClick,
+                    minWidth = 32.dp,
+                    minHeight = 32.dp,
+                    cornerRadius = 16.dp,
+                    backgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    modifier = Modifier.padding(start = 10.dp),
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.ChevronForward,
+                        contentDescription = stringResource(R.string.action_edit),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 复制规则（JSON）到剪贴板 */
+private fun copyRuleToClipboard(context: Context, rule: RuleConfig) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val json = rule.toJson().toString(2)
+    clipboard.setPrimaryClip(ClipData.newPlainText(rule.name, json))
+    Toast.makeText(context, context.getString(R.string.rule_toast_copied), Toast.LENGTH_SHORT).show()
+}
+
+@Composable
+internal fun AddRuleMenu(
+    category: RulePageCategory,
+    modifier: Modifier = Modifier,
+    onBrowserClick: () -> Unit,
+    onLinkRuleClick: () -> Unit,
+    onExpressRuleClick: () -> Unit,
+    onClipboardClick: () -> Unit,
+    onMergeDuplicateClick: () -> Unit = {},
+    onExportAllClick: () -> Unit = {},
+    onImportFileClick: () -> Unit = {},
+    onExportFileClick: () -> Unit = {},
+    onRestoreBuiltinClick: () -> Unit = {},
+    onShareRuleClick: () -> Unit = {},
+) {
+    var showPopup by remember { mutableStateOf(false) }
+    val items = listOf(
+        stringResource(R.string.rule_menu_browser),
+        stringResource(R.string.action_add_rule),
+        stringResource(R.string.rule_menu_clipboard),
+        stringResource(R.string.action_merge_duplicate),
+        stringResource(R.string.action_export_all),
+        stringResource(R.string.action_export_file),
+        stringResource(R.string.action_import_file),
+        stringResource(R.string.action_restore_builtin),
+        stringResource(R.string.action_share_rule_cloud),
+    )
+
+    Box(modifier = modifier) {
+        FloatingActionButton(onClick = { if (category == RulePageCategory.Link) showPopup = true else onExpressRuleClick() }) {
+            Icon(
+                imageVector = MiuixIcons.Add,
+                contentDescription = stringResource(R.string.action_add_rule),
+                tint = MiuixTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+        OverlayListPopup(
+            show = showPopup && category == RulePageCategory.Link,
+            alignment = PopupPositionProvider.Align.End,
+            onDismissRequest = { showPopup = false },
+        ) {
+            ListPopupColumn {
+                items.forEachIndexed { index, text ->
+                    DropdownImpl(
+                        text = text,
+                        optionSize = items.size,
+                        isSelected = false,
+                        index = index,
+                        onSelectedIndexChange = {
+                            showPopup = false
+                            when (index) {
+                                0 -> onBrowserClick()
+                                1 -> onLinkRuleClick()
+                                2 -> onClipboardClick()
+                                3 -> onMergeDuplicateClick()
+                                4 -> onExportAllClick()
+                                5 -> onExportFileClick()
+                                6 -> onImportFileClick()
+                                7 -> onRestoreBuiltinClick()
+                                else -> onShareRuleClick()
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 生成 HyperCopy_Rules 云规则仓库提交链接（v1.27 云分享） */
+internal fun githubRuleSubmissionUri(rule: io.github.hypercopy.data.rules.RuleConfig): android.net.Uri {
+    val folder = if (rule.category == io.github.hypercopy.data.rules.RuleCategory.Link) "link" else "text"
+    val safeName = rule.name.toRuleFileNamePart().ifBlank { "rule" }
+    val safePackageName = rule.target.packageName.toRuleFileNamePart()
+    val fileName = listOf(safeName, safePackageName).filter { it.isNotBlank() }.joinToString("_") + ".json"
+    return android.net.Uri.Builder()
+        .scheme("https")
+        .authority("github.com")
+        .appendPath("1812z")
+        .appendPath("HyperCopy_Rules")
+        .appendPath("new")
+        .appendPath("main")
+        .appendPath(folder)
+        .appendQueryParameter("filename", fileName)
+        .appendQueryParameter("value", rule.toJson().toString(2))
+        .appendQueryParameter("message", "Add $fileName")
+        .build()
+}
+internal fun String.toRuleFileNamePart(): String = trim().replace(Regex("[\\\\/:*?\"<>|]"), "_")
+
+/** v1.126 跳转方式徽标（v1.127b：去掉 emoji 前缀防豆腐块渲染，纯文字+颜色区分） */
+internal fun jumpModeBadge(rule: io.github.hypercopy.data.rules.RuleConfig): Pair<String, Color>? {
+    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return "改写" to Color(0xFF9C6ADE)
+    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.NotifyOnly) return "仅通知" to Color(0xFF00A0E9)
+    val template = rule.target.template
+    return when {
+        template.isBlank() && rule.target.packageName.isNotBlank() -> "包名" to Color(0xFF6C8EF5)
+        template.startsWith("http", ignoreCase = true) -> "网页" to Color(0xFF00B578)
+        template.isNotBlank() -> "Scheme" to Color(0xFFF5A623)
+        else -> null
+    }
+}
