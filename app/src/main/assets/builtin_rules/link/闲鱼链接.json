@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "schemaVersion": 3,
+  "rules": [
+    {
+      "id": "builtin_cloud_link_闲鱼链接",
+      "name": "闲鱼 · 链接",
+      "category": "link",
+      "enabled": true,
+      "actionMode": "parse_and_open",
+      "matchRegex": ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|(?<!e\\.)tb\\.cn[^\\s]*).*",
+      "parameterRegex": "(https?:\\/\\/[^\\s]+)",
+      "triggerRegexes": [
+        ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|(?<!e\\.)tb\\.cn[^\\s]*).*"
+      ],
+      "extractionRegexes": [
+        "(https?:\\/\\/[^\\s]+)"
+      ],
+      "parseAfterRedirect": false,
+      "target": {
+        "type": "url",
+        "template": "fleamarket://2.taobao.com/onepiece?h5Url=${url:input}",
+        "packageName": "com.taobao.idlefish",
+        "action": "android.intent.action.VIEW"
+      },
+      "createdAt": 1787135091130
+    }
+  ]
+}

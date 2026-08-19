@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "schemaVersion": 3,
+  "rules": [
+    {
+      "id": "builtin_cloud_link_淘宝口令",
+      "name": "淘宝 · 口令",
+      "category": "link",
+      "enabled": true,
+      "actionMode": "direct_open",
+      "matchRegex": "[\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐]",
+      "parameterRegex": "([\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐])",
+      "triggerRegexes": [
+        "[\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐]"
+      ],
+      "extractionRegexes": [
+        "([\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐])"
+      ],
+      "parseAfterRedirect": false,
+      "target": {
+        "type": "url",
+        "template": "",
+        "packageName": "com.taobao.taobao",
+        "action": "android.intent.action.VIEW"
+      },
+      "createdAt": 1787134172722
+    }
+  ]
+}

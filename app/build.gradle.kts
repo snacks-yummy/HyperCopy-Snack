@@ -21,8 +21,8 @@ compileSdk = 37
         applicationId = "io.github.hypercopy"
         minSdk = 33
         targetSdk = 36
-        versionCode = 251
-        versionName = "1.141.68"
+        versionCode = 252
+        versionName = "1.141.69"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

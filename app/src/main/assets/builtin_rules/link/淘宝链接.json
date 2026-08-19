@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "schemaVersion": 3,
+  "rules": [
+    {
+      "id": "builtin_cloud_link_淘宝链接",
+      "name": "淘宝 · 链接",
+      "category": "link",
+      "enabled": true,
+      "actionMode": "direct_open",
+      "matchRegex": ".*(\\Qtaobao.com\\E|\\Qtb.cn\\E|\\Qtmall.com\\E|\\Qe.tb.cn\\E).*",
+      "parameterRegex": "(https?:\\/\\/[^\\s]+)",
+      "triggerRegexes": [
+        ".*(\\Qtaobao.com\\E|\\Qtb.cn\\E|\\Qtmall.com\\E|\\Qe.tb.cn\\E).*"
+      ],
+      "extractionRegexes": [
+        "(https?:\\/\\/[^\\s]+)"
+      ],
+      "parseAfterRedirect": false,
+      "target": {
+        "type": "url",
+        "template": "${url:input}",
+        "packageName": "com.taobao.taobao",
+        "action": "android.intent.action.VIEW"
+      },
+      "createdAt": 1787134654760
+    }
+  ]
+}
