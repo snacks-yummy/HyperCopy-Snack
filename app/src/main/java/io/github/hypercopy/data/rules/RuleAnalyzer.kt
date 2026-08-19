@@ -170,6 +170,8 @@ object RuleAnalyzer {
         val extractionRegex: String = matchRegex,
         // v1.57 重定向后解析（对齐官方短链规则：抖音/小红书/快手/B站短链重定向后提取参数拼 App scheme）
         val parseAfterRedirect: Boolean = false,
+        // v1.141.75 多提取正则（与内置规则 extractionRegexes 对齐）：如外卖取件通知 [柜位, 取件码] → r1/r2
+        val extractionRegexes: List<String> = emptyList(),
     )
 
     fun analyze(text: String): List<Suggestion> {
@@ -466,16 +468,20 @@ object RuleAnalyzer {
         //  ① 仅通知（NotifyOnly，纯净文本通知，归文本分类可自选通知渠道）
         //  ② 跳转微信（DirectOpen 打开 mt.cn，系统按 AppLinks/scheme 自动拉起微信小程序）
         if (isTakeoutShortLinkHost(host) && hasTakeoutPickupHint(text)) {
-            val pkg = TAKEOUT_PKG_BY_HOST[host] ?: "com.sankuai.meituan"
             val taRegex = ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*"
+            // v1.141.75 统一标准：仅通知对齐内置「外卖取件通知」——外卖语境匹配 + 柜位/取件码双提取 + 标准模板
+            val notifyRegex = ".*(?:外卖|餐|已放|送达).*(?:mt\\.cn|ele\\.me|waimai\\.meituan\\.com|h5\\.ele\\.me|格口|柜|取件码|取餐码).*"
+            val cabinetRegex = "([A-Za-z0-9]{0,3}柜\\s*\\d+(?:号)?\\s*格口|\\d+(?:号)?\\s*格口|[A-Za-z0-9]{0,3}柜\\s*\\d+)"
+            val codeRegex = "(?:使用|输入|凭|取件码(?:是|为)?[:：]?)\\s*(\\d{4,12})\\s*(?:取件|领取|取货|收件)?"
             return listOf(
                 Suggestion(
                     platform = "外卖取件 · 仅通知",
-                    packageName = pkg,
-                    matchRegex = taRegex,
+                    packageName = "",
+                    matchRegex = notifyRegex,
                     actionMode = RuleActionMode.NotifyOnly,
-                    template = "",
-                    extractionRegex = URL_EXTRACT_REGEX.pattern,
+template = "取件码 \${r2} · \${r1}",
+                    extractionRegex = cabinetRegex,
+                    extractionRegexes = listOf(cabinetRegex, codeRegex),
                 ),
                 Suggestion(
                     platform = "美团小程序",

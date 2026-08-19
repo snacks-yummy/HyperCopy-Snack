@@ -337,7 +337,7 @@ private fun RuleAnalyzer.Suggestion.toRuleConfig(context: Context): RuleConfig =
     parameterRegex = extractionRegex,
     triggerRegexes = listOf(matchRegex),
     // v1.44 提取正则用带捕获组版本（trigger 与 extraction 分离），确保能提取到参数 r1
-    extractionRegexes = listOf(extractionRegex),
+    extractionRegexes = extractionRegexes.ifEmpty { listOf(extractionRegex) },
     // v1.57 短链规则对齐官方：重定向后解析参数拼 App scheme（抖音/小红书/快手/B站短链）
     parseAfterRedirect = parseAfterRedirect,
     // v1.58 场景联动：场景激活（v1.33 场景规则集）时新识别规则自动归入当前场景组，

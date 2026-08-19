@@ -18,7 +18,7 @@
   "target": {
     "type": "url",
     "template": "${url:input}",
-    "packageName": "com.sankuai.meituan.takeoutnew",
+    "packageName": "",
     "action": "android.intent.action.VIEW"
   },
   "clearClipboardAfterJump": false
