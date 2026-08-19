@@ -480,7 +480,9 @@ object RuleAnalyzer {
                     matchRegex = notifyRegex,
                     actionMode = RuleActionMode.NotifyOnly,
 template = "取件码 \${r2} · \${r1}",
-                    extractionRegex = cabinetRegex,
+                    // v1.141.86 parameterRegex 置空对齐内置（内置 parameterRegex=""，多提取由 extractionRegexes 承载）
+                    // 根因：extractionRegex 非空会写入 parameterRegex → 与内置不一致 → sameContentAs 判定不同 → 重复检测失效
+                    extractionRegex = "",
                     extractionRegexes = listOf(cabinetRegex, codeRegex),
                 ),
                 Suggestion(

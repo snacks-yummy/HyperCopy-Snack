@@ -503,9 +503,24 @@ private fun SuggestionCard(
 }
 
 /** v1.62 识别内容预览：用提取正则匹配原文，优先取捕获组 1（口令码/关键内容），无捕获组取整段匹配 */
+/** v1.141.86 多提取预览：extractionRegexes 有多个且模板含 ${rN} 时，用模板渲染完整结构化预览（如 取件码 4489 · A柜99格口） */
 private fun previewRecognizedContent(suggestion: RuleAnalyzer.Suggestion, sourceText: String): String? {
     if (sourceText.isBlank()) return null
     return runCatching {
+        if (suggestion.extractionRegexes.size > 1 && suggestion.template.contains("\${r")) {
+            val params = mutableMapOf<String, String>()
+            suggestion.extractionRegexes.forEachIndexed { idx, pattern ->
+                if (pattern.isNotBlank()) {
+                    runCatching {
+                        Regex(pattern).find(sourceText)?.groupValues?.getOrNull(1)?.let { params["r${idx + 1}"] = it }
+                    }
+                }
+            }
+            val rendered = params.entries.fold(suggestion.template) { acc, (k, v) -> acc.replace("${'$'}{$k}", v) }
+            val leftover = Regex("\$\\{[^}]+}").containsMatchIn(rendered)
+            if (!leftover) return rendered.take(60)
+        }
+        if (suggestion.extractionRegex.isBlank()) return null
         val m = Regex(suggestion.extractionRegex).find(sourceText) ?: return null
         m.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: m.value
     }.getOrNull()?.takeIf { it.isNotBlank() && it.length <= 60 }
