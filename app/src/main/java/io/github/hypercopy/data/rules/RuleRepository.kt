@@ -40,6 +40,9 @@ class RuleRepository(private val context: Context) {
         //      但真机装的是美团外卖独立 App，主App非外卖包名显示不出"美团外卖"图标。
         // 幂等：每次 readRules 检查，packageName 非目标外卖包名则改（尊重用户后续手动修改）。
         migrateTakeoutJumpIconV14130()
+        // v1.141.73 幂等迁移：取件码通知 extraction 位数对齐（\d{9,12}→\d{4,12}，修复 4-8 位尾号提取为空）
+        // + 快递单号 matchRegex 补 JDVA（与 trigger 对齐，京东生鲜单号可查件）
+        migrateTextRulesV14173()
         // v1.141.32 幂等迁移：短信验证码提取 + 取件码通知 内置规则关键词全量扩充
         // 背景：v1.141.32 默认覆盖行业全量短信码场景（认证/激活/授权/绑定/OTP/PIN + 领货/寄件/寄存等），
         //      但内置规则一旦写入本地不自动覆盖（v1.43 设计），需用 assets 权威正则显式升级原版。
@@ -431,6 +434,43 @@ class RuleRepository(private val context: Context) {
         persistRules(newList)
     }
         /**
+     * v1.141.73 幂等迁移：文本类内置规则两处修复（本地已写入的旧版不自动覆盖，需显式迁移）。
+     * ① 取件码通知 extraction 第三分支 (\\d{9,12}) → (\\d{4,12})：
+     *    matchRegex 匹配 4-12 位但 extraction 只提取 9-12 位 → 「手机尾号/尾号」4-8 位命中但提取为空。
+     * ② 快递单号 matchRegex 补 JDVA（trigger 已有）：京东生鲜单号 JDVA 开头不触发查件。
+     * 幂等：条件不满足（已修复/非原版）时不改动；无 prefs 标记，每次 readRules 检查。
+     */
+    private fun migrateTextRulesV14173() {
+        if (!rulesFile().exists()) return
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(rulesFile().readText())
+        }.getOrDefault(emptyList()).map { rule ->
+            when (rule.id) {
+                "${BuiltinRules.ID_PREFIX}cloud_text_取件码通知" -> {
+                    val ex = rule.extractionRegexes.firstOrNull() ?: return@map rule
+                    val fixed = ex.replace("(\\d{9,12})", "(\\d{4,12})")
+                    if (fixed != ex) {
+                        changed = true
+                        rule.copy(extractionRegexes = listOf(fixed) + rule.extractionRegexes.drop(1))
+                    } else rule
+                }
+                "${BuiltinRules.ID_PREFIX}cloud_text_快递单号菜鸟查件_com.cainiao.wireless" -> {
+                    if (!rule.matchRegex.contains("JDVA") && rule.matchRegex.contains("JDAP)\\d{11,15}")) {
+                        changed = true
+                        rule.copy(matchRegex = rule.matchRegex.replace("JDAP)\\d{11,15}", "JDAP|JDVA)\\d{11,15}"))
+                    } else rule
+                }
+                else -> rule
+            }
+        }
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.73 migrate text rules: pickup digits aligned + JDVA added")
+        }
+    }
+
+    /**
      * v1.101 一次性迁移：菜鸟查件内置规则正则精确化（按公司标准位数）。
      * 背景：旧正则 `(?:YT|SF|...)\d{9,20}` 过宽，10 位短号 YT1234567890 也触发跳转，
      * 菜鸟查询后提示「请检查运单号输入是否正确」。升级不覆盖已有规则（v1.43 设计），
