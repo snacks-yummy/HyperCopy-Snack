@@ -128,7 +128,7 @@ private fun List<String>.toJsonArray(): JSONArray = JSONArray().also { array ->
 
 fun RuleTarget.toJson(): JSONObject = JSONObject()
     .put("type", type.value)
-    .put("template", template)
+    .put("template", template.normalizeTemplateSlash())
     .put("packageName", packageName)
     .put("action", action)
 
@@ -190,7 +190,7 @@ fun ruleTargetFromJson(json: JSONObject): RuleTarget {
     }
     return RuleTarget(
         type = type,
-        template = json.optString("template"),
+        template = json.optString("template").normalizeTemplateSlash(),
         packageName = json.optString("packageName"),
         action = json.optString("action", Intent.ACTION_VIEW),
     )
@@ -240,3 +240,12 @@ fun RuleConfig.isTaobaoLinkRule(): Boolean =
     target.template.orEmpty().contains("\${url:input}") &&
         (matchRegex.contains("taobao.com") || matchRegex.contains("tb.cn") ||
             matchRegex.contains("tmall.com") || matchRegex.contains("e.tb.cn"))
+
+/**
+ * v1.141.70 URI template 转义残留归一化：
+ * 识别器/外部工具导出的 JSON 可能把 `/` 序列化为 `\\/`（JSON 双重转义残留），
+ * 解码后 template 为 `fleamarket:\\/\\/...`（反斜杠+斜杠），作为 URI 模板跳转存在风险。
+ * 正则字段（matchRegex 等）不在此清洗——Java 正则中 `\\/` 等价 `/`，且可能属用户有意写法。
+ * 幂等：已干净（无 `\\/`）时原样返回。
+ */
+fun String.normalizeTemplateSlash(): String = replace("\\/", "/")
