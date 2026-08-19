@@ -460,7 +460,7 @@ class RuleRepository(private val context: Context) {
             rulesFromJson(rulesFile().readText())
         }.getOrDefault(emptyList()).map { rule ->
             val curCabinet = rule.extractionRegexes.firstOrNull().orEmpty()
-            if (rule.id == targetId && !curCabinet.contains("口令码")) {
+            if (rule.id == targetId && curCabinet != cabinet) {
                 changed = true
                 rule.copy(
                     matchRegex = match,
