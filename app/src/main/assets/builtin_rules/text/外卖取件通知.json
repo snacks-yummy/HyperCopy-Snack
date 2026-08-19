@@ -1,0 +1,23 @@
+{
+  "name": "外卖取件通知",
+  "category": "text",
+  "enabled": true,
+  "actionMode": "notify_only",
+  "priority": 100,
+  "matchRegex": ".*(?:外卖|餐|已放|送达).*(?:mt\\.cn|ele\\.me|waimai\\.meituan\\.com|h5\\.ele\\.me|格口|柜|取件码|取餐码).*",
+  "parameterRegex": "",
+  "triggerRegexes": [
+    ".*(?:外卖|餐|已放|送达).*(?:mt\\.cn|ele\\.me|waimai\\.meituan\\.com|h5\\.ele\\.me|格口|柜|取件码|取餐码).*"
+  ],
+  "extractionRegexes": [
+    "([A-Za-z0-9]{0,3}柜\\s*\\d+(?:号)?\\s*格口|\\d+(?:号)?\\s*格口|[A-Za-z0-9]{0,3}柜\\s*\\d+)",
+    "(?:使用|输入|凭|取件码(?:是|为)?[:：]?)\\s*(\\d{4,12})\\s*(?:取件|领取|取货|收件)?"
+  ],
+  "parseAfterRedirect": false,
+  "target": {
+    "type": "url",
+    "template": "取件码 ${r2} · ${r1}",
+    "packageName": "",
+    "action": "android.intent.action.VIEW"
+  }
+}
