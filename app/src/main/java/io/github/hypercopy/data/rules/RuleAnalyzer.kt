@@ -372,6 +372,11 @@ object RuleAnalyzer {
 
     // ===== 口令分析 =====
     private fun analyzeKouLing(text: String): List<Suggestion> {
+        // v1.141.61 修复：混合内容（口令围栏+商品链接）不应归为口令
+        // 根因：analyze() 优先级口令先于 URL → 含链接的分享文案被 analyzeKouLing 兜底为「淘宝·口令」
+        // → 用户保存时触发合并提示（已有同名规则），必须「保存并编辑」才能拆出独立链接规则。
+        // 修复：检测到 URL 时返回空列表，让 analyze() 继续走 URL 分析器（精准生成「淘宝·链接」）。
+        if (!extractFirstInputUrl(text).isNullOrBlank()) return emptyList()
         val lower = text.lowercase()
         // v1.44 词边界优化：jd/pdd 用独立词匹配避免子串误判（如 "ljdxxx"）；京东/拼多多中文关键词优先级最高
         val platform = when {
