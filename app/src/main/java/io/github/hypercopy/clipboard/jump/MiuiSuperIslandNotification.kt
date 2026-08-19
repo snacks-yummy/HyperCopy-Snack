@@ -28,12 +28,6 @@ object MiuiSuperIslandNotification {
         extras.putBundle("miui.focus.pics", pictureBundle(context, packageName))
         notification.extras.putAll(extras)
         notification.extras.putString("miui.focus.param", islandParams(context, title, content, jumpActions))
-        // v1.141.87i 诊断日志：输出岛参数结构（排查 87h 后不上岛）
-        io.github.hypercopy.HyperLog.d(
-            "HyperCopy-Island",
-            "apply: title=[$title] content=[$content] jumpActions=${jumpActions.size} " +
-                "param=${notification.extras.getString("miui.focus.param")?.take(400)}",
-        )
     }
     private fun actionBundle(context: Context, jumpActions: List<PendingJumpCoordinator.JumpAction>): Bundle {
         val actions = Bundle()
