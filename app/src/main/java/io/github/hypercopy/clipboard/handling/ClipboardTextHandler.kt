@@ -746,6 +746,7 @@ object ClipboardTextHandler {
         // v1.141.87c 关键词式通知：title=平台+类型+码值；content 多行结构化
         val title: String
         val text: String
+        var islandContent: String? = null // v1.141.87h 岛内精简正文（外卖=地址单行，通知栏保持完整）
         if (rule.name.contains("外卖")) {
             // v1.141.87g 外卖结构化 v2（方案C）：title=平台·柜位（胶囊）；content=地址(去城市名)+取件码
             // 优先级：柜位 > 地址 > 取件码
@@ -753,6 +754,7 @@ object ClipboardTextHandler {
             val code = params["r2"].orEmpty()
             val cabinet = params["r1"].orEmpty()
             val address = trimCityPrefix(extractWaimaiAddress(input))
+            islandContent = address.takeIf { it.isNotBlank() }
             title = when {
                 platform.isNotBlank() && cabinet.isNotBlank() -> "$platform · $cabinet"
                 cabinet.isNotBlank() -> "$cabinet"
@@ -783,6 +785,7 @@ object ClipboardTextHandler {
                 notificationId = Config.TEXT_NOTIFY_PICKUP_NOTIFICATION_ID,
                 title = title,
                 content = text,
+                islandContent = islandContent,
                 packageName = rule.target.packageName,
                 icon = android.R.drawable.ic_dialog_info,
             ),

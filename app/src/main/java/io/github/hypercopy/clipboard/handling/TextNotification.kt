@@ -135,7 +135,7 @@ object TextNotification {
         if (mode == Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND) {
             runCatching {
                 MiuiSuperIslandNotification.apply(
-                    context, notification, entry.title, entry.content, entry.packageName.orEmpty(), emptyList(),
+                    context, notification, entry.title, entry.islandContent ?: entry.content, entry.packageName.orEmpty(), emptyList(),
                 )
             }.onFailure { HyperLog.d(tag, "灵动岛extras失败: ${it.message}") }
         }
@@ -186,4 +186,7 @@ data class TextNotificationEntry(
     val packageName: String?,
     /** 小图标资源 */
     val icon: Int,
+    /** v1.141.87h 岛内专用正文：澎湃岛大岛 content 区域单行显示，超长截断；
+     * 通知栏 BigText 仍用完整 content。null 时岛内回退用 content。 */
+    val islandContent: String? = null,
 )
