@@ -46,6 +46,8 @@ class RuleRepository(private val context: Context) {
         // v1.141.79 幂等迁移：本地美团小程序(takeout_jump) pkg 对齐——v1.141.75 assets 已改 pkg 为空
         // （实测最终走 weixin://dl/business 小程序，setPackage 强投美团App失败），本地旧版需显式迁移
         migrateTakeoutJumpPkgV14179()
+        // v1.141.81 幂等迁移：外卖取件通知规则柜位/取件码正则完善（对齐 assets 权威多变体版）
+        migrateWaimaiNotifyV14181()
         // v1.141.32 幂等迁移：短信验证码提取 + 取件码通知 内置规则关键词全量扩充
         // 背景：v1.141.32 默认覆盖行业全量短信码场景（认证/激活/授权/绑定/OTP/PIN + 领货/寄件/寄存等），
         //      但内置规则一旦写入本地不自动覆盖（v1.43 设计），需用 assets 权威正则显式升级原版。
@@ -437,6 +439,42 @@ class RuleRepository(private val context: Context) {
         persistRules(newList)
     }
         /**
+     * v1.141.81 幂等迁移：外卖取件通知规则正则完善（对齐 assets 权威版）。
+     * 背景：assets 已支持多变体柜位（A柜79格口/1号柜外卖柜38格口/格口号：11/3号格口）、
+     *      已送至 匹配、取餐码/开柜 取件码。本地已写入旧版不覆盖（v1.43）→ 显式迁移。
+     * 幂等：本地 matchRegex 含「1号柜外卖柜」特征则视为已更新，跳过。
+     */
+    private fun migrateWaimaiNotifyV14181() {
+        if (!rulesFile().exists()) return
+        val targetId = "${BuiltinRules.ID_PREFIX}cloud_text_外卖取件通知"
+        val asset = runCatching {
+            context.assets.open("builtin_rules/text/外卖取件通知.json").use { input ->
+                val obj = org.json.JSONObject(input.bufferedReader().readText())
+                val arr = obj.getJSONArray("extractionRegexes")
+                Triple(obj.getString("matchRegex"), arr.getString(0), arr.getString(1))
+            }
+        }.getOrNull() ?: return
+        val (match, cabinet, code) = asset
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(rulesFile().readText())
+        }.getOrDefault(emptyList()).map { rule ->
+            if (rule.id == targetId && !rule.matchRegex.contains("1号柜外卖柜")) {
+                changed = true
+                rule.copy(
+                    matchRegex = match,
+                    triggerRegexes = listOf(match),
+                    extractionRegexes = listOf(cabinet, code),
+                )
+            } else rule
+        }
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.81 migrate waimai notify: cabinet/code variants applied")
+        }
+    }
+
+    /**
      * v1.141.79 幂等迁移：美团小程序内置规则 pkg 对齐（takeoutnew → 空）。
      * 背景：v1.141.75 assets/takeout_jump.json pkg 已改为空（实测 mt.cn → peisong → weixin://dl/business
      *       拉起微信小程序，https 网页+美团包名 setPackage 强投失败），但本地已写入旧版不覆盖（v1.43），
