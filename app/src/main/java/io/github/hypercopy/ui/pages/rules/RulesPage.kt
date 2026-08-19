@@ -796,6 +796,7 @@ if (sceneGroup.isNotEmpty()) {
                         // v1.40 兜底：剪贴板为空/被清理时，用最近一次处理过的文本
                         val finalText = clipText?.takeIf { it.isNotBlank() }
                             ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
+                            ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.readPersistedLastProcessed(context)
                         if (finalText.isNullOrBlank()) {
                             // v1.41 终极兜底：弹手动输入框，不再卡死
                             manualInputText = ""

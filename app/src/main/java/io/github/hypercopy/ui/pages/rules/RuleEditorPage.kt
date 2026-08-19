@@ -249,6 +249,7 @@ fun RuleEditorPage(
                         io.github.hypercopy.clipboard.handling.ClipboardTextReader.readDelayed(context, source = "editor") { clipText ->
                             val finalText = clipText?.takeIf { it.isNotBlank() }
                                 ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
+                                ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.readPersistedLastProcessed(context)
                             if (finalText.isNullOrBlank()) {
                                 // v1.42 弹手动输入框（不再只提示已空）
                                 showManualInput = true

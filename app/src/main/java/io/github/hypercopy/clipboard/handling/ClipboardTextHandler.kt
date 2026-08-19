@@ -50,6 +50,24 @@ object ClipboardTextHandler {
     @Volatile
     var lastProcessedText: String? = null
 
+    // v1.141.59 持久化最近处理文本：App 重启后静态缓存丢失，
+    // "剪切板添加规则/智能识别"兜底仍可读回最近复制内容（修复 241 实测读取失败）
+    private const val PREFS_LAST_PROCESSED = "hypercopy_last_processed"
+    private const val KEY_LAST_TEXT = "last_text"
+
+    private fun persistLastProcessed(context: Context, text: String?) {
+        runCatching {
+            val editor = context.getSharedPreferences(PREFS_LAST_PROCESSED, Context.MODE_PRIVATE).edit()
+            if (text.isNullOrBlank()) editor.remove(KEY_LAST_TEXT) else editor.putString(KEY_LAST_TEXT, text)
+            editor.apply()
+        }
+    }
+
+    fun readPersistedLastProcessed(context: Context): String? = runCatching {
+        context.getSharedPreferences(PREFS_LAST_PROCESSED, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_TEXT, null)?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
     /**
      * v1.141.2 规则详情摘要（命中日志用），便于诊断 actionMode/渠道解析等。
      * 输出：分类 / 执行方式 / 规则级通知渠道 / 目标类型+包名+模板 / 优先级 / 分组。
@@ -186,6 +204,8 @@ object ClipboardTextHandler {
         val expressDirectJump = settingsRepository.readExpressDirectJump()
         // v1.40 记录最近处理文本（供剪贴板被清理后"从剪贴板添加"兜底）
         lastProcessedText = input
+        // v1.141.59 持久化兜底：App 重启后仍可读回
+        persistLastProcessed(appContext, input)
         // v1.30 快捷磁贴总开关：暂停时跳过一切处理
         if (!settingsRepository.readMonitorEnabled()) {
             HyperLog.d(TAG, "监控总开关已关闭, 跳过处理")
