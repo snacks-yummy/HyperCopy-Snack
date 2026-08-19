@@ -415,7 +415,7 @@ object ClipboardTextHandler {
                         ).show()
                     }
                     // v1.126+ 短信验证码类规则也支持通知方式（normal/live/miui_island）
-                    clipboardWriteNotify(appContext, rule, rendered)
+                    clipboardWriteNotify(appContext, rule, input, rendered)
                     return
                 }
                 // v1.138 仅通知：命中后发通知栏通知（不跳转、不改剪贴板）——取件码/取货码场景
@@ -730,11 +730,10 @@ object ClipboardTextHandler {
             HyperLog.d(TAG, "仅通知已关闭(设置), 跳过: ${rule.name}")
             return
         }
-        // 取件码通知格式：是否包含平台名（从短信【】提取），保留取件码总开关逻辑
+        // v1.141.87 结构化通知：胶囊(title)=平台+核心值；展开(content)=平台+类型+值
+        // 平台名从短信【XX】提取（开关控制）；类型标签按规则语义补全（验证码/取件码）
         val includePlatform = settingsRepository.readNotifyIncludePlatform()
-        val platform = if (includePlatform) {
-            Regex("【([^】]+)】").find(input)?.groupValues?.get(1)?.let { "【$it】" } ?: ""
-        } else ""
+        val platform = if (includePlatform) extractNotifyPlatform(input) else ""
         // v1.141.78 通知方式适配 + 结构化排版：
         // ① 空内容兜底：template 空时用提取参数结构化渲染（不回退原文，避免通知含链接）
         val effectiveContent = if (content.isBlank()) {
@@ -742,11 +741,18 @@ object ClipboardTextHandler {
             params["input"] = input
             runCatching { rule.target.resolveTemplate(params, encode = { it }) }.getOrDefault("")
         } else content
-        // ② 渠道适配：灵动岛(miui_island)空间小 → 去平台名精简；normal/live → 平台名+结构化完整
-        val mode = TextNotification.resolveMode(context, rule)
+        val label = notifyLabel(rule, effectiveContent)
+        // ② 渠道适配：灵动岛/普通/live 统一结构化（v1.141.87 不再因 miui_island 丢弃平台名）
+        val title = when {
+            effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
+            platform.isNotBlank() -> "$platform $effectiveContent"
+            else -> rule.name
+        }
         val text = when {
             effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
-            platform.isNotBlank() && mode != Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND -> "$platform $effectiveContent"
+            platform.isNotBlank() && label.isNotBlank() -> "【$platform】$label $effectiveContent"
+            platform.isNotBlank() -> "【$platform】$effectiveContent"
+            label.isNotBlank() -> "$label $effectiveContent"
             else -> effectiveContent
         }
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
@@ -754,7 +760,7 @@ object ClipboardTextHandler {
             context,
             TextNotificationEntry(
                 notificationId = Config.TEXT_NOTIFY_PICKUP_NOTIFICATION_ID,
-                title = rule.name,
+                title = title,
                 content = text,
                 packageName = rule.target.packageName,
                 icon = android.R.drawable.ic_dialog_info,
@@ -765,21 +771,37 @@ object ClipboardTextHandler {
     }
 
     /** v1.126+ 短信验证码（ClipboardWrite）类规则：自动复制恒定 + 通知可选（按独立文本渠道）。
-     * 复制动作由调用方（handle 内）恒定执行，不进入文本通知引擎。 */
-    private fun clipboardWriteNotify(context: Context, rule: RuleConfig, text: String) {
+     * 复制动作由调用方（handle 内）恒定执行，不进入文本通知引擎。
+     * v1.141.87 结构化通知：胶囊(title)=平台+验证码；展开(content)=【平台】验证码+码值 */
+    private fun clipboardWriteNotify(context: Context, rule: RuleConfig, input: String, text: String) {
+        val includePlatform = SettingsRepository(context).readNotifyIncludePlatform()
+        val platform = if (includePlatform) extractNotifyPlatform(input) else ""
+        val title = if (platform.isNotBlank()) "$platform $text" else rule.name
+        val content = if (platform.isNotBlank()) "【$platform】验证码 $text" else "验证码 $text"
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,
             TextNotificationEntry(
                 notificationId = Config.TEXT_NOTIFY_VERIFY_NOTIFICATION_ID,
-                title = rule.name,
-                content = text,
+                title = title,
+                content = content,
                 packageName = rule.target.packageName,
                 icon = android.R.drawable.ic_menu_edit,
             ),
             rule,
             TAG,
         )
+    }
+
+    /** v1.141.87 平台提取：从短信【XX】提取来源（招商银行/丰巢/美团…），无则空串 */
+    private fun extractNotifyPlatform(input: String): String =
+        Regex("【([^】]+)】").find(input)?.groupValues?.get(1)?.trim() ?: ""
+
+    /** v1.141.87 通知类型标签：content 已含类型词时不再重复（如外卖模板已含"取件码"） */
+    private fun notifyLabel(rule: RuleConfig, content: String): String = when {
+        rule.name.contains("验证码") -> "验证码"
+        rule.name.contains("取件码") && !content.contains("取件码") -> "取件码"
+        else -> ""
     }
 }
 /** v1.79 剪贴板改写回写防抖：记录最近写入内容，短窗口内跳过相同内容的再次处理（防死循环） */
