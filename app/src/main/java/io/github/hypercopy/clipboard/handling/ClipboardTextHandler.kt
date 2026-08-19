@@ -754,7 +754,8 @@ object ClipboardTextHandler {
             val code = params["r2"].orEmpty()
             val cabinet = params["r1"].orEmpty()
             val address = trimCityPrefix(extractWaimaiAddress(input))
-            islandContent = address.takeIf { it.isNotBlank() }
+            // v1.141.87i 岛内 content 用「取件码 N」：短单行不截断 + 含取件码/数字关键词（疑似上岛判定要素）
+            islandContent = if (code.isNotBlank()) "取件码 $code" else address.takeIf { it.isNotBlank() }
             title = when {
                 platform.isNotBlank() && cabinet.isNotBlank() -> "$platform · $cabinet"
                 cabinet.isNotBlank() -> "$cabinet"
