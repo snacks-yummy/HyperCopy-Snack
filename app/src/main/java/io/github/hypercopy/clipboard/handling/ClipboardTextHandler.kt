@@ -747,15 +747,24 @@ object ClipboardTextHandler {
         val title: String
         val text: String
         if (rule.name.contains("外卖")) {
-            // v1.141.87e 外卖结构化：title=平台外卖取件码+码值；content=地址+存放位置
+            // v1.141.87g 外卖结构化 v2（方案C）：title=平台·柜位（胶囊）；content=地址(去城市名)+取件码
+            // 优先级：柜位 > 地址 > 取件码
             val params = rule.extractParameters(input)
             val code = params["r2"].orEmpty()
             val cabinet = params["r1"].orEmpty()
-            val address = extractWaimaiAddress(input)
-            title = if (platform.isNotBlank()) "${platform}外卖取件码$code" else "外卖取件码$code"
+            val address = trimCityPrefix(extractWaimaiAddress(input))
+            title = when {
+                platform.isNotBlank() && cabinet.isNotBlank() -> "$platform · $cabinet"
+                cabinet.isNotBlank() -> "$cabinet"
+                platform.isNotBlank() -> "${platform}外卖取件码$code"
+                else -> "外卖取件码$code"
+            }
             text = buildString {
-                if (address.isNotBlank()) append("地址：$address\n")
-                if (cabinet.isNotBlank()) append("存放位置：$cabinet")
+                if (address.isNotBlank()) append(address)
+                if (code.isNotBlank()) {
+                    if (address.isNotBlank()) append("\n")
+                    append("取件码 $code")
+                }
             }
         } else {
             title = when {
@@ -810,9 +819,16 @@ object ClipboardTextHandler {
     private fun extractNotifyPlatform(input: String): String =
         Regex("【([^】]+)】").find(input)?.groupValues?.get(1)?.trim() ?: ""
 
-    /** v1.141.87e 外卖地址提取：「已放在{地址}{柜位}…」→ 地址部分（柜位前文本） */
+    /** v1.141.87e 外卖地址提取：「已放在{地址}{柜位}…」→ 地址部分（柜位前文本）；v1.141.87g 补「送达/送至」格式 */
     private fun extractWaimaiAddress(input: String): String =
-        Regex("已放[在至](.+?)(?:[A-Za-z0-9]{0,3}号?柜|外卖柜|格口)").find(input)?.groupValues?.get(1)?.trim() ?: ""
+        Regex("(?:已放[在至]|已送达|送至)(.+?)(?:[A-Za-z0-9]{0,3}号?柜|外卖柜|格口)").find(input)?.groupValues?.get(1)?.trim() ?: ""
+
+    /** v1.141.87g 地址精简：剔除开头城市名（广州/深圳市…），保留区/路/建筑 */
+    private fun trimCityPrefix(address: String): String {
+        val city = Regex("^(广州|深圳|北京|上海|杭州|成都|武汉|西安|南京|天津|重庆|苏州|东莞|佛山|长沙|郑州|青岛|宁波|厦门|福州|合肥|昆明|大连|无锡|济南|哈尔滨|沈阳|长春|石家庄|太原|南昌|贵阳|南宁|乌鲁木齐|兰州|海口|银川|西宁|呼和浩特|拉萨)市?")
+            .find(address) ?: return address
+        return address.substring(city.value.length)
+    }
 
     /** v1.141.87 通知类型标签：content 已含类型词时不再重复（如外卖模板已含"取件码"） */
     private fun notifyLabel(rule: RuleConfig, content: String): String = when {
