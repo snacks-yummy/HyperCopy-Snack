@@ -1,5 +1,8 @@
 package io.github.hypercopy.data.rules
 
+
+
+
 import android.content.Intent
 import org.json.JSONArray
 import org.json.JSONObject
@@ -222,3 +225,18 @@ private fun rulesFromJsonArray(items: JSONArray): List<RuleConfig> {
         }
     }
 }
+
+/**
+ * v1.141.66 淘宝链接规则强制跳转前清剪贴板（动态判断，免疫规则字段被保存覆盖）：
+ * 链接跳转后剪贴板残留口令 → 淘宝检测口令偶发弹「查看详情」。
+ * 规则字段 clearClipboardAfterJump 可能被编辑器保存重置为 false（一次性迁移不可靠），
+ * 此处对淘宝·链接规则（template=${url:input} + 淘宝系域名）强制生效。
+ * 口令规则（template 空）不强制——淘宝需读剪贴板口令弹窗，由 TaobaoKoulingConfirm 自动确认。
+ */
+val RuleConfig.clearClipboardEffective: Boolean
+    get() = clearClipboardAfterJump || isTaobaoLinkRule()
+
+fun RuleConfig.isTaobaoLinkRule(): Boolean =
+    target.template.orEmpty().contains("\${url:input}") &&
+        (matchRegex.contains("taobao.com") || matchRegex.contains("tb.cn") ||
+            matchRegex.contains("tmall.com") || matchRegex.contains("e.tb.cn"))

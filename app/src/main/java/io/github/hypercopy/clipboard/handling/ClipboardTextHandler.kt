@@ -38,6 +38,7 @@ import io.github.hypercopy.data.rules.matchRule
 import io.github.hypercopy.data.rules.parseIntent
 import io.github.hypercopy.data.rules.resolveInputUrl
 import io.github.hypercopy.data.rules.resolveTemplate
+import io.github.hypercopy.data.rules.clearClipboardEffective
 import io.github.hypercopy.data.rules.triggerPatterns
 import java.net.HttpURLConnection
 import java.net.URL
@@ -282,7 +283,7 @@ object ClipboardTextHandler {
                     intent = match.intent,
                     packageName = targetPackageName,
                 ),
-                match.rule.clearClipboardAfterJump,
+                match.rule.clearClipboardEffective,
                 notificationModeOverride = matchNotifMode,
                 delayMillis = match.rule.delayMillis,
                 ruleId = match.rule.id,
@@ -379,7 +380,7 @@ object ClipboardTextHandler {
                             intent = intent,
                             packageName = targetPackageName,
                         ),
-                        rule.clearClipboardAfterJump,
+                        rule.clearClipboardEffective,
                         notificationModeOverride = directNotifMode,
                         delayMillis = rule.delayMillis,
                         ruleId = rule.id,
@@ -484,7 +485,7 @@ object ClipboardTextHandler {
                 context = context,
                 url = resolveUrl,
                 packageName = "",
-                clearClipboardAfterJump = rule.clearClipboardAfterJump,
+                clearClipboardAfterJump = rule.clearClipboardEffective,
             )
             return
         }
@@ -508,7 +509,7 @@ object ClipboardTextHandler {
                         intent = intent,
                         packageName = targetPackageName,
                     ),
-                    rule.clearClipboardAfterJump,
+                    rule.clearClipboardEffective,
                     notificationModeOverride = rule.notificationMode,
                     delayMillis = rule.delayMillis,
                     ruleId = rule.id,
@@ -523,7 +524,7 @@ object ClipboardTextHandler {
                 url = resolveUrl,
                 packageName = rule.target.packageName,
             ),
-            rule.clearClipboardAfterJump,
+            rule.clearClipboardEffective,
         )
     }
 

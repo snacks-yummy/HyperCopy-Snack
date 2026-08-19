@@ -130,7 +130,7 @@ object PendingJumpCoordinator {
         when (jump) {
             is PendingJump.IntentJump -> launchAfterClipboardClear(context, clearClipboardAfterJump || isEntrustIntent(jump)) {
                 // v1.100 诊断：确认跳转分支与菜鸟包名匹配
-                HyperLog.d(TAG, "跳转Intent pkg=${jump.packageName} 目标菜鸟=${jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE}")
+                HyperLog.d(TAG, "跳转Intent pkg=${jump.packageName} 目标菜鸟=${jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE} clearClipboard=${clearClipboardAfterJump}")
                 // v1.108 委托直达前置：官方 entrust 机制仅冷启动(onCreate)生效
                 forceStopIfEntrust(jump)
                 if (jump.packageName == io.github.hypercopy.clipboard.monitor.TaobaoKoulingConfirm.TAOBAO_PACKAGE) {
