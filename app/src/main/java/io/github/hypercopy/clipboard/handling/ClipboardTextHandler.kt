@@ -148,22 +148,12 @@ object ClipboardTextHandler {
             HyperLog.d(TAG, "输入为空, 跳过处理")
             return
         }
-        // v1.126b 修复：本 App 内部复制（日志页/规则页/设置页复制内容）不触发跳转，
-        // 避免复制日志（含单号文本）误命中快递规则导致跳转
-        // 注意：Shizuku 模式 source 常为空 → 用前台 App 兜底判断（仅 source 空时查询，避免开销）
-        // v1.140.9 轮询通道 skipSelfCheck=true：1.5s 延迟检测期间用户可能已切回本 App 看日志 →
-        // 前台/来源误判本App → 真实链接被跳过；轮询通道不参与来源检查（防误触发由长文本保护+规则匹配承担）
-        // v1.141.29 修复：source 可能是本 App 的 Activity 别名/类名（如 MainActivityAlias），
-        // 需首包名匹配 → 源是本App自身 → 复制日志/规则页内容不再误触发
-        val sourceIsSelf = !skipSelfCheck && (
-            source.startsWith(context.packageName + ".", ignoreCase = true) ||
-                source == context.packageName ||
-                (source.isBlank() && foregroundPackageName(appContext) == context.packageName)
-            )
-        if (sourceIsSelf) {
-            HyperLog.d(TAG, "来源为本App, 跳过处理(防日志复制误触发)")
-            return
-        }
+        // v1.141.58 修复：移除"来源为本App 跳过处理"（Bug A）。
+        // 根因：浮动窗口抢焦点读取时 source 可能被 dumpsys 抓成本 App 的 Activity 别名
+        //（io.github.hypercopy.ui.framework.MainActivityAlias）→ startsWith 包名误判 self → 跳过处理
+        // → 淘宝口令/链接首次读取无反应（14:52:37 日志实锤）。
+        // 用户明确需求：软件内复制也要正常触发处理（日志页复制不再跳过）。
+        // skipSelfCheck 参数保留兼容调用方，但不再执行 self 跳过。
         if (input.length > Config.CLIPBOARD_TEXT_MAX_LENGTH) {
             HyperLog.d(TAG, "输入超长(len=${input.length} > ${Config.CLIPBOARD_TEXT_MAX_LENGTH}), 跳过处理")
             return
