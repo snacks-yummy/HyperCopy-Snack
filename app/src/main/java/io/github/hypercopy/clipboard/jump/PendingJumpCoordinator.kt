@@ -133,6 +133,10 @@ object PendingJumpCoordinator {
                 HyperLog.d(TAG, "跳转Intent pkg=${jump.packageName} 目标菜鸟=${jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE}")
                 // v1.108 委托直达前置：官方 entrust 机制仅冷启动(onCreate)生效
                 forceStopIfEntrust(jump)
+                if (jump.packageName == io.github.hypercopy.clipboard.monitor.TaobaoKoulingConfirm.TAOBAO_PACKAGE) {
+                    // v1.141.63 淘宝口令弹窗自动确认：直发跳转（全局通知模式 NONE 不经 confirm）同样标记
+                    io.github.hypercopy.clipboard.monitor.TaobaoKoulingConfirm.markTaobaoLaunch()
+                }
                 // v1.85 菜鸟查件自动确认：记录直开菜鸟时间戳（无障碍据此识别官方弹窗并自动确认）
                 if (jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE) {
                     // v1.141.48 修复：同 confirm 分支，markCainiaoLaunch 传纯单号
