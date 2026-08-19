@@ -9,12 +9,12 @@
       "enabled": true,
       "actionMode": "direct_open",
       "matchRegex": ".*(\\Qtaobao.com\\E|\\Qtb.cn\\E|\\Qtmall.com\\E|\\Qe.tb.cn\\E).*",
-      "parameterRegex": "(https?:\\/\\/[^\\s]+)",
+      "parameterRegex": "(https?:\/\/[^\\s]+)",
       "triggerRegexes": [
         ".*(\\Qtaobao.com\\E|\\Qtb.cn\\E|\\Qtmall.com\\E|\\Qe.tb.cn\\E).*"
       ],
       "extractionRegexes": [
-        "(https?:\\/\\/[^\\s]+)"
+        "(https?:\/\/[^\\s]+)"
       ],
       "parseAfterRedirect": false,
       "target": {
