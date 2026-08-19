@@ -743,18 +743,18 @@ object ClipboardTextHandler {
         } else content
         val label = notifyLabel(rule, effectiveContent)
         // ② 渠道适配：灵动岛/普通/live 统一结构化（v1.141.87 不再因 miui_island 丢弃平台名）
+        // v1.141.87c 关键词式通知：title=平台+类型+：+码值（如 飞书验证码：915922），content 置空避免重复
         val title = when {
             effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
-            platform.isNotBlank() -> "$platform $effectiveContent"
-            else -> rule.name
+            // 外卖：模板已含"取件码"标签，去重后拼 平台取件码：码值 · 柜位
+            rule.name.contains("外卖") && platform.isNotBlank() ->
+                "${platform}取件码：${effectiveContent.removePrefix("取件码").trimStart()}"
+            platform.isNotBlank() && label.isNotBlank() -> "$platform$label：$effectiveContent"
+            platform.isNotBlank() -> "$platform：$effectiveContent"
+            label.isNotBlank() -> "$label：$effectiveContent"
+            else -> effectiveContent
         }
-        val text = when {
-            effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
-            // v1.141.87b 去重：content 只放类型标签（title 已含平台+值，避免卡片两行重复）
-            label.isNotBlank() -> label
-            rule.name.contains("外卖") -> "外卖取件"
-            else -> rule.name
-        }
+        val text = ""
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,
@@ -776,9 +776,9 @@ object ClipboardTextHandler {
     private fun clipboardWriteNotify(context: Context, rule: RuleConfig, input: String, text: String) {
         val includePlatform = SettingsRepository(context).readNotifyIncludePlatform()
         val platform = if (includePlatform) extractNotifyPlatform(input) else ""
-        val title = if (platform.isNotBlank()) "$platform $text" else rule.name
-        // v1.141.87b 去重：content 只放类型标签（title 已含平台+码值，避免卡片两行重复）
-        val content = "验证码"
+        val title = if (platform.isNotBlank()) "${platform}验证码：$text" else "验证码：$text"
+        // v1.141.87c 关键词式通知：title 完整（平台+验证码+码值），content 置空避免重复
+        val content = ""
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,

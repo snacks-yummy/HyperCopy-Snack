@@ -56,6 +56,8 @@ object MiuiSuperIslandNotification {
     }
 
     private fun islandParams(context: Context, title: String, content: String, jumpActions: List<PendingJumpCoordinator.JumpAction>): String {
+        // v1.141.87c 关键词式：title=「飞书验证码：915922」→ 大字主标题=码值，小字前置=平台+类型
+        val (mainTitle, subTitle) = splitIslandTitle(title)
         val actionArray = JSONArray().put(actionInfo(0, jumpActions.firstOrNull()?.title ?: context.getString(R.string.jump_short), "#E0E0E0"))
         val textButtonArray = JSONArray().apply {
             jumpActions.take(2).forEachIndexed { index, jumpAction ->
@@ -69,7 +71,7 @@ object MiuiSuperIslandNotification {
             .put("reopen", "reopen")   // 官方：同 notification id 被 cancel 后再次发送仍显示（默认 close=不显示，导致有时不弹）
             .put("enableFloat", true)
             .put("islandFirstFloat", true)
-            .put("ticker", "Code")
+            .put("ticker", subTitle.ifBlank { mainTitle })
             .put("tickerPic", PIC_APP_ICON)
             .put("isShowNotification", true)
             .put(
@@ -97,10 +99,10 @@ object MiuiSuperIslandNotification {
                                     .put(
                                         "miui.focus.paramtextInfo",
                                         JSONObject()
-                                            .put("frontTitle", title)
-                                            .put("title", context.getString(R.string.jump_short))
-                                            .put("content", content)
-                                            .put("useHighLight", false),
+                                            .put("frontTitle", subTitle)
+                                            .put("title", mainTitle)
+                                            .put("content", "")
+                                            .put("useHighLight", true),
                                     ),
                             )
                             .put(
@@ -127,8 +129,7 @@ object MiuiSuperIslandNotification {
                         JSONObject().put("title", title),
                     ),
             )
-            .put(
-                "iconTextInfo",
+            .put("iconTextInfo",
                 JSONObject()
                     .put(
                         "animIconInfo",
@@ -138,14 +139,14 @@ object MiuiSuperIslandNotification {
                             .put("loop", true)
                             .put("autoplay", true),
                     )
-                    .put("title", title)
-                    .put("content", content),
+                    .put("title", subTitle)
+                    .put("content", mainTitle),
             )
             .put(
                 "baseInfo",
                 JSONObject()
-                    .put("title", title)
-                    .put("content", content)
+                    .put("title", subTitle)
+                    .put("content", mainTitle)
                     .put("type", 2),
             )
         if (jumpActions.size > 1) {
@@ -157,6 +158,16 @@ object MiuiSuperIslandNotification {
             .put("isShowNotification", true)
             .put("param_v2", actionParams)
             .toString()
+    }
+
+    /** v1.141.87c 拆分关键词式标题：「飞书验证码：915922」→ (主标题=915922, 前置=飞书验证码) */
+    private fun splitIslandTitle(full: String): Pair<String, String> {
+        val idx = full.indexOfFirst { it == '：' || it == ':' }
+        return if (idx > 0 && idx < full.length - 1) {
+            full.substring(idx + 1).trim() to full.substring(0, idx)
+        } else {
+            full to ""
+        }
     }
 
     private fun actionInfo(index: Int, title: String, bgColor: String?): JSONObject {
