@@ -752,7 +752,7 @@ object ClipboardTextHandler {
             // 优先级：柜位 > 地址 > 取件码
             val params = rule.extractParameters(input)
             val code = params["r2"].orEmpty()
-            val cabinet = params["r1"].orEmpty()
+            val cabinet = simplifyCabinet(params["r1"].orEmpty())
             val address = trimCityPrefix(extractWaimaiAddress(input))
             islandContent = address.takeIf { it.isNotBlank() }
             title = when {
@@ -831,6 +831,15 @@ object ClipboardTextHandler {
         val city = Regex("^(广州|深圳|北京|上海|杭州|成都|武汉|西安|南京|天津|重庆|苏州|东莞|佛山|长沙|郑州|青岛|宁波|厦门|福州|合肥|昆明|大连|无锡|济南|哈尔滨|沈阳|长春|石家庄|太原|南昌|贵阳|南宁|乌鲁木齐|兰州|海口|银川|西宁|呼和浩特|拉萨)市?")
             .find(address) ?: return address
         return address.substring(city.value.length)
+    }
+
+    /** v1.141.87k 柜位精简：2号柜外卖柜10格口 → 2号柜10格；A柜79格口 → A柜79格；外卖柜12格口 → 外卖柜12格 */
+    private fun simplifyCabinet(cabinet: String): String {
+        if (cabinet.isBlank()) return cabinet
+        Regex("(.{0,4}?柜)(?:外卖柜)?\\s*(\\d+)\\s*号?\\s*格口?").find(cabinet)?.let { m ->
+            return m.groupValues[1] + m.groupValues[2] + "格"
+        }
+        return cabinet
     }
 
     /** v1.141.87 通知类型标签：content 已含类型词时不再重复（如外卖模板已含"取件码"） */
