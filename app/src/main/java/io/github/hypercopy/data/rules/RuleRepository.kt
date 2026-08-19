@@ -459,7 +459,8 @@ class RuleRepository(private val context: Context) {
         val migrated = runCatching {
             rulesFromJson(rulesFile().readText())
         }.getOrDefault(emptyList()).map { rule ->
-            if (rule.id == targetId && !rule.matchRegex.contains("1号柜外卖柜")) {
+            val curCabinet = rule.extractionRegexes.firstOrNull().orEmpty()
+            if (rule.id == targetId && !curCabinet.contains("口令码")) {
                 changed = true
                 rule.copy(
                     matchRegex = match,

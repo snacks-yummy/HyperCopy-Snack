@@ -471,8 +471,8 @@ object RuleAnalyzer {
             val taRegex = ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*"
             // v1.141.75 统一标准：仅通知对齐内置「外卖取件通知」——外卖语境匹配 + 柜位/取件码双提取 + 标准模板
             val notifyRegex = ".*(?:外卖|餐|已放|送至|送达).*(?:mt\\.cn|dpurl\\.cn|ele\\.me|waimai\\.meituan\\.com|h5\\.ele\\.me|格口|柜|取件码|取餐码).*"
-            val cabinetRegex = "([A-Za-z0-9]{0,3}柜\\s*\\d+(?:号)?\\s*格口|\\d+\\s*号?\\s*柜[^\\s，。]{0,5}\\d+\\s*格口|外卖柜\\s*\\d+\\s*格口|格口号?[:：]?\\s*\\d+|\\d+(?:号)?\\s*格口|[A-Za-z0-9]{0,3}柜\\s*\\d+)"
-            val codeRegex = "(?:使用|输入|凭|取件码|取餐码)(?:是|为)?[:：]?\\s*(\\d{4,12})\\s*(?:取件|领取|取货|收件|开柜)?"
+            val cabinetRegex = "([A-Za-z0-9]{0,3}号?柜\\s*\\d+(?:号)?\\s*格口|\\d+\\s*号?\\s*柜[^\\s，。]{0,5}\\d+\\s*格口|外卖柜\\s*\\d+\\s*格口|格口号?[:：]?\\s*\\d+|[A-Za-z0-9]{1,3}号?柜|\\d+(?:号)?\\s*格口|[A-Za-z0-9]{0,3}柜\\s*\\d+)"
+            val codeRegex = "(?:使用|输入|凭|取件码|取餐码|口令码)(?:是|为)?[:：]?\\s*(\\d{4,12})\\s*(?:取件|领取|取货|收件|开柜)?"
             return listOf(
                 Suggestion(
                     platform = "外卖取件 · 仅通知",
