@@ -92,6 +92,10 @@ object PendingJumpCoordinator {
             is PendingJump.IntentJump -> launchAfterClipboardClear(appContext, entry.clearClipboardAfterJump || isEntrustIntent(jump)) {
                 // v1.108 委托直达前置：官方 entrust 机制仅冷启动(onCreate)生效
                 forceStopIfEntrust(jump)
+                if (jump.packageName == io.github.hypercopy.clipboard.monitor.TaobaoKoulingConfirm.TAOBAO_PACKAGE) {
+                    // v1.141.63 淘宝口令弹窗自动确认：跳转淘宝后标记启动无障碍扫描
+                    io.github.hypercopy.clipboard.monitor.TaobaoKoulingConfirm.markTaobaoLaunch()
+                }
                 // v1.85 菜鸟查件自动确认：点击通知跳菜鸟同样记录（弹窗自动确认）
                 if (jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE) {
                     // v1.141.48 修复：markCainiaoLaunch 传纯单号（非整段文本），

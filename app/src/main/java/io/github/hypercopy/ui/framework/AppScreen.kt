@@ -157,6 +157,7 @@ fun AppScreen(
     var expressDirectJump by remember { mutableStateOf(settingsRepository.readExpressDirectJump()) }
     var cainiaoAutoConfirm by remember { mutableStateOf(settingsRepository.readCainiaoAutoConfirm()) }
     var cainiaoAutoExpand by remember { mutableStateOf(settingsRepository.readCainiaoAutoExpand()) }
+    var taobaoKoulingConfirm by remember { mutableStateOf(settingsRepository.readTaobaoKoulingConfirm()) }
     var schemeDirectJump by remember { mutableStateOf(settingsRepository.readSchemeDirectJump()) }
     var jumpFallbackWeb by remember { mutableStateOf(settingsRepository.readJumpFallbackWeb()) }
     var jumpPrecheck by remember { mutableStateOf(settingsRepository.readJumpPrecheck()) }
@@ -479,6 +480,7 @@ fun AppScreen(
                                 expressDirectJump = expressDirectJump,
                                 cainiaoAutoConfirm = cainiaoAutoConfirm,
                                 cainiaoAutoExpand = cainiaoAutoExpand,
+                                taobaoKoulingConfirm = taobaoKoulingConfirm,
                                 schemeDirectJump = schemeDirectJump,
                                 jumpFallbackWeb = jumpFallbackWeb,
                                 jumpPrecheck = jumpPrecheck,
@@ -595,6 +597,11 @@ fun AppScreen(
                                     cainiaoAutoExpand = it
                                     settingsRepository.persistCainiaoAutoExpand(it)
                                     io.github.hypercopy.UiActionLogger.switch("菜鸟自动展开", it)
+                                },
+                                onTaobaoKoulingConfirmChange = {
+                                    taobaoKoulingConfirm = it
+                                    settingsRepository.persistTaobaoKoulingConfirm(it)
+                                    io.github.hypercopy.UiActionLogger.switch("淘宝口令弹窗自动确认", it)
                                 },
                                 onSchemeDirectJumpChange = {
                                     schemeDirectJump = it

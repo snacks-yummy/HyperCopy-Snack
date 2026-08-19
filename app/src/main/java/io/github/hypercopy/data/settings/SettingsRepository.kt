@@ -243,6 +243,11 @@ class SettingsRepository(private val context: Context) {
     fun persistCainiaoAutoExpand(value: Boolean) {
         preferences().edit(commit = true) { putBoolean(Config.KEY_CAINIAO_AUTO_EXPAND, value) }
     }
+    // v1.141.63 淘宝口令弹窗自动确认（默认开）：跳转淘宝后自动点击「查看详情/打开/进入店铺」
+    fun readTaobaoKoulingConfirm(): Boolean = preferences().getBoolean(Config.KEY_TAOBAO_KOU_LING_CONFIRM, Config.DEFAULT_TAOBAO_KOU_LING_CONFIRM)
+    fun persistTaobaoKoulingConfirm(value: Boolean) {
+        preferences().edit(commit = true) { putBoolean(Config.KEY_TAOBAO_KOU_LING_CONFIRM, value) }
+    }
     // v1.88 小米复制直达委托（默认开）
     fun readExpressDelegateAiEngine(): Boolean = preferences().getBoolean(Config.KEY_EXPRESS_DELEGATE_AI_ENGINE, Config.DEFAULT_EXPRESS_DELEGATE_AI_ENGINE)
     fun persistExpressDelegateAiEngine(value: Boolean) {

@@ -48,6 +48,9 @@ object Config {
     // v1.109 菜鸟详情页自动展开（默认开）：到达物流详情页后无障碍自动点击「展开」展示完整轨迹
     const val KEY_CAINIAO_AUTO_EXPAND = "cainiao_auto_expand"
     const val DEFAULT_CAINIAO_AUTO_EXPAND = true
+    // v1.141.63 淘宝口令弹窗自动确认（默认开）：跳转淘宝后无障碍自动点击「查看详情/打开/进入店铺」
+    const val KEY_TAOBAO_KOU_LING_CONFIRM = "taobao_kouling_confirm"
+    const val DEFAULT_TAOBAO_KOU_LING_CONFIRM = true
     // v1.88 小米复制直达委托（默认开）
     const val KEY_EXPRESS_DELEGATE_AI_ENGINE = "express_delegate_ai_engine"
     const val DEFAULT_EXPRESS_DELEGATE_AI_ENGINE = false

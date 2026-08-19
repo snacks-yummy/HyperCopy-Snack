@@ -567,6 +567,8 @@
     <string name="setting_cainiao_auto_confirm_summary">直达菜鸟后自动点击「检测到快递单号」弹窗确认，直达物流详情页（需无障碍服务）</string>
     <string name="setting_cainiao_auto_expand">菜鸟详情页自动展开（默认开启）</string>
     <string name="setting_cainiao_auto_expand_summary">到达物流详情页后自动点击「展开」按钮展示完整物流轨迹（需无障碍服务）</string>
+    <string name="setting_taobao_kouling_confirm">淘宝口令弹窗自动确认（默认开启）</string>
+    <string name="setting_taobao_kouling_confirm_summary">跳转淘宝后自动点击「查看详情/打开/进入店铺」弹窗确认，直达商品页（需无障碍服务）</string>
     <string name="setting_scheme_direct_jump">Scheme 直达优先</string>
     <string name="setting_scheme_direct_jump_summary">规则目标使用 URL scheme 时直达功能页（如支付宝我的快递），优于纯包名进首页</string>
     <string name="setting_jump_fallback_web">跳转失败网页兜底</string>

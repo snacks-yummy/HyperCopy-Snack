@@ -60,6 +60,8 @@ class RuleRepository(private val context: Context) {
         // 根因：委托直达用 extras 传单号不依赖剪贴板，但跳转后剪贴板残留单号 → 菜鸟 JS 检测弹
         // 「是否要查询包裹」→ 自动确认 → 页面重绘展开收起（20:49 实锤偶发）。跳转前清空可根治。
         migrateCainiaoClearClipboardV14152()
+        // v1.141.63 一次性迁移：淘宝·链接规则 clearClipboardAfterJump=true（跳转前清剪贴板防偶发口令弹窗）
+        migrateTaobaoLinkClearClipboardV14163()
         // ===== v1.141.55 干净规则基线（无淘宝链接/闲鱼/口令规则） =====
         // 说明：v1.141.56 之后新增的淘宝系规则及其迁移(58/59/64/67/73)已在彻底回退到 55 时移除，
         // 保持与 v1.141.55 一致的 5 条内置规则（外卖/便捷下载/取件码/快递单号/短信验证码）。
@@ -861,6 +863,31 @@ class RuleRepository(private val context: Context) {
         }
         prefs.edit().putBoolean(KEY_CAINIAO_CLEAR_CLIPBOARD_V14152, true).apply()
     }
+    private fun migrateTaobaoLinkClearClipboardV14163() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_TAOBAO_LINK_CLEAR_CLIPBOARD_V14163, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_TAOBAO_LINK_CLEAR_CLIPBOARD_V14163, true).apply(); return }
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                // 淘宝·链接规则特征：target.template 为 ${url:input} + matchRegex 含淘宝系域名
+                // （口令规则 template 空，不迁移——淘宝需读剪贴板口令弹窗，由无障碍自动确认处理）
+                val isTaobaoLink = rule.target.template.orEmpty().contains("\${url:input}") &&
+                    (rule.matchRegex.contains("taobao.com") || rule.matchRegex.contains("tb.cn") ||
+                        rule.matchRegex.contains("tmall.com") || rule.matchRegex.contains("e.tb.cn"))
+                if (isTaobaoLink && !rule.clearClipboardAfterJump) {
+                    changed = true
+                    rule.copy(clearClipboardAfterJump = true)
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.63 migrate taobao link clear-clipboard: 淘宝链接规则跳转前清剪贴板(true)")
+        }
+        prefs.edit().putBoolean(KEY_TAOBAO_LINK_CLEAR_CLIPBOARD_V14163, true).apply()
+    }
     private fun migrateBuiltinRulesV14145() {
         val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_BUILTIN_RULES_V14145, false)) return
@@ -1210,6 +1237,7 @@ class RuleRepository(private val context: Context) {
         private const val KEY_REGEX_SELFTEST_V14150 = "regex_selftest_v14150"
         private const val KEY_BOUNDARY_FIX_V14150 = "boundary_fix_migrated_v14150"
         private const val KEY_CAINIAO_CLEAR_CLIPBOARD_V14152 = "cainiao_clear_clipboard_v14152"
+        private const val KEY_TAOBAO_LINK_CLEAR_CLIPBOARD_V14163 = "taobao_link_clear_clipboard_v14163"
         private const val KEY_TAOBAO_LINK_TEMPLATE_V14158 = "taobao_link_template_v14158"
         private const val KEY_TAOBAO_KOULING_REGEX_V14159 = "taobao_kouling_regex_v14159"
     }

@@ -102,6 +102,7 @@ fun SettingsPage(
     expressDirectJump: Boolean,
     cainiaoAutoConfirm: Boolean,
     cainiaoAutoExpand: Boolean,
+    taobaoKoulingConfirm: Boolean,
     schemeDirectJump: Boolean,
     jumpFallbackWeb: Boolean,
     jumpPrecheck: Boolean,
@@ -130,6 +131,7 @@ fun SettingsPage(
     onExpressDirectJumpChange: (Boolean) -> Unit = {},
     onCainiaoAutoConfirmChange: (Boolean) -> Unit = {},
     onCainiaoAutoExpandChange: (Boolean) -> Unit = {},
+    onTaobaoKoulingConfirmChange: (Boolean) -> Unit = {},
     onSchemeDirectJumpChange: (Boolean) -> Unit = {},
     onJumpFallbackWebChange: (Boolean) -> Unit = {},
     onJumpPrecheckChange: (Boolean) -> Unit = {},
@@ -380,6 +382,13 @@ fun SettingsPage(
                                         summary = stringResource(R.string.setting_cainiao_auto_expand_summary),
                                         checked = cainiaoAutoExpand,
                                         onCheckedChange = { onCainiaoAutoExpandChange(!cainiaoAutoExpand) },
+                                    )
+                                    SwitchAction(
+                                        icon = MiuixIcons.File,
+                                        title = stringResource(R.string.setting_taobao_kouling_confirm),
+                                        summary = stringResource(R.string.setting_taobao_kouling_confirm_summary),
+                                        checked = taobaoKoulingConfirm,
+                                        onCheckedChange = { onTaobaoKoulingConfirmChange(!taobaoKoulingConfirm) },
                                     )
                                     // v1.126 跳转增强：scheme 直达优先 / 失败网页兜底 / 跳转前预检
                     }
