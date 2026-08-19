@@ -105,12 +105,8 @@ object MiuiSuperIslandNotification {
                                             .put("useHighLight", true),
                                     ),
                             )
-                            .put(
-                                "picInfo",
-                                JSONObject()
-                                    .put("type", 1)
-                                    .put("pic", PIC_ARROW_RIGHT),
-                            ),
+                            // v1.141.87c 仅通知类无跳转动作 → 不显示右箭头（去除跳转暗示）
+                            .apply { if (jumpActions.isNotEmpty()) put("picInfo", JSONObject().put("type", 1).put("pic", PIC_ARROW_RIGHT)) },
                     )
                     .put(
                         "smallIslandArea",
@@ -151,9 +147,10 @@ object MiuiSuperIslandNotification {
             )
         if (jumpActions.size > 1) {
             actionParams.put("textButton", textButtonArray)
-        } else {
+        } else if (jumpActions.size == 1) {
             actionParams.put("actions", actionArray)
         }
+        // v1.141.87c 去除跳转选项：jumpActions 为空（仅通知类）不加任何按钮
         return JSONObject()
             .put("isShowNotification", true)
             .put("param_v2", actionParams)
