@@ -401,7 +401,7 @@ object ClipboardTextHandler {
                     stats.increment(rule.id)
                     val parameters = rule.extractParameters(input).toMutableMap()
                     parameters["input"] = input
-                    val rendered = runCatching { rule.target.resolveTemplate(parameters) }.getOrDefault(input)
+                    val rendered = runCatching { rule.target.resolveTemplate(parameters, encode = { it }) }.getOrDefault(input)
                     val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     cm.setPrimaryClip(android.content.ClipData.newPlainText(rule.name, rendered))
                     ClipboardWriteGuard.record(rendered)
@@ -423,7 +423,7 @@ object ClipboardTextHandler {
                     stats.increment(rule.id)
                     val parameters = rule.extractParameters(input).toMutableMap()
                     parameters["input"] = input
-                    val rendered = runCatching { rule.target.resolveTemplate(parameters) }.getOrDefault(input)
+                    val rendered = runCatching { rule.target.resolveTemplate(parameters, encode = { it }) }.getOrDefault(input)
                     notifyOnlyResult(appContext, rule, input, rendered)
                     return
                 }
