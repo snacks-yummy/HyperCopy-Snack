@@ -74,6 +74,9 @@
     <string name="log_off">关闭</string>
     <string name="log_basic">基础</string>
     <string name="log_debug">调试</string>
+    <string name="log_buffer_max">日志缓冲条数</string>
+    <string name="log_buffer_max_summary">日志界面最多保留的条数，越大回看窗口越长，内存占用越高（约 0.2MB/千条）</string>
+    <string name="log_buffer_max_option">%1$d 条</string>
     <string name="check_update">检查更新</string>
     <string name="check_update_summary">通过 GitHub Release 检查最新版本</string>
     <string name="auto_check_update">自动检查更新</string>
@@ -341,6 +344,7 @@
     <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
     <string name="rule_toast_duplicate">已存在相同的规则，未重复添加</string>
     <string name="rule_toast_copied">规则已复制到剪贴板</string>
+    <string name="rule_toast_copied_rules">已复制 %1$d 条规则 JSON 到剪贴板</string>
     <string name="rule_builtin_badge">内置</string>
     <string name="rule_cloud_badge">云端</string>
     <string name="rule_custom_badge">自定义</string>
@@ -649,7 +653,7 @@
     <string name="action_log_refresh">刷新</string>
     <string name="action_log_clear">清空</string>
     <string name="setting_view_log">查看运行日志</string>
-    <string name="setting_view_log_summary">查看最近 3000 条调试/匹配日志（内存缓冲）</string>
+    <string name="setting_view_log_summary">查看最近 %1$d 条调试/匹配日志（内存缓冲）</string>
     <string name="rule_hit_count">命中 %1$d 次</string>
     <string name="setting_match_debug_log">匹配调试日志</string>
     <string name="setting_match_debug_log_summary">记录每条规则的匹配过程（写入 logcat，供排查规则不生效问题）</string>
@@ -673,6 +677,8 @@
     <string name="suggestion_analyzed_count">识别到 %1$d 个候选规则</string>
     <!-- v1.62 UI 人性化 -->
     <string name="suggestion_behavior">复制匹配内容后打开「%1$s」</string>
+    <string name="suggestion_app_installed">App已装</string>
+    <string name="suggestion_app_not_installed">App未装</string>
     <string name="suggestion_preview_label">识别内容：%1$s</string>
     <string name="suggestion_view_details">查看详情</string>
     <string name="suggestion_hide_details">收起详情</string>

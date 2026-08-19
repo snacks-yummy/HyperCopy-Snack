@@ -127,6 +127,8 @@ fun AppScreen(
     val selectedTab by AppNav.tabFlow.collectAsState()
     var xposedService by remember { mutableStateOf(App.xposedService) }
     var logLevel by remember { mutableIntStateOf(settingsRepository.readLogLevel()) }
+    // v1.141.39 日志缓冲条数（内存环形缓冲上限，日志 UI 展示窗口）
+    var logBufferMax by remember { mutableIntStateOf(settingsRepository.readLogBufferMax()) }
     var autoCheckUpdate by remember { mutableStateOf(settingsRepository.readAutoCheckUpdate()) }
     var hideFromRecents by remember { mutableStateOf(settingsRepository.readHideFromRecents()) }
     var desktopIconHidden by remember { mutableStateOf(settingsRepository.readDesktopIconHidden()) }
@@ -453,6 +455,7 @@ fun AppScreen(
                             SettingsPage(
                                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                                 logLevel = logLevel,
+                                logBufferMax = logBufferMax,
                                 autoCheckUpdate = autoCheckUpdate,
                                 hideFromRecents = hideFromRecents,
                                 desktopIconHidden = desktopIconHidden,
@@ -482,6 +485,10 @@ fun AppScreen(
                                 onLogLevelChange = {
                                     logLevel = it
                                     settingsRepository.persistLogLevel(it)
+                                },
+                                onLogBufferMaxChange = {
+                                    logBufferMax = it
+                                    settingsRepository.persistLogBufferMax(it)
                                 },
                                 onAutoCheckUpdateChange = {
                                     autoCheckUpdate = it

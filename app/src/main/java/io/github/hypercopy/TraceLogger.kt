@@ -48,7 +48,9 @@ object TraceLogger {
     }.getOrDefault("?")
 
     /** 输出多行日志到 HyperLog（应用内可见）+ logcat */
+    // v1.141.43 升级为 I 级：TraceLogger 块含"输入→命中→耗时"完整处理周期，是时间线分析的关键数据源。
+    // v1.141.38 曾因 D 级落盘过滤导致其不落盘（日志只剩入口与保活巡检，无法分析识别/响应/跳转时间）。
     fun emit(block: String) {
-        HyperLog.d(TAG, block)
+        HyperLog.i(TAG, block)
     }
 }

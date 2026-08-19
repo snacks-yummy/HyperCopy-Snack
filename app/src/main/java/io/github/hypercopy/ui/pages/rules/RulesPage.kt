@@ -383,6 +383,16 @@ fun RulesPage(
                         repository.setRulesEnabled(selectedRuleIds, false)
                         selectedRuleIds = emptySet()
                     },
+                    // v1.141.22 批量复制选中规则 JSON 到剪贴板（方便导出/分享/迁移）
+                    onCopyClick = {
+                        val selected = rules.filter { it.id in selectedRuleIds }
+                        if (selected.isNotEmpty()) {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val json = io.github.hypercopy.data.rules.rulesToJson(selected)
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("HyperCopyRules", json))
+                            Toast.makeText(context, context.getString(R.string.rule_toast_copied_rules, selected.size), Toast.LENGTH_SHORT).show()
+                        }
+                    },
                 )
 
                 // v1.63 回收站模式：顶栏替换为「返回 + 回收站标题」，一键返回规则列表

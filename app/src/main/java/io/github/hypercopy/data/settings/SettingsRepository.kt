@@ -18,6 +18,12 @@ class SettingsRepository(private val context: Context) {
         syncLogLevelToLsposed(App.xposedService, value)
     }
 
+    // v1.141.39 日志缓冲条数（内存环形缓冲上限，日志 UI 展示窗口）
+    fun readLogBufferMax(): Int = preferences().getInt(Config.KEY_LOG_BUFFER_MAX, Config.DEFAULT_LOG_BUFFER_MAX)
+    fun persistLogBufferMax(value: Int) {
+        preferences().edit(commit = true) { putInt(Config.KEY_LOG_BUFFER_MAX, value) }
+    }
+
     fun syncLogLevelToLsposed(service: XposedService?, value: Int = readLogLevel()) {
         if (service == null) return
         runCatching {
@@ -78,9 +84,12 @@ class SettingsRepository(private val context: Context) {
         ) ?: Config.DEFAULT_JUMP_NOTIFICATION_MODE
     }
 
-    /** Bug③修复：WebView 解析超时（毫秒），可配置，默认 3000 */
+    /** Bug③修复：WebView 解析超时（毫秒），可配置。
+     *  v1.141.64 默认 3000→8000：mt.cn→peisong→JS 拉 weixin:// 实测链路 3.4s+
+     *  （01:17 日志 3424ms 触发 fallback 用原始 URL 启动 → 未一步到小程序），
+     *  8000ms 覆盖慢网络下的完整链路，超时兜底仍保留（失败时用户等 8s 可接受）。 */
     fun readWebViewTimeoutMillis(): Long =
-        preferences().getLong(Config.KEY_WEBVIEW_TIMEOUT_MILLIS, 3_000L)
+        preferences().getLong(Config.KEY_WEBVIEW_TIMEOUT_MILLIS, 8_000L)
     fun persistJumpNotificationMode(value: String) {
         preferences().edit(commit = true) { putString(Config.KEY_JUMP_NOTIFICATION_MODE, value) }
     }

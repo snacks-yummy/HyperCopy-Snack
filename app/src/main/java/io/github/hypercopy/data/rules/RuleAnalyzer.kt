@@ -11,18 +11,21 @@ object RuleAnalyzer {
 
     /**
      * 口令围栏正则：兼容新旧格式。
-     * 围栏字符使用 Unicode 货币符号类 \p{Sc}（自动覆盖 ₴ ₤ ₳ € £ ¥ ￥ $ ¢ ₽ ₿ 等全部货币符号）+ 下划线 + 🔐。
-     * 例如 ₴bR88guYi5Bq₴、🔐bHPqguYg4gN₤、$abc123$、_xyz789_ 均可识别。
+     * 围栏字符使用 Unicode 货币符号类 \p{Sc}（自动覆盖 ₴ ₤ ₳ € £ ¥ ￥ $ ¢ ₽ ₿ 等全部货币符号）+ 🔐。
+     * v1.141.63 移除 `_`：下划线在代码/文件名/错误信息中极常见（INSTALL_FAILED_USER_REST 的
+     * `_FAILED_` 被误判为围栏口令 → 误跳淘宝并污染 30s 防循环窗口），真实淘宝口令围栏从不使用下划线。
+     * 例如 ₴bR88guYi5Bq₴、🔐bHPqguYg4gN₤、$abc123$ 均可识别。
      */
     val KOU_LING_REGEX: Regex =
-        Regex("[\\p{Sc}_🔐][A-Za-z0-9]{6,20}[\\p{Sc}_🔐]")
+        Regex("[\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐]")
     /**
      * 口令提取正则（v1.44 新增）：带捕获组，提取口令本体（围栏+口令码），
      * 供提取参数 r1 / ${1} 使用。触发正则与提取正则分离：
      * 触发用无捕获组（匹配更快更清晰），提取用带捕获组（能拿到参数）。
+     * v1.141.63 同步移除 `_`（见 KOU_LING_REGEX 注释）。
      */
     val KOU_LING_EXTRACT_REGEX: Regex =
-        Regex("([\\p{Sc}_🔐][A-Za-z0-9]{6,20}[\\p{Sc}_🔐])")
+        Regex("([\\p{Sc}🔐][A-Za-z0-9]{6,20}[\\p{Sc}🔐])")
     /** URL 提取正则（v1.44 新增）：带捕获组，提取完整 URL，供 ParseAndOpen 提取参数 */
     val URL_EXTRACT_REGEX: Regex =
         Regex("(https?://[^\\s]+)")
@@ -181,7 +184,61 @@ object RuleAnalyzer {
         // 无围栏无 URL 的文本口令，如 "8.88 xxxxx:/ 复制打开抖音"）
         val textSuggestion = analyzePlatformText(text)
         if (textSuggestion != null) return listOf(textSuggestion)
+        // v1.141.27 短信类纯码识别（验证码/口令码/取件码/取货码/取餐码等）：
+        // 非围栏、非URL、非平台口令的短信码内容（如"验证码699749"、"美团口令码:99999"）。
+        // 处理方式不确定/可能变化（现在仅通知，之后可能要复制/提取）→ 一次性产出多个候选，
+        // 用户可在建议页自选：仅通知 / 提取+通知 / 复制到剪贴板。
+        val smsCode = analyzeSmsCode(text)
+        if (smsCode.isNotEmpty()) return smsCode
         return emptyList()
+    }
+    // v1.141.27 短信类纯码识别：识别验证码/取件码/口令码等短信码内容，产出多候选建议。
+    // 触发词覆盖：取件码/取货码/提货码/口令码/取餐码/收货码/开柜码/验证码/校验码/动态码。
+    // 输出多候选（用户自选需求场景）：
+    //  ① 仅通知（NotifyOnly，通知显示原文）→ 归 Text 分类
+    //  ② 提取+通知（NotifyOnly，通知显示提取的码 ${r1}）→ 归 Text 分类
+    //  ③ 复制到剪贴板（ClipboardWrite，提取码 ${r1} 写入剪贴板）→ 归 Link 分类
+    private val SMS_CODE_TRIGGER_REGEX = Regex(
+        ".*(?:取件码|取货码|提货码|口令码|取餐码|收货码|开柜码|开箱码|领货码|寄件码|寄存码|出库码|驿站码|存包码|暂存码|验证码|校验码|动态码|动态密码|认证码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|确认码|登录码|支付码|注册码|解锁码|应急码|OTP|PIN|one-time\\s*password)" +
+            "(?:是|为)?[:：]?\\s*[『\"“「]?[0-9A-Za-z]{1,16}(?:-[0-9A-Za-z]{1,8}){0,3}[』\"”」]?.*"
+    )
+    private val SMS_CODE_EXTRACT_REGEX = Regex(
+        ".*(?:取件码|取货码|提货码|口令码|取餐码|收货码|开柜码|开箱码|领货码|寄件码|寄存码|出库码|驿站码|存包码|暂存码|验证码|校验码|动态码|动态密码|认证码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|确认码|登录码|支付码|注册码|解锁码|应急码|OTP|PIN|one-time\\s*password)" +
+            "(?:是|为)?[:：]?\\s*[『\"“「]?([0-9A-Za-z]{1,16}(?:-[0-9A-Za-z]{1,8}){0,3})[』\"”」]?.*"
+    )
+    private fun analyzeSmsCode(text: String): List<Suggestion> {
+        if (!SMS_CODE_TRIGGER_REGEX.containsMatchIn(text)) return emptyList()
+        val trigger = SMS_CODE_TRIGGER_REGEX.pattern
+        val extract = SMS_CODE_EXTRACT_REGEX.pattern
+        return listOf(
+            // ① 仅通知：通知栏显示短信原文（最轻，取件码/口令码场景默认）
+            Suggestion(
+                platform = "短信码 · 仅通知",
+                packageName = "",
+                matchRegex = trigger,
+                actionMode = RuleActionMode.NotifyOnly,
+                template = "",
+                extractionRegex = extract,
+            ),
+            // ② 提取+通知：通知栏直接显示提取到的码值（验证码快速可见场景）
+            Suggestion(
+                platform = "短信码 · 提取通知",
+                packageName = "",
+                matchRegex = trigger,
+                actionMode = RuleActionMode.NotifyOnly,
+                template = "\${r1}",
+                extractionRegex = extract,
+            ),
+            // ③ 复制到剪贴板：提取的码写入剪贴板（需粘贴到输入框场景，如登录验证码）
+            Suggestion(
+                platform = "短信码 · 复制到剪贴板",
+                packageName = "",
+                matchRegex = trigger,
+                actionMode = RuleActionMode.ClipboardWrite,
+                template = "\${r1}",
+                extractionRegex = extract,
+            ),
+        )
     }
     // v1.59 平台口令文本特征（来自口令分享网站数据整理）：
     // 抖音：8.88 xxxxx:/ 复制打开抖音；快手：5.20 FUL:/ 复制打开快手
@@ -241,7 +298,7 @@ object RuleAnalyzer {
         val lower = text.lowercase()
         if (DOUYIN_TEXT_REGEX.containsMatchIn(text)) {
             return Suggestion(
-                platform = "口令 · 抖音",
+                platform = "抖音 · 口令",
                 packageName = "com.ss.android.ugc.aweme",
                 matchRegex = DOUYIN_TEXT_REGEX.pattern,
                 actionMode = RuleActionMode.DirectOpen,
@@ -251,7 +308,7 @@ object RuleAnalyzer {
         }
         if (KUAISHOU_TEXT_REGEX.containsMatchIn(text)) {
             return Suggestion(
-                platform = "口令 · 快手",
+                platform = "快手 · 口令",
                 packageName = "com.smile.gifmaker",
                 matchRegex = KUAISHOU_TEXT_REGEX.pattern,
                 actionMode = RuleActionMode.DirectOpen,
@@ -267,7 +324,7 @@ object RuleAnalyzer {
         if (PDD_FUDAI_HINT_REGEX.containsMatchIn(lower)) {
             if (PDD_FUDAI_CODE_REGEX.containsMatchIn(text)) {
                 return Suggestion(
-                    platform = "口令 · 拼多多福袋",
+                    platform = "拼多多福袋 · 口令",
                     packageName = "com.xunmeng.pinduoduo",
                     matchRegex = ".*(福袋|助力|互助|组队|拼单|帮点|砍价|砍一刀|帮我点).*[67][0-9]{7}.*",
                     actionMode = RuleActionMode.DirectOpen,
@@ -281,7 +338,7 @@ object RuleAnalyzer {
         // ② 整段文本就是 8 位数字（微信群长按复制纯码）→ 打开拼多多
         if (PDD_FUDAI_PURE_REGEX.matches(text.trim())) {
             return Suggestion(
-                platform = "口令 · 拼多多福袋",
+                platform = "拼多多福袋 · 口令",
                 packageName = "com.xunmeng.pinduoduo",
                 matchRegex = PDD_FUDAI_PURE_REGEX.pattern,
                 actionMode = RuleActionMode.DirectOpen,
@@ -303,7 +360,7 @@ object RuleAnalyzer {
         }
         val finalPlatform = platform ?: bracketPlatform ?: return null
         return Suggestion(
-            platform = "口令 · ${finalPlatform.label}",
+            platform = "${finalPlatform.label} · 口令",
             packageName = finalPlatform.pkg,
             // (?i) 内联 flag：保存后的规则匹配剪贴板时同样大小写不敏感
             matchRegex = "(?i).*(${finalPlatform.keywords}).*",
@@ -326,7 +383,7 @@ object RuleAnalyzer {
         }
         return listOf(
             Suggestion(
-                platform = "口令 · ${platform.first}",
+                platform = "${platform.first} · 口令",
                 packageName = platform.second,
                 matchRegex = KOU_LING_REGEX.pattern,
                 actionMode = RuleActionMode.DirectOpen,
@@ -399,16 +456,36 @@ object RuleAnalyzer {
         analyzeDownloadLink(url)?.let { return listOf(it) }
         val host = runCatching { android.net.Uri.parse(url).host?.lowercase() }.getOrNull() ?: return emptyList()
         // v1.141.x 外卖取件场景（美团/饿了么等外卖柜短链 + 取件码）：
-        // 命中 → NotifyOnly（默认只通知不跳转；用户可在编辑器改 actionMode 为跳转，软件本体已支持）。
-        // 识别特征：短链域名属外卖柜 & 文本含取件/外卖/柜/格口等关键词 → 明确是"取件通知"而非普通分享链接。
+        // mt.cn 链实测最终落在微信小程序（mt.cn→peisong.meituan.com H5→拉起小程序）。
+        // 故同时产出 2 条建议，用户自选：
+        //  ① 仅通知（NotifyOnly，纯净文本通知，归文本分类可自选通知渠道）
+        //  ② 跳转微信（DirectOpen 打开 mt.cn，系统按 AppLinks/scheme 自动拉起微信小程序）
         if (isTakeoutShortLinkHost(host) && hasTakeoutPickupHint(text)) {
+            val pkg = TAKEOUT_PKG_BY_HOST[host] ?: "com.sankuai.meituan"
+            val taRegex = ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*"
             return listOf(
                 Suggestion(
-                    platform = "外卖取件通知",
-                    packageName = TAKEOUT_PKG_BY_HOST[host] ?: "com.sankuai.meituan",
-                    matchRegex = ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*",
+                    platform = "外卖取件 · 仅通知",
+                    packageName = pkg,
+                    matchRegex = taRegex,
                     actionMode = RuleActionMode.NotifyOnly,
                     template = "",
+                    extractionRegex = URL_EXTRACT_REGEX.pattern,
+                ),
+                Suggestion(
+                    platform = "美团小程序",
+                    // v1.141.23：包名留空。template 是 https 网页 URL，若带美团包名会 setPackage 强投美团 App（其不处理 HTTPS）→ 打不开。留空→交浏览器。
+                    packageName = "",
+                    matchRegex = taRegex,
+                    // v1.141.24：改用「后台无头 WebView」自动走完整链。
+                    // 关键实测：软件内 WebView 加载 mt.cn → 302 peisong → 页面 JS 生成 weixin://dl/business/?t=TICKET
+                    // 并 location.href 跳转 → WebView shouldOverrideUrlLoading 捕获该 scheme → 自动拉起微信小程序，
+                    // 用户仅需点一次系统"检测到 App 跳转"确认（Android 系统强制，无法绕）。
+                    // 故 actionMode=WebViewResolveAndOpen 走 startWebViewResolve，其中对 mt.cn/外卖场景
+                    // 特判改用 HeadlessWebViewResolver（后台 WebView 引擎）而非 OneRedirectResolver（纯 HTTP 302，拿不到 JS scheme）。
+                    actionMode = RuleActionMode.WebViewResolveAndOpen,
+                    parseAfterRedirect = false,
+                    template = "\${url:input}",
                     extractionRegex = URL_EXTRACT_REGEX.pattern,
                 ),
             )
@@ -419,7 +496,7 @@ object RuleAnalyzer {
             if (host != "weixin.qq.com" || url.contains("/sph/")) {
                 return listOf(
                     Suggestion(
-                        platform = "视频平台 · 便捷下载",
+                        platform = "便捷下载 · 视频平台",
                         packageName = "com.lcw.easydownload",
                         matchRegex = ".*(?:v\\.douyin\\.com|iesdouyin\\.com|kuaishou\\.com|gifshow\\.com|b23\\.tv|bilibili\\.com|xhslink\\.com|xiaohongshu\\.com|xhslink\\.cn|weibo\\.com|weibo\\.cn|ixigua\\.com|pipix\\.com|huoshan\\.com|meipai\\.com|miaopai\\.com|youtu\\.be|youtube\\.com|vt\\.tiktok\\.com|tiktok\\.com|weixin\\.qq\\.com/sph/)[^\\s]*.*",
                         actionMode = RuleActionMode.DirectOpen,
@@ -439,7 +516,7 @@ object RuleAnalyzer {
             // v1.78 抖音：短链（v.douyin.com 必须解析）→ webview_resolve；详情域名（www/m.douyin.com、iesdouyin.com 直接含 ID）→ parse_and_open
             host == "v.douyin.com" -> return listOf(
                 Suggestion(
-                    platform = "链接 · 抖音",
+                    platform = "抖音 · 链接",
                     packageName = "com.ss.android.ugc.aweme",
                     matchRegex = ".*v\\.douyin\\.com[^\\s]*.*",
                     actionMode = RuleActionMode.WebViewResolveAndOpen,
@@ -452,7 +529,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".douyin.com") || host.endsWith(".iesdouyin.com") -> return listOf(
                 Suggestion(
-                    platform = "链接 · 抖音",
+                    platform = "抖音 · 链接",
                     packageName = "com.ss.android.ugc.aweme",
                     // v1.78 matchRegex 补子域覆盖（原缺失 www/m），(?<!v\\.) 排除短链避免误命中
                     matchRegex = ".*(?:iesdouyin\\.com[^\\s]*|(?<!v\\.)douyin\\.com[^\\s]*).*",
@@ -465,7 +542,7 @@ object RuleAnalyzer {
             // v1.78 小红书：短链（xhslink.com / xhslink.cn）→ webview_resolve；详情（www.xiaohongshu.com 直接含 ID）→ parse_and_open
             host == "xhslink.com" || host == "xhslink.cn" -> return listOf(
                 Suggestion(
-                    platform = "链接 · 小红书",
+                    platform = "小红书 · 链接",
                     packageName = "com.xingin.xhs",
                     matchRegex = ".*xhslink\\\\.(?:com|cn)[^\\\\s]*.*",
                     actionMode = RuleActionMode.WebViewResolveAndOpen,
@@ -477,7 +554,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".xiaohongshu.com") -> return listOf(
                 Suggestion(
-                    platform = "链接 · 小红书",
+                    platform = "小红书 · 链接",
                     packageName = "com.xingin.xhs",
                     matchRegex = ".*xiaohongshu\\.com[^\\s]*.*",
                     actionMode = RuleActionMode.ParseAndOpen,
@@ -488,7 +565,7 @@ object RuleAnalyzer {
             )
             host == "b23.tv" || host.endsWith(".b23.tv") -> return listOf(
                 Suggestion(
-                    platform = "链接 · B站短链",
+                    platform = "B站短链 · 链接",
                     packageName = "tv.danmaku.bili",
                     matchRegex = ".*(b23\\.tv[^\\s]*).*",
                     actionMode = RuleActionMode.WebViewResolveAndOpen,
@@ -501,7 +578,7 @@ object RuleAnalyzer {
             // v1.78 快手：短链（v.kuaishou.com 必须解析）→ webview_resolve；详情（kuaishou.com 子域/gifshow.com/chenzhongtech.com 直接含 ID）→ parse_and_open
             host == "v.kuaishou.com" -> return listOf(
                 Suggestion(
-                    platform = "链接 · 快手",
+                    platform = "快手 · 链接",
                     packageName = "com.smile.gifmaker",
                     matchRegex = ".*v\\.kuaishou\\.com[^\\s]*.*",
                     actionMode = RuleActionMode.WebViewResolveAndOpen,
@@ -513,7 +590,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".kuaishou.com") || host.endsWith(".gifshow.com") || host.endsWith(".chenzhongtech.com") -> return listOf(
                 Suggestion(
-                    platform = "链接 · 快手",
+                    platform = "快手 · 链接",
                     packageName = "com.smile.gifmaker",
                     // v1.78 对齐官方 matchRegex（官方含 chenzhongtech.com）；(?<!v\\.) 排除短链避免误命中
                     matchRegex = ".*(?:gifshow\\.com[^\\s]*|chenzhongtech\\.com[^\\s]*|(?<!v\\.)kuaishou\\.com[^\\s]*).*",
@@ -525,7 +602,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".bilibili.com") && url.contains("/video/") -> return listOf(
                 Suggestion(
-                    platform = "链接 · B站视频",
+                    platform = "B站视频 · 链接",
                     packageName = "tv.danmaku.bili",
                     matchRegex = ".*bilibili\\.com/video/(BV[0-9A-Za-z]{10}).*",
                     actionMode = RuleActionMode.ParseAndOpen,
@@ -535,7 +612,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".weibo.com") || host.endsWith(".weibo.cn") -> return listOf(
                 Suggestion(
-                    platform = "链接 · 微博",
+                    platform = "微博 · 链接",
                     packageName = "com.sina.weibo",
                     matchRegex = ".*weibo\\.(com|cn)/\\d+/([A-Za-z0-9]+).*",
                     actionMode = RuleActionMode.ParseAndOpen,
@@ -545,7 +622,7 @@ object RuleAnalyzer {
             )
             host.endsWith(".meituan.com") || host.endsWith(".dpurl.cn") || host.endsWith(".dianping.com") -> return listOf(
                 Suggestion(
-                    platform = "链接 · 美团",
+                    platform = "美团 · 链接",
                     packageName = "com.sankuai.meituan",
                     matchRegex = ".*(meituan\\.com[^\\s]*|dpurl\\.cn[^\\s]*|dianping\\.com[^\\s]*).*",
                     actionMode = RuleActionMode.DirectOpen,
@@ -553,11 +630,16 @@ object RuleAnalyzer {
                     extractionRegex = URL_EXTRACT_REGEX.pattern,
                 ),
             )
-            host.endsWith(".goofish.com") || host.endsWith(".idlefish.com") || host.endsWith(".tb.cn") -> return listOf(
+            // v1.141.55 修复：e.tb.cn 是淘宝大促短链（APP_MAP 淘宝列表明确包含 e.tb.cn），
+            // 原 host.endsWith(".tb.cn") 把 e.tb.cn 误吞进闲鱼分支（e.tb.cn 以 .tb.cn 结尾）
+            // → 淘宝链接被识别为闲鱼（用户实锤：【淘宝】大促价保 e.tb.cn 链接 → 闲鱼·链接）。
+            // 其余 tb.cn 子域（m.tb.cn 等）为淘宝/闲鱼共用短链，维持历史闲鱼默认。
+            host.endsWith(".goofish.com") || host.endsWith(".idlefish.com") ||
+                (host.endsWith(".tb.cn") && !host.endsWith("e.tb.cn")) -> return listOf(
                 Suggestion(
-                    platform = "链接 · 闲鱼",
+                    platform = "闲鱼 · 链接",
                     packageName = "com.taobao.idlefish",
-                    matchRegex = ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|tb\\.cn[^\\s]*).*",
+                    matchRegex = ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|(?<!e\\.)tb\\.cn[^\\s]*).*",
                     actionMode = RuleActionMode.ParseAndOpen,
                     template = "fleamarket://2.taobao.com/onepiece?h5Url=\${url:input}",
                     extractionRegex = URL_EXTRACT_REGEX.pattern,
@@ -573,7 +655,7 @@ object RuleAnalyzer {
         if (entry == null) return emptyList()
         return listOf(
             Suggestion(
-                platform = "链接 · ${entry.name}",
+                platform = "${entry.name} · 链接",
                 packageName = entry.packageName,
                 matchRegex = entry.domains.takeIf { it.isNotEmpty() }?.joinToString("|") { Regex.escape(it) }?.let { ".*($it).*" } ?: URL_EXTRACT_REGEX.pattern,
                 actionMode = RuleActionMode.DirectOpen,

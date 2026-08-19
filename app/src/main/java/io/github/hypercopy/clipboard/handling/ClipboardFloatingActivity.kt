@@ -129,11 +129,16 @@ class ClipboardFloatingActivity : Activity() {
             val manager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             manager.setPrimaryClip(ClipData.newPlainText("", ""))
         }.isSuccess
-        ClipboardFocusRequester.consumeClearToken(
-            intent.getStringExtra(ClipboardFocusRequester.EXTRA_START_TOKEN),
-            cleared,
-        )
         finishWithoutAnimation()
+        // v1.141.62 修复：先 finish 再延迟回调（回调里 launch 目标 App），
+        // 避免 FloatingActivity 前台时 startActivity(目标) 被随后 finish 打断 → 启动被吞卡住
+        //（00:41 淘宝链接场景实锤：清剪贴板→launch→"启动成功"但画面卡住未跳转）
+        Handler(Looper.getMainLooper()).postDelayed({
+            ClipboardFocusRequester.consumeClearToken(
+                intent.getStringExtra(ClipboardFocusRequester.EXTRA_START_TOKEN),
+                cleared,
+            )
+        }, LAUNCH_AFTER_FINISH_DELAY_MILLIS)
     }
 
     private fun finishWithoutAnimation() {
@@ -197,6 +202,9 @@ class ClipboardFloatingActivity : Activity() {
         // 80ms 保留 20ms 余量确保 Activity stop 完成后再提交处理，全链路 -40ms；
         // 若真机出现跳转后目标 App 未置前/闪屏，回滚 120ms 即可
         const val HANDLE_AFTER_FINISH_DELAY_MILLIS = 80L
+        // v1.141.62 清剪贴板后延迟 launch 目标 App 的等待时间（等 FloatingActivity 完全 finish，
+        // 焦点回到源 App 后再启动目标，避免前台竞态吞启动；< 超时保护 1200ms）
+        const val LAUNCH_AFTER_FINISH_DELAY_MILLIS = 300L
         // v1.48 焦点读取竞态重试：间隔 300ms 等 WindowManager 焦点状态稳定
         const val MAX_READ_ATTEMPTS = 4
         const val RETRY_DELAY_MILLIS = 300L

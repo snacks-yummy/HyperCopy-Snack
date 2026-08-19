@@ -32,6 +32,8 @@ class ClipboardMonitorForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ShizukuClipboardMonitor.start(applicationContext) { status -> updateNotification(status) }
+        // v1.141.26 短信自动监听：Shizuku 轮询检测外卖取件短信 → 自动跳转/通知（见 ShizukuSmsListener）
+        ShizukuSmsListener.start(applicationContext)
         // v1.114 持续保活监控（无障碍真实绑定 + Shizuku 状态），防服务被打断
         KeepAliveMonitor.start(applicationContext)
         return START_STICKY
@@ -42,6 +44,7 @@ class ClipboardMonitorForegroundService : Service() {
         runCatching { unlockReceiver?.let { unregisterReceiver(it) } }
         unlockReceiver = null
         ShizukuClipboardMonitor.stop()
+        ShizukuSmsListener.stop()
         // v1.114 服务被系统销毁时停止保活循环（App 进程还活着时会由 START_STICKY 重建）
         KeepAliveMonitor.stop()
         super.onDestroy()

@@ -35,6 +35,34 @@ class RuleRepository(private val context: Context) {
         // （取件码→NotifyOnly，短信验证码→ClipboardWrite）。文本类编辑器无 actionMode 选择器，
         // 用户不可能主动改成 DirectOpen，此迁移只针对 builtin_ 前缀内置规则，安全。
         migratePickupTextActionMode()
+        // v1.141.30 一次性迁移：美团小程序内置规则图标包名 → 美团外卖（com.sankuai.meituan.takeoutnew）
+        // 背景：v1.141.29 把取件跳转规则 target.packageName 从空改为 com.sankuai.meituan（美团主App），
+        //      但真机装的是美团外卖独立 App，主App非外卖包名显示不出"美团外卖"图标。
+        // 幂等：每次 readRules 检查，packageName 非目标外卖包名则改（尊重用户后续手动修改）。
+        migrateTakeoutJumpIconV14130()
+        // v1.141.32 幂等迁移：短信验证码提取 + 取件码通知 内置规则关键词全量扩充
+        // 背景：v1.141.32 默认覆盖行业全量短信码场景（认证/激活/授权/绑定/OTP/PIN + 领货/寄件/寄存等），
+        //      但内置规则一旦写入本地不自动覆盖（v1.43 设计），需用 assets 权威正则显式升级原版。
+        migrateSmsCodeKeywordsV14132()
+        // v1.141.45 一次性迁移：取件码/快递单号 正则缺口修复（尾号4位/JDVA/百世43）
+        migrateBuiltinRulesV14145()
+        // v1.141.47 一次性迁移：取件码/验证码 ReDoS 修复（前导 .* → .{0,300}）
+        migrateRedosFixV14147()
+        // v1.141.49 一次性自检（不改规则）：定位"复制整段短信不命中快递规则"问题
+        // 19:42 日志实锤：整段文本【京东物流】关于运单JD0228717729868配送情况，显示已签收
+        // 诊断"不含疑似单号"，纯单号 JD0228717729868 正常命中 → 输出默认/UNICODE 边界对比 + char codes
+        migrateRegexSelfTestV14149()
+        // v1.141.50 一次性迁移：\b → ASCII 数字字母边界（真机 ART \w 含中文，\b 在中文与字母间无边界）
+        // 根因：19:42 自检坐实——整段短信不命中、纯单号命中、charCodes 正常 → ART \b=Unicode 语义。
+        // 修复：快递/验证码规则 + ExpressCompanyDetector 全部 \b 改为 (?<![A-Za-z0-9])...(?![A-Za-z0-9])
+        migrateBoundaryFixV14150()
+        // v1.141.52 一次性迁移：快递菜鸟规则 clearClipboardAfterJump=true（跳转前清剪贴板）
+        // 根因：委托直达用 extras 传单号不依赖剪贴板，但跳转后剪贴板残留单号 → 菜鸟 JS 检测弹
+        // 「是否要查询包裹」→ 自动确认 → 页面重绘展开收起（20:49 实锤偶发）。跳转前清空可根治。
+        migrateCainiaoClearClipboardV14152()
+        // ===== v1.141.55 干净规则基线（无淘宝链接/闲鱼/口令规则） =====
+        // 说明：v1.141.56 之后新增的淘宝系规则及其迁移(58/59/64/67/73)已在彻底回退到 55 时移除，
+        // 保持与 v1.141.55 一致的 5 条内置规则（外卖/便捷下载/取件码/快递单号/短信验证码）。
         val file = rulesFile()
         val rules = if (!file.exists()) emptyList() else runCatching { rulesFromJson(file.readText()) }.getOrDefault(emptyList())
         // v1.52 防御：历史数据可能存在重复 id（异常导入/合并产生），
@@ -551,6 +579,351 @@ class RuleRepository(private val context: Context) {
     private fun rulesFile() = context.filesDir.resolve(RULES_FILE_NAME)
 
     /**
+     * v1.141.32 幂等迁移：短信验证码提取 + 取件码通知 内置规则关键词全量扩充。
+     * 背景：内置规则写入本地后不再自动覆盖（v1.43 设计），而 v1.141.32 默认将关键词扩充到
+     *      全量短信码场景（验证码类：认证/激活/授权/绑定/确认/登录/支付/注册 + OTP/PIN/
+     *      one-time password；取件码类：领货/寄件/寄存/出库/驿站/存包/暂存）。
+     * 方案：每次 readRules 检查，仅当本地内置规则仍为「旧关键词集」（缺新特征词）时，
+     *      用 assets 权威 JSON 的 matchRegex/triggerRegexes/extractionRegexes 覆盖升级。
+     *      尊重用户改过的新版（若已含新特征词则不动）。
+     */
+    private fun migrateSmsCodeKeywordsV14132() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        // v1.141.35 修复死循环：原实现每次 readRules 都重跑且 feature 判定因 \\s 转义
+        // 与本地存储(双反斜杠)不匹配 → 永远判定旧版 → 每次覆盖写盘 → readRules 无限循环 → ANR 无响应。
+        // 改为一次性迁移（prefs 标记，只执行一次），彻底消除循环。
+        if (prefs.getBoolean(KEY_SMS_CODE_MIGRATED_V14135, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_SMS_CODE_MIGRATED_V14135, true).apply(); return }
+        data class Target(val ruleId: String, val assetFile: String)
+        val targets = listOf(
+            Target(
+                "${BuiltinRules.ID_PREFIX}cloud_text_短信验证码提取",
+                "短信验证码提取.json",
+            ),
+            Target(
+                "${BuiltinRules.ID_PREFIX}cloud_text_取件码通知",
+                "取件码通知.json",
+            ),
+            Target(
+                "${BuiltinRules.ID_PREFIX}cloud_text_快递单号菜鸟查件_com.cainiao.wireless",
+                "快递单号菜鸟查件_com.cainiao.wireless.json",
+            ),
+        )
+        // 一次性读所有 assets 权威正则，无条件覆盖对应的内置规则（用户核心内置规则，覆盖无损）
+        val assetRegexById = targets.associate { t ->
+            val data = runCatching {
+                context.assets.open("builtin_rules/text/${t.assetFile}").use { input ->
+                    val obj = org.json.JSONObject(input.bufferedReader().readText())
+                    Triple(
+                        obj.getString("matchRegex"),
+                        obj.optJSONArray("triggerRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                        obj.optJSONArray("extractionRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                    )
+                }
+            }.getOrNull()
+            t.ruleId to data
+        }
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                val asset = assetRegexById[rule.id] ?: return@map rule
+                val regexes = asset ?: return@map rule
+                // 仅覆盖 builtin_ 内置版（不碰用户自定义 UUID 规则）
+                if (rule.id.startsWith(BuiltinRules.ID_PREFIX)) {
+                    changed = true
+                    rule.copy(
+                        matchRegex = regexes.first,
+                        triggerRegexes = regexes.second,
+                        extractionRegexes = regexes.third,
+                    )
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.32 migrate sms-code keywords: 验证码/取件码/快递单号 内置规则已刷新")
+        }
+        // 无论是否有变更，标记已迁移（一次性）
+        prefs.edit().putBoolean(KEY_SMS_CODE_MIGRATED_V14135, true).apply()
+    }
+
+    /**
+     * v1.141.30 一次性迁移：美团小程序内置规则 target.packageName → 美团外卖。
+     * 背景：v1.141.29 为显示该规则图标，把 packageName 从空改为 com.sankuai.meituan（美团主App），
+     *      但真机实际装的是美团外卖独立 App（com.sankuai.meituan.takeoutnew），
+     *      主 App 图标不是"美团外卖"logo → 显示普通美团图标，非用户要的外卖图标。
+     * 方案：幂等迁移——每次 readRules 检查，仅当本地该内置规则 target.packageName 非目标外卖包名时
+     *      统一改为美团外卖包名（仅针对 builtin_ 内置版，不碰用户自定义 UUID 规则）。
+     * 注意：mt.cn 外卖跳转走 WebView（startWebViewResolve 固定传空包名），此处 packageName 纯图标展示。
+     */
+    /**
+     * v1.141.45 一次性迁移：取件码/快递单号 内置规则正则升级（代码级测试缺口修复）：
+     * ① 取件码通知第三分支 尾号/虚拟号 数字位数 9-12 → 4-12（覆盖"凭手机尾号xxxx取件"真实句式）
+     * ② 快递单号补 JDVA 前缀（京东物流标准单号）+ 百世 43 号段 13 位定长放宽到 10-13 位
+     * 无条件刷 2 条内置规则（读 assets 权威版），末尾置标记，一次性（v1.141.37 死循环修复模式）。
+     */
+    /**
+     * v1.141.47 一次性迁移：取件码/验证码 内置规则 ReDoS 修复（审计发现 O(n²) 回溯）：
+     * 前导 .* 改为有界 .{0,300}（短信正文 <300 字符全覆盖；超长文本快速失败，O(n²)→线性）。
+     * 实测：取件码 16000 字符 6273ms→384ms，验证码 8000 字符 3853ms→470ms。
+     * 无条件刷 2 条内置规则（读 assets 权威版），末尾置标记，一次性。
+     */
+    private fun migrateRedosFixV14147() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_REDOS_FIX_V14147, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_REDOS_FIX_V14147, true).apply(); return }
+        val targets = listOf(
+            "${BuiltinRules.ID_PREFIX}cloud_text_取件码通知" to "取件码通知.json",
+            "${BuiltinRules.ID_PREFIX}cloud_text_短信验证码提取" to "短信验证码提取.json",
+        )
+        val assetById = targets.associate { (id, asset) ->
+            id to runCatching {
+                context.assets.open("builtin_rules/text/$asset").use { input ->
+                    val obj = org.json.JSONObject(input.bufferedReader().readText())
+                    Triple(
+                        obj.getString("matchRegex"),
+                        obj.optJSONArray("triggerRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                        obj.optJSONArray("extractionRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                    )
+                }
+            }.getOrNull()
+        }
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                val asset = assetById[rule.id] ?: return@map rule
+                if (rule.id.startsWith(BuiltinRules.ID_PREFIX)) {
+                    changed = true
+                    rule.copy(
+                        matchRegex = asset.first,
+                        triggerRegexes = asset.second,
+                        extractionRegexes = asset.third,
+                    )
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.47 migrate redos fix: 取件码/验证码 前导 .* 改有界 .{0,300} (ReDoS修复)")
+        }
+        prefs.edit().putBoolean(KEY_REDOS_FIX_V14147, true).apply()
+    }
+
+    /**
+     * v1.141.49 一次性正则自检（不改任何规则，只输出诊断日志）：
+     * 定位 19:42 真机"复制整段短信文本不命中快递规则"问题——
+     * 整段【京东物流】关于运单JD0228717729868配送情况，显示已签收 诊断"不含疑似单号"，
+     * 纯单号 JD0228717729868 正常命中。桌面 JDK 实测两种输入均命中 →
+     * 怀疑 ART 正则 \b 对中文边界处理差异（UNICODE_CHARACTER_CLASS）或输入含隐藏字符。
+     * 输出：extractTrackingNumber 结果 / 默认 vs UNICODE 边界匹配 / char codes，I 级必落盘。
+     */
+    private fun migrateRegexSelfTestV14149() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_REGEX_SELFTEST_V14150, false)) return
+        prefs.edit().putBoolean(KEY_REGEX_SELFTEST_V14150, true).apply()
+        val sample = "【京东物流】关于运单JD0228717729868配送情况，显示已签收"
+        val pure = "JD0228717729868"
+        try {
+            HyperLog.i(TAG, "[selftest] 样例整段: $sample (len=${sample.length})")
+            // ① extractTrackingNumber
+            val exFull = ExpressCompanyDetector.extractTrackingNumber(sample)
+            val exPure = ExpressCompanyDetector.extractTrackingNumber(pure)
+            HyperLog.i(TAG, "[selftest] extractTrackingNumber 整段=${exFull ?: "null"} | 纯单号=${exPure ?: "null"}")
+            // ② 规则 trigger 匹配：默认 vs UNICODE_CHARACTER_CLASS
+            val file = rulesFile()
+            val express = if (file.exists()) {
+                runCatching { rulesFromJson(file.readText()) }.getOrDefault(emptyList())
+                    .firstOrNull { it.category == RuleCategory.Express }
+            } else null
+            val trigger = express?.triggerPatterns()?.firstOrNull()
+            if (trigger != null) {
+                val defaultHit = cachedRegex(trigger, express.regexOptions).containsMatchIn(sample)
+                // Kotlin RegexOption 无 UNICODE_CHARACTER_CLASS → 用 Java Pattern 直接编译对比
+                val uniHit = runCatching {
+                    java.util.regex.Pattern.compile(trigger, java.util.regex.Pattern.UNICODE_CHARACTER_CLASS)
+                        .matcher(sample).find()
+                }.getOrDefault(false)
+                val pureHit = cachedRegex(trigger, express.regexOptions).containsMatchIn(pure)
+                HyperLog.i(TAG, "[selftest] trigger[0] 整段: default=$defaultHit unicode=$uniHit | 纯单号: default=$pureHit")
+                HyperLog.i(TAG, "[selftest] regexOptions='${express.regexOptions}' rule=${express.id} trigger=${trigger.take(80)}...")
+            } else {
+                HyperLog.i(TAG, "[selftest] 未找到 Express 规则 trigger")
+            }
+            // ③ char codes（前 40 字符，检查隐藏字符）
+            val sb = StringBuilder()
+            for (c in sample.take(40)) {
+                sb.append(Integer.toHexString(c.code).uppercase()).append(' ')
+            }
+            val codes = sb.toString()
+            HyperLog.i(TAG, "[selftest] charCodes: $codes")
+        } catch (e: Throwable) {
+            HyperLog.i(TAG, "[selftest] 异常: ${e.message}")
+        }
+    }
+
+    /**
+     * v1.141.50 一次性迁移：正则边界 \b → ASCII 数字字母边界 lookaround。
+     * 根因（v1.141.49 自检坐实）：真机 ART 的 java.util.regex \w 含中文（Unicode 语义），
+     * \b 在中文与字母/数字之间无边界 → 整段短信【京东物流】关于运单JD0228717729868...
+     * 规则命中失败 + diagnose "不含疑似单号"（desktop JDK \b=ASCII 正常 → 本地代码级测试全过，
+     * 真机 19:42 复制整段短信不触发、复制纯单号正常触发）。
+     * 修复：assets 快递/验证码规则 + ExpressCompanyDetector 的 \b 改为
+     * (?<![A-Za-z0-9])...(?![A-Za-z0-9])（中文/标点/开头 = 边界，字母数字紧贴 = 无边界，语义与 ASCII \b 等价）。
+     * 刷 2 条内置规则（快递/验证码，取件码无 \b 不涉及），末尾置标记，一次性。
+     */
+    private fun migrateBoundaryFixV14150() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_BOUNDARY_FIX_V14150, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_BOUNDARY_FIX_V14150, true).apply(); return }
+        val targets = listOf(
+            "${BuiltinRules.ID_PREFIX}cloud_text_快递单号菜鸟查件_com.cainiao.wireless" to "快递单号菜鸟查件_com.cainiao.wireless.json",
+            "${BuiltinRules.ID_PREFIX}cloud_text_短信验证码提取" to "短信验证码提取.json",
+        )
+        val assetById = targets.associate { (id, asset) ->
+            id to runCatching {
+                context.assets.open("builtin_rules/text/$asset").use { input ->
+                    val obj = org.json.JSONObject(input.bufferedReader().readText())
+                    Triple(
+                        obj.getString("matchRegex"),
+                        obj.optJSONArray("triggerRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                        obj.optJSONArray("extractionRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                    )
+                }
+            }.getOrNull()
+        }
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                val asset = assetById[rule.id] ?: return@map rule
+                if (rule.id.startsWith(BuiltinRules.ID_PREFIX)) {
+                    changed = true
+                    rule.copy(
+                        matchRegex = asset.first,
+                        triggerRegexes = asset.second,
+                        extractionRegexes = asset.third,
+                    )
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.50 migrate boundary fix: 快递/验证码 \\b→ASCII边界 (ART中文边界修复)")
+        }
+        prefs.edit().putBoolean(KEY_BOUNDARY_FIX_V14150, true).apply()
+    }
+
+    /**
+     * v1.141.52 一次性迁移：快递菜鸟规则 clearClipboardAfterJump=true（跳转前清剪贴板）。
+     * 根因：委托直达用 extras 传单号不依赖剪贴板，但跳转后剪贴板残留单号 → 菜鸟 JS 检测剪贴板
+     * 弹「是否要查询包裹」→ 自动确认 → 页面重绘 → 详情页展开状态丢失（收起）。
+     * 20:49 测试实锤：弹窗偶发（与清剪贴板时机竞态）。跳转前清空剪贴板可根治弹窗。
+     * 代码层已兜底（PendingJumpCoordinator isEntrustIntent → launchAfterClipboardClear 强制清），
+     * 此迁移同步本地规则字段保持一致（用户查看/导出规则时正确显示）。
+     */
+    private fun migrateCainiaoClearClipboardV14152() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_CAINIAO_CLEAR_CLIPBOARD_V14152, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_CAINIAO_CLEAR_CLIPBOARD_V14152, true).apply(); return }
+        val cainiaoId = "${BuiltinRules.ID_PREFIX}cloud_text_快递单号菜鸟查件_com.cainiao.wireless"
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                if (rule.id == cainiaoId && rule.id.startsWith(BuiltinRules.ID_PREFIX) && !rule.clearClipboardAfterJump) {
+                    changed = true
+                    rule.copy(clearClipboardAfterJump = true)
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.52 migrate cainiao clear-clipboard: 快递菜鸟规则跳转前清剪贴板(true)")
+        }
+        prefs.edit().putBoolean(KEY_CAINIAO_CLEAR_CLIPBOARD_V14152, true).apply()
+    }
+    private fun migrateBuiltinRulesV14145() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_BUILTIN_RULES_V14145, false)) return
+        val file = rulesFile()
+        if (!file.exists()) { prefs.edit().putBoolean(KEY_BUILTIN_RULES_V14145, true).apply(); return }
+        val targets = listOf(
+            "${BuiltinRules.ID_PREFIX}cloud_text_取件码通知" to "取件码通知.json",
+            "${BuiltinRules.ID_PREFIX}cloud_text_快递单号菜鸟查件_com.cainiao.wireless" to "快递单号菜鸟查件_com.cainiao.wireless.json",
+        )
+        val assetById = targets.associate { (id, asset) ->
+            id to runCatching {
+                context.assets.open("builtin_rules/text/$asset").use { input ->
+                    val obj = org.json.JSONObject(input.bufferedReader().readText())
+                    Triple(
+                        obj.getString("matchRegex"),
+                        obj.optJSONArray("triggerRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                        obj.optJSONArray("extractionRegexes")?.let { arr ->
+                            (0 until arr.length()).map { arr.getString(it) }
+                        } ?: listOf(obj.getString("matchRegex")),
+                    )
+                }
+            }.getOrNull()
+        }
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                val asset = assetById[rule.id] ?: return@map rule
+                if (rule.id.startsWith(BuiltinRules.ID_PREFIX)) {
+                    changed = true
+                    rule.copy(
+                        matchRegex = asset.first,
+                        triggerRegexes = asset.second,
+                        extractionRegexes = asset.third,
+                    )
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.45 migrate builtin rules: 取件码尾号4位/JDVA/百世43号段 内置规则已刷新")
+        }
+        prefs.edit().putBoolean(KEY_BUILTIN_RULES_V14145, true).apply()
+    }
+    private fun migrateTakeoutJumpIconV14130() {
+        val file = rulesFile()
+        if (!file.exists()) return
+        val targetId = "${BuiltinRules.ID_PREFIX}cloud_link_takeout_jump"
+        val targetPkg = "com.sankuai.meituan.takeoutnew"
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(file.readText()).map { rule ->
+                if (rule.id == targetId && rule.target.packageName != targetPkg &&
+                    rule.id.startsWith(BuiltinRules.ID_PREFIX)
+                ) {
+                    changed = true
+                    rule.copy(target = rule.target.copy(packageName = targetPkg))
+                } else rule
+            }
+        }.getOrDefault(emptyList())
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.30 migrate takeout_jump icon packageName -> $targetPkg")
+        }
+    }
+
+    /**
      * v1.136 一次性迁移：圆通 YT 前缀单号位数放宽（\d{13} → \d{10,13}）。
      * 背景：用户实测 YT1234567890（YT + 10 位数字）为有效圆通单号（菜鸟 App 可查到包裹），
      * 原规则 `(?:YTO|YT)\d{13}` 仅匹配 13 位数字 → 10 位 YT 单号无法识别。
@@ -824,6 +1197,16 @@ class RuleRepository(private val context: Context) {
         /** v1.134 一次性迁移标记：撤销 v1.133 错误写入的 clearClipboardAfterJump=true */
         private const val KEY_WECHAT_VIDEO_RULE_V134 = "wechat_video_rule_v134"
         private const val KEY_YT_EXPRESS_RULE_V136 = "yt_express_rule_v136"
+        // v1.141.35 短信码规则迁移一次性标记（防止 migrateSmsCodeKeywordsV14132 每次 readRules 重跑死循环）
+        private const val KEY_SMS_CODE_MIGRATED_V14135 = "sms_code_migrated_v14135"
+        private const val KEY_BUILTIN_RULES_V14145 = "builtin_rules_migrated_v14145"
+        private const val KEY_REDOS_FIX_V14147 = "redos_fix_migrated_v14147"
+        private const val KEY_REGEX_SELFTEST_V14149 = "regex_selftest_v14149"
+        private const val KEY_REGEX_SELFTEST_V14150 = "regex_selftest_v14150"
+        private const val KEY_BOUNDARY_FIX_V14150 = "boundary_fix_migrated_v14150"
+        private const val KEY_CAINIAO_CLEAR_CLIPBOARD_V14152 = "cainiao_clear_clipboard_v14152"
+        private const val KEY_TAOBAO_LINK_TEMPLATE_V14158 = "taobao_link_template_v14158"
+        private const val KEY_TAOBAO_KOULING_REGEX_V14159 = "taobao_kouling_regex_v14159"
     }
 }
 

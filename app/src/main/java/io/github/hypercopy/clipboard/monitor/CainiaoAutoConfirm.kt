@@ -32,8 +32,10 @@ object CainiaoAutoConfirm {
     private val CAINIAO_TITLE_HINTS = listOf("查询包裹", "是否要查询", "快递单号", "mailNo")
     private val CAINIAO_BUTTON_HINTS = listOf("立即查看", "查看", "查询")
     /** v1.137 业务提示弹窗特征（菜鸟"温馨提示/系统繁忙/暂无物流"等）：非可确认弹窗，
-     * 识别到即视为页面已就绪、无需处理——标记完成停止扫描，防止宽限期后冷启动补偿误重启菜鸟 */
-    private val CAINIAO_IGNORE_HINTS = listOf("温馨提示", "系统繁忙", "暂无物流")
+     * 识别到即视为页面已就绪、无需处理——标记完成停止扫描，防止宽限期后冷启动补偿误重启菜鸟
+     *  v1.141.51 补充"请检查运单号输入是否正确"（无效单号提示，20:49 截图2 实锤）：
+     *  无效单号时菜鸟显示该提示，A11y 应识别为业务提示停止扫描，不再误判列表页"顺丰速运 SF+数字"为详情页 */
+    private val CAINIAO_IGNORE_HINTS = listOf("温馨提示", "系统繁忙", "暂无物流", "请检查运单号", "运单号输入")
 
     /** v1.110 菜鸟自带分享弹窗（逆向实证：PackageShareDialog，BottomSheetDialogFragment）
      * 触发：详情页分享按钮 → JS 桥 JsHybridAuthBuyModule → showDialog
@@ -161,18 +163,24 @@ object CainiaoAutoConfirm {
             type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
         ) {
             logI("事件 pkg=$pkg type=$type, 扫描中")
-            scanOnce(service)
+            // v1.141.46 事件通道兜底：节点树遍历中菜鸟 Weex 重绘可能 recycle 旧节点，
+            // getChild/text 抛 IllegalStateException → 无保护会崩溃 AccessibilityService
+            runCatching { scanOnce(service) }
+                .onFailure { logW("事件扫描异常: ${it.message}") }
         }
     }
 
     private fun scheduleScan(delayMs: Long) {
         handler.postDelayed({
-            val service = serviceRef ?: run {
-                logW("扫描跳过: 无障碍服务未连接")
-                return@postDelayed
-            }
-            logI("计划扫描 +$delayMs ms")
-            scanOnce(service)
+            // v1.141.46 主动扫描兜底：主线程 Handler 回调中节点树遍历异常会导致进程崩溃
+            runCatching {
+                val service = serviceRef ?: run {
+                    logW("扫描跳过: 无障碍服务未连接")
+                    return@runCatching
+                }
+                logI("计划扫描 +$delayMs ms")
+                scanOnce(service)
+            }.onFailure { logW("计划扫描异常: ${it.message}") }
         }, delayMs)
     }
 
@@ -247,6 +255,22 @@ object CainiaoAutoConfirm {
                     lastConfirmedAt = System.currentTimeMillis()
                     // v1.104 输出弹窗确认耗时（自 markCainiaoLaunch 起）
                     logI("弹窗已自动确认($rootPkg) 耗时=${lastConfirmedAt - lastCainiaoLaunchAt}ms")
+                    // v1.141.51 修复：弹窗确认（点"立即查看"）会触发菜鸟重新导航/Weex 重绘，
+                    // 详情页展开状态丢失（收起）——20:49 测试实锤：展开验证通过后弹窗确认 → 又收起。
+                    // 延迟 1.2s 等页面稳定后重新扫描展开（新一次展开流程，重置验证重试计数）。
+                    if (autoExpand) {
+                        expandAttempt = 0
+                        handler.postDelayed({
+                            runCatching {
+                                val svc = serviceRef ?: return@postDelayed
+                                val rootNow = svc.rootInActiveWindow ?: return@postDelayed
+                                if (rootNow.packageName?.toString() == CAINIAO_PACKAGE) {
+                                    logI("弹窗确认后重新展开(防收起)")
+                                    autoExpandDetail(rootNow)
+                                }
+                            }
+                        }, 1200L)
+                    }
                 } else {
                     logW("点击失败, 重试 ${retryCount + 1}/$MAX_RETRY")
                     scheduleRetry(service)
@@ -357,7 +381,10 @@ object CainiaoAutoConfirm {
             runCatching {
                 val cm = service.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("hypercopy-compensate", trackingNo))
-                logI("剪贴板已写回单号: $trackingNo (供菜鸟检测)")
+                // v1.141.48 修复：写回必须记录防抖，否则浮动窗口/嗅探回读写回的单号
+                // 会再次命中规则触发跳转 → 补偿-写回-再跳转 死循环（19:33 日志实锤 3 次重复跳转）
+                io.github.hypercopy.clipboard.handling.ClipboardWriteGuard.record(trackingNo)
+                logI("剪贴板已写回单号: $trackingNo (供菜鸟检测, 已登记防抖)")
             }.onFailure { logW("剪贴板写回失败: ${it.message}") }
         }
         val intent = android.content.Intent(
@@ -374,6 +401,11 @@ object CainiaoAutoConfirm {
         handler.postDelayed({ runCatching { scanOnce(service) } }, 1200L)
     }
 
+    /** v1.141.46 安全获取子节点：菜鸟 Weex 重绘可能 recycle 旧节点，getChild 抛 IllegalStateException。
+     * 单节点失效只跳过该分支，不中断整棵节点树扫描。 */
+    private fun safeChild(node: AccessibilityNodeInfo, index: Int): AccessibilityNodeInfo? =
+        runCatching { node.getChild(index) }.getOrNull()
+
     private fun findNodeWithHint(node: AccessibilityNodeInfo, hints: List<String>, depth: Int): AccessibilityNodeInfo? {
         if (depth > MAX_DEPTH) return null
         val text = node.text?.toString().orEmpty() + node.contentDescription?.toString().orEmpty()
@@ -381,7 +413,7 @@ object CainiaoAutoConfirm {
             return node
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
+            val child = safeChild(node, i) ?: continue
             findNodeWithHint(child, hints, depth + 1)?.let { return it }
         }
         return null
@@ -401,7 +433,7 @@ object CainiaoAutoConfirm {
             }
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
+            val child = safeChild(node, i) ?: continue
             findClickableButton(child, hints, depth + 1)?.let { return it }
         }
         return null
@@ -439,7 +471,7 @@ object CainiaoAutoConfirm {
             return node
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
+            val child = safeChild(node, i) ?: continue
             findClickableImageView(child, depth + 1)?.let { return it }
         }
         return null
@@ -449,7 +481,7 @@ object CainiaoAutoConfirm {
         if (depth > MAX_DEPTH) return null
         if (node.isClickable) return node
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
+            val child = safeChild(node, i) ?: continue
             findFirstClickable(child, depth + 1)?.let { return it }
         }
         return null
@@ -531,7 +563,7 @@ object CainiaoAutoConfirm {
                 n++
             }
             for (i in 0 until current.childCount) {
-                val c = current.getChild(i) ?: continue
+                val c = safeChild(current, i) ?: continue
                 walk(c, depth + 1)
             }
         }

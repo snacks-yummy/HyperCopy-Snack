@@ -3,7 +3,7 @@
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
-  "priority": 100,
+  "priority": 999,
   "matchRegex": "(https?://(?:[a-zA-Z0-9-]+\\.)*(?:douyin\\.com|iesdouyin\\.com|kuaishou\\.com|gifshow\\.com|b23\\.tv|bilibili\\.com|xhslink\\.com|xiaohongshu\\.com|xhslink\\.cn|weibo\\.com|weibo\\.cn|ixigua\\.com|pipix\\.com|huoshan\\.com|meipai\\.com|miaopai\\.com|douyu\\.com|huya\\.com|yy\\.com|youtu\\.be|youtube\\.com|vt\\.tiktok\\.com|tiktok\\.com)[^\\s]*|https?://weixin.qq.com/sph/[A-Za-z0-9_-]+)",
   "parameterRegex": "((https?://(?:[a-zA-Z0-9-]+\\.)*(?:douyin\\.com|iesdouyin\\.com|kuaishou\\.com|gifshow\\.com|b23\\.tv|bilibili\\.com|xhslink\\.com|xiaohongshu\\.com|xhslink\\.cn|weibo\\.com|weibo\\.cn|ixigua\\.com|pipix\\.com|huoshan\\.com|meipai\\.com|miaopai\\.com|douyu\\.com|huya\\.com|yy\\.com|youtu\\.be|youtube\\.com|vt\\.tiktok\\.com|tiktok\\.com)[^\\s]*))|((https?://weixin.qq.com/sph/[A-Za-z0-9_-]+))",
   "triggerRegexes": [

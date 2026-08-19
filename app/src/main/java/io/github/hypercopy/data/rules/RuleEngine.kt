@@ -139,12 +139,18 @@ fun RuleConfig.extractParameters(text: String): Map<String, String> {
     extractionPatterns().forEachIndexed { patternIndex, pattern ->
         val matches = runCatching { cachedRegex(pattern, regexOptions).findAll(text) }.getOrNull() ?: return@forEachIndexed
         matches.forEachIndexed { matchIndex, match ->
+            // v1.141.35 修复 r{n} 命名：多分支正则(验证码|OTP、取件码|凭码取件)命中非首分支时，
+            // 首捕获组(group1)为 null，真正的码在 group2 等后续组。
+            // 原实现 r{n} 只给 groupIndex==0 → group2 场景 r{n} 缺失 → template=${r1} 解析空。
+            // 改为：r{n} 赋给第一个非空捕获组，确保命中分支的码值一定能作为 r1/{n} 解析到。
+            var firstNonNullAssigned = false
             match.groups.drop(1).forEachIndexed { groupIndex, group ->
                 val value = group?.value ?: return@forEachIndexed
-                // 兼容旧命名：第一个 match 保留 r{n} 与 r{n}_{m}
-                if (groupIndex == 0 && matchIndex == 0) {
+                // r{n} 与 r{n}_1 命名：第一个非空捕获组（对标"主要提取值"）
+                if (!firstNonNullAssigned && matchIndex == 0) {
+                    firstNonNullAssigned = true
                     values["r${patternIndex + 1}"] = value
-                    values["r${patternIndex + 1}_${groupIndex + 1}"] = value
+                    values["r${patternIndex + 1}_1"] = value
                 }
                 // 多 match 多组：r{n}_{k}_{m}（k=match序号, m=组序号）
                 values["r${patternIndex + 1}_${matchIndex + 1}_${groupIndex + 1}"] = value

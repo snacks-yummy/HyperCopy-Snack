@@ -110,15 +110,17 @@ object ExpressCompanyDetector {
         return null
     }
 
-    /** 从文本提取首个疑似单号（字母前缀 2-6 位 + 数字 9-20 位，或纯数字 9-22 位） */
+    /** 从文本提取首个疑似单号（字母前缀 2-6 位 + 数字 9-20 位，或纯数字 9-22 位）
+     *  v1.141.50 修复：\b → ASCII 数字字母边界 lookaround。
+     *  真机 ART 的 \w 含中文（Unicode 语义），\b 在中文与字母/数字间无边界 →
+     *  整段短信【京东物流】关于运单JD0228717729868... 提取失败（desktop JDK 正常，真机 19:42 实锤）。 */
     fun extractTrackingNumber(text: String): String? =
-        Regex("\\b(?:[A-Za-z]{2,6}\\d{9,20}|\\d{9,22})\\b").find(text)?.value
-
+        Regex("(?<![A-Za-z0-9])(?:[A-Za-z]{2,6}\\d{9,20}|\\d{9,22})(?![A-Za-z0-9])").find(text)?.value
     /**
      * 云端兜底触发条件：字母开头疑似单号（排除纯数字，避免手机号/订单号误判）。
      */
     fun looksLikeTrackingNumber(text: String): Boolean =
-        Regex("\\b[A-Za-z]{2,6}\\d{9,20}\\b").containsMatchIn(text)
+        Regex("(?<![A-Za-z0-9])[A-Za-z]{2,6}\\d{9,20}(?![A-Za-z0-9])").containsMatchIn(text)
 
     /**
      * v1.105 识别详情描述（供结构化日志）：返回如「顺丰速运 (SF+12位, 标准12~15)」；

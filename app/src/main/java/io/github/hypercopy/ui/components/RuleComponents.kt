@@ -270,6 +270,8 @@ internal fun RuleSelectionBar(
     onDeleteClick: () -> Unit,
     onEnableClick: () -> Unit = {},
     onDisableClick: () -> Unit = {},
+    // v1.141.22 批量复制选中规则（JSON 到剪贴板）
+    onCopyClick: () -> Unit = {},
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -314,6 +316,12 @@ internal fun RuleSelectionBar(
                     icon = MiuixIcons.SelectAll,
                     text = stringResource(R.string.action_enable),
                     onClick = onEnableClick,
+                    modifier = Modifier.weight(1f),
+                )
+                SelectionActionButton(
+                    icon = MiuixIcons.Copy,
+                    text = stringResource(R.string.action_copy_rule),
+                    onClick = onCopyClick,
                     modifier = Modifier.weight(1f),
                 )
                 SelectionActionButton(
@@ -681,20 +689,35 @@ internal fun AddRuleMenu(
     onShareRuleClick: () -> Unit = {},
 ) {
     var showPopup by remember { mutableStateOf(false) }
-    val items = listOf(
-        stringResource(R.string.rule_menu_browser),
-        stringResource(R.string.action_add_rule),
-        stringResource(R.string.rule_menu_clipboard),
-        stringResource(R.string.action_merge_duplicate),
-        stringResource(R.string.action_export_all),
-        stringResource(R.string.action_export_file),
-        stringResource(R.string.action_import_file),
-        stringResource(R.string.action_restore_builtin),
-        stringResource(R.string.action_share_rule_cloud),
-    )
+    // v1.141.17 修复：文本列表页＋也弹菜单（之前只有 Link 弹，「从剪贴板添加规则」只对链接可用）。
+    // 菜单项按分类适配：Link 含「模拟浏览器」；Text（含 Address/Express）去掉浏览器，保留其余通用项。
+    val menuItems: List<Pair<Int, Int>> = if (category == RulePageCategory.Link) {
+        listOf(
+            R.string.rule_menu_browser to 0,
+            R.string.action_add_rule to 1,
+            R.string.rule_menu_clipboard to 2,
+            R.string.action_merge_duplicate to 3,
+            R.string.action_export_all to 4,
+            R.string.action_export_file to 5,
+            R.string.action_import_file to 6,
+            R.string.action_restore_builtin to 7,
+            R.string.action_share_rule_cloud to 8,
+        )
+    } else {
+        listOf(
+            R.string.action_add_rule to 1,
+            R.string.rule_menu_clipboard to 2,
+            R.string.action_merge_duplicate to 3,
+            R.string.action_export_all to 4,
+            R.string.action_export_file to 5,
+            R.string.action_import_file to 6,
+            R.string.action_restore_builtin to 7,
+            R.string.action_share_rule_cloud to 8,
+        )
+    }
 
     Box(modifier = modifier) {
-        FloatingActionButton(onClick = { if (category == RulePageCategory.Link) showPopup = true else onExpressRuleClick() }) {
+        FloatingActionButton(onClick = { if (category != RulePageCategory.System) showPopup = true else onExpressRuleClick() }) {
             Icon(
                 imageVector = MiuixIcons.Add,
                 contentDescription = stringResource(R.string.action_add_rule),
@@ -703,20 +726,20 @@ internal fun AddRuleMenu(
             )
         }
         OverlayListPopup(
-            show = showPopup && category == RulePageCategory.Link,
+            show = showPopup && category != RulePageCategory.System,
             alignment = PopupPositionProvider.Align.End,
             onDismissRequest = { showPopup = false },
         ) {
             ListPopupColumn {
-                items.forEachIndexed { index, text ->
+                menuItems.forEachIndexed { index, (res, actionId) ->
                     DropdownImpl(
-                        text = text,
-                        optionSize = items.size,
+                        text = stringResource(res),
+                        optionSize = menuItems.size,
                         isSelected = false,
                         index = index,
                         onSelectedIndexChange = {
                             showPopup = false
-                            when (index) {
+                            when (actionId) {
                                 0 -> onBrowserClick()
                                 1 -> onLinkRuleClick()
                                 2 -> onClipboardClick()
@@ -762,9 +785,9 @@ internal fun jumpModeBadge(rule: io.github.hypercopy.data.rules.RuleConfig): Pai
     if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.NotifyOnly) return "仅通知" to Color(0xFF00A0E9)
     val template = rule.target.template
     return when {
-        template.isBlank() && rule.target.packageName.isNotBlank() -> "包名" to Color(0xFF6C8EF5)
+        template.isBlank() && rule.target.packageName.isNotBlank() -> "直开" to Color(0xFF6C8EF5)
         template.startsWith("http", ignoreCase = true) -> "网页" to Color(0xFF00B578)
-        template.isNotBlank() -> "Scheme" to Color(0xFFF5A623)
+        template.isNotBlank() -> "协议" to Color(0xFFF5A623)
         else -> null
     }
 }

@@ -107,7 +107,10 @@ fun SettingsPage(
     jumpPrecheck: Boolean,
     duplicateWindowMillis: Long,
     autoActivate: Boolean,
+    // v1.141.39 日志缓冲条数（内存环形缓冲上限，日志 UI 展示窗口）
+    logBufferMax: Int = Config.DEFAULT_LOG_BUFFER_MAX,
     onLogLevelChange: (Int) -> Unit,
+    onLogBufferMaxChange: (Int) -> Unit = {},
     onAutoCheckUpdateChange: (Boolean) -> Unit,
     onHideFromRecentsChange: (Boolean) -> Unit,
     onDesktopIconHiddenChange: (Boolean) -> Unit,
@@ -142,6 +145,7 @@ fun SettingsPage(
     onSubPageChange: (SettingsSubPage?) -> Unit = {},
 ) {
     val logLevelOptions = logLevelOptions()
+    val bufferMaxOptions = logBufferMaxOptions()
     val languageOptions = languageOptions()
     val jumpNotificationModeOptions = jumpNotificationModeOptions()
     val clonedAppUserOptions = clonedAppUserOptions(clonedAppUsers)
@@ -637,6 +641,16 @@ fun SettingsPage(
                     insideMargin = SettingsItemMargin,
                     onSelectedIndexChange = { onLogLevelChange(logLevelOptions[it].value) },
                 )
+                // v1.141.39 日志缓冲条数（内存环形缓冲上限）：日志 UI 展示窗口大小
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.log_buffer_max),
+                    summary = stringResource(R.string.log_buffer_max_summary),
+                    items = bufferMaxOptions.map { it.label },
+                    selectedIndex = bufferMaxOptions.indexOfFirst { it.value == logBufferMax }.coerceAtLeast(0),
+                    startAction = { SettingsIcon(imageVector = MiuixIcons.ListView) },
+                    insideMargin = SettingsItemMargin,
+                    onSelectedIndexChange = { onLogBufferMaxChange(bufferMaxOptions[it].value) },
+                )
                 SwitchAction(
                     icon = MiuixIcons.File,
                     title = stringResource(R.string.setting_match_debug_log),
@@ -647,7 +661,8 @@ fun SettingsPage(
                 SettingsActionWithArrow(
                     icon = MiuixIcons.ListView,
                     title = stringResource(R.string.setting_view_log),
-                    summary = stringResource(R.string.setting_view_log_summary),
+                    // v1.141.40 动态显示实际配置的缓冲条数（原写死 3000）
+                    summary = stringResource(R.string.setting_view_log_summary, logBufferMax),
                     onClick = {
                         context.startActivity(
                             android.content.Intent(context, io.github.hypercopy.ui.activities.LogViewerActivity::class.java),
@@ -695,6 +710,17 @@ private fun logLevelOptions() = listOf(
     LogLevelOption(stringResource(R.string.log_off), Config.LOG_LEVEL_OFF),
     LogLevelOption(stringResource(R.string.log_basic), Config.LOG_LEVEL_BASIC),
     LogLevelOption(stringResource(R.string.log_debug), Config.LOG_LEVEL_DEBUG),
+)
+
+// v1.141.39 日志缓冲条数档位（内存环形缓冲上限）：3000~50000，默认 10000
+private data class BufferMaxOption(val label: String, val value: Int)
+@Composable
+private fun logBufferMaxOptions() = listOf(
+    BufferMaxOption(stringResource(R.string.log_buffer_max_option, 3_000), 3_000),
+    BufferMaxOption(stringResource(R.string.log_buffer_max_option, 5_000), 5_000),
+    BufferMaxOption(stringResource(R.string.log_buffer_max_option, 10_000), 10_000),
+    BufferMaxOption(stringResource(R.string.log_buffer_max_option, 20_000), 20_000),
+    BufferMaxOption(stringResource(R.string.log_buffer_max_option, 50_000), 50_000),
 )
 
 @Composable

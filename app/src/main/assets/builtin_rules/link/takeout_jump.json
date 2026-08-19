@@ -1,0 +1,25 @@
+{
+  "id": "builtin_link_takeout_jump",
+  "name": "美团小程序",
+  "category": "link",
+  "enabled": true,
+  "actionMode": "webview_resolve_and_open",
+  "priority": 100,
+  "notificationMode": "none",
+  "matchRegex": ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*",
+  "parameterRegex": "(https?://[^\\s]+)",
+  "triggerRegexes": [
+    ".*(?:mt\\.cn|dpurl\\.cn|waimai\\.meituan\\.com|ele\\.me|h5\\.ele\\.me|kfc\\.com\\.cn|mcd\\.com\\.cn)[^\\s]*.*"
+  ],
+  "extractionRegexes": [
+    "(https?://[^\\s]+)"
+  ],
+  "parseAfterRedirect": false,
+  "target": {
+    "type": "url",
+    "template": "${url:input}",
+    "packageName": "com.sankuai.meituan.takeoutnew",
+    "action": "android.intent.action.VIEW"
+  },
+  "clearClipboardAfterJump": false
+}

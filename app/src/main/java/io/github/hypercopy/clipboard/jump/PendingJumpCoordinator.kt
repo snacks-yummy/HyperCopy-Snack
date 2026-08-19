@@ -89,14 +89,19 @@ object PendingJumpCoordinator {
         NotificationManagerCompat.from(appContext).cancel(NOTIFICATION_ID)
         handler.removeCallbacks(entry.expireRunnable)
         when (val jump = entry.jump) {
-            is PendingJump.IntentJump -> launchAfterClipboardClear(appContext, entry.clearClipboardAfterJump) {
+            is PendingJump.IntentJump -> launchAfterClipboardClear(appContext, entry.clearClipboardAfterJump || isEntrustIntent(jump)) {
                 // v1.108 委托直达前置：官方 entrust 机制仅冷启动(onCreate)生效
                 forceStopIfEntrust(jump)
                 // v1.85 菜鸟查件自动确认：点击通知跳菜鸟同样记录（弹窗自动确认）
                 if (jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE) {
-                    io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.markCainiaoLaunch(
-                        io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
-                    )
+                    // v1.141.48 修复：markCainiaoLaunch 传纯单号（非整段文本），
+                    // 保证冷启动补偿写回剪贴板的是单号而非整段短信（写回整段会被菜鸟当作查询内容，
+                    // 且浮动窗口嗅探回读会触发"诊断不含单号"误判）
+                    val trackNo = io.github.hypercopy.data.rules.ExpressCompanyDetector
+                        .extractTrackingNumber(io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText.orEmpty())
+                        ?.uppercase()
+                        ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
+                    io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.markCainiaoLaunch(trackNo)
                 }
                 ActivityLaunchStrategy.launch(appContext, jump.intent, selectedUserId)
             }
@@ -119,16 +124,19 @@ object PendingJumpCoordinator {
     private fun launch(context: Context, jump: PendingJump, clearClipboardAfterJump: Boolean) {
         val configuredUserId = selectedClonedAppUserId(context)
         when (jump) {
-            is PendingJump.IntentJump -> launchAfterClipboardClear(context, clearClipboardAfterJump) {
+            is PendingJump.IntentJump -> launchAfterClipboardClear(context, clearClipboardAfterJump || isEntrustIntent(jump)) {
                 // v1.100 诊断：确认跳转分支与菜鸟包名匹配
                 HyperLog.d(TAG, "跳转Intent pkg=${jump.packageName} 目标菜鸟=${jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE}")
                 // v1.108 委托直达前置：官方 entrust 机制仅冷启动(onCreate)生效
                 forceStopIfEntrust(jump)
                 // v1.85 菜鸟查件自动确认：记录直开菜鸟时间戳（无障碍据此识别官方弹窗并自动确认）
                 if (jump.packageName == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE) {
-                    io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.markCainiaoLaunch(
-                        io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
-                    )
+                    // v1.141.48 修复：同 confirm 分支，markCainiaoLaunch 传纯单号
+                    val trackNo = io.github.hypercopy.data.rules.ExpressCompanyDetector
+                        .extractTrackingNumber(io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText.orEmpty())
+                        ?.uppercase()
+                        ?: io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
+                    io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.markCainiaoLaunch(trackNo)
                 }
                 // v1.126 跳转增强：Intent 预检 + 失败网页兜底
                 // 预检（v1.126b 修复）：显式组件/包名 intent → 检查目标包是否安装（resolveActivity 在
@@ -310,10 +318,7 @@ object PendingJumpCoordinator {
      * 菜鸟进程存活时直接热启动（无 logo 秒达详情页）；仅进程已死时才 force-stop 保证冷启动 onCreate。
      */
     private fun forceStopIfEntrust(jump: PendingJump.IntentJump) {
-        val isEntrust = jump.intent.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_URL) != null &&
-            jump.intent.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_FROM) ==
-            io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_VALUE_FROM
-        if (!isEntrust) return
+        if (!isEntrustIntent(jump)) return
         if (isCainiaoProcessAlive()) {
             // v1.112 进程存活 → 热启动：onNewIntent 处理委托直达详情页，无冷启动 logo
             HyperLog.d(TAG, "委托直达: 菜鸟进程存活, 热启动直达(无logo)")
@@ -328,6 +333,16 @@ object PendingJumpCoordinator {
         waitCainiaoProcessExit()
     }
 
+    /**
+     * v1.141.52 判断菜鸟委托直达 Intent（extras url+from=entrust）。
+     * 委托直达用 extras 传单号不依赖剪贴板 → 跳转前清剪贴板安全，
+     * 且能根治菜鸟 JS 检测剪贴板残留单号弹「是否要查询包裹」（20:49 实锤偶发弹窗+展开收起）。
+     */
+    private fun isEntrustIntent(jump: PendingJump.IntentJump): Boolean =
+        jump.intent.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_URL) != null &&
+            jump.intent.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_FROM) ==
+            io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_VALUE_FROM
+
     /** v1.112 菜鸟进程是否存活（pidof 判定） */
     private fun isCainiaoProcessAlive(): Boolean {
         return runCatching {
@@ -339,7 +354,6 @@ object PendingJumpCoordinator {
             out.isNotBlank()
         }.getOrDefault(false)
     }
-
     /** v1.109 force-stop 后轮询 pidof 直到菜鸟进程完全退出（最多 2s），保证委托冷启动 onCreate 生效 */
     private fun waitCainiaoProcessExit() {
         val deadline = System.currentTimeMillis() + 2_000L

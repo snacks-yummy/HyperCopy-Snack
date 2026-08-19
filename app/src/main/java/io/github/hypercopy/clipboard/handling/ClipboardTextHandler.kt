@@ -18,6 +18,7 @@ import io.github.hypercopy.R
 import io.github.hypercopy.TraceLogger
 import io.github.hypercopy.clipboard.jump.PendingJump
 import io.github.hypercopy.clipboard.jump.PendingJumpCoordinator
+import io.github.hypercopy.clipboard.jump.HeadlessWebViewResolver
 import io.github.hypercopy.clipboard.jump.MiuiSuperIslandNotification
 import io.github.hypercopy.clipboard.privileged.MiuiXmsfNetworkBlocker
 import io.github.hypercopy.clipboard.monitor.ShizukuPermission
@@ -93,12 +94,23 @@ object ClipboardTextHandler {
     private data class LastJump(val targetPkg: String, val content: String, val at: Long)
     @Volatile
     private var lastJump: LastJump? = null
-    private val JUMP_LOOP_WINDOW_MILLIS = 30_000L
+    // v1.141.65 通用防循环窗口 30s→8s：
+    // 用户连续复制同一条口令/链接测试时，30s 窗口导致"复制→命中→被拦"假死（01:33 实锤：
+    // 用户多次复制 27 HU7405 666:/🔐bHPqgu... 每次都被"同目标同内容30s内已跳转"拦截 → 看起来没反应）。
+    // 8s 已足够：死循环（目标App写回剪贴板→再跳转）是秒级连续触发，滑动续期(L110)持续拦截；
+    // 循环停止 8s 后自动解锁，不影响用户正常重复复制。与外卖取件场景(TAKEOUT_LOOP_WINDOW_MILLIS=8s)一致。
+    private val JUMP_LOOP_WINDOW_MILLIS = 8_000L
+    // v1.141.24 外卖取件跳转：跳浏览器/无头WebView 场景不会在目标 App 内形成循环（跳完即离开），
+    // 用更短窗口（8s）避免连续测试被 30s 防循环拦截。识别：内容含 mt.cn/取件外卖特征。
+    private val TAKEOUT_LOOP_WINDOW_MILLIS = 8_000L
 
     private fun shouldBlockJumpLoop(targetPkg: String, content: String): Boolean {
         if (targetPkg.isBlank() || content.isBlank()) return false
         val last = lastJump ?: return false
-        val blocked = System.currentTimeMillis() - last.at < JUMP_LOOP_WINDOW_MILLIS &&
+        // 外卖取件场景（含取件短链域名）缩短防循环窗口，便于连续测试/多次取件
+        val isTakeout = content.contains("mt.cn", ignoreCase = true) || content.contains("dpurl.cn", ignoreCase = true)
+        val window = if (isTakeout) TAKEOUT_LOOP_WINDOW_MILLIS else JUMP_LOOP_WINDOW_MILLIS
+        val blocked = System.currentTimeMillis() - last.at < window &&
             last.targetPkg == targetPkg && last.content == content
         // v1.140.20 滑动续期：循环持续期间拦截持续生效（循环一停 30s 后自动解锁，不影响正常重复复制）
         if (blocked) lastJump = last.copy(at = System.currentTimeMillis())
@@ -141,8 +153,13 @@ object ClipboardTextHandler {
         // 注意：Shizuku 模式 source 常为空 → 用前台 App 兜底判断（仅 source 空时查询，避免开销）
         // v1.140.9 轮询通道 skipSelfCheck=true：1.5s 延迟检测期间用户可能已切回本 App 看日志 →
         // 前台/来源误判本App → 真实链接被跳过；轮询通道不参与来源检查（防误触发由长文本保护+规则匹配承担）
-        val sourceIsSelf = !skipSelfCheck && (source == context.packageName ||
-            (source.isBlank() && foregroundPackageName(appContext) == context.packageName))
+        // v1.141.29 修复：source 可能是本 App 的 Activity 别名/类名（如 MainActivityAlias），
+        // 需首包名匹配 → 源是本App自身 → 复制日志/规则页内容不再误触发
+        val sourceIsSelf = !skipSelfCheck && (
+            source.startsWith(context.packageName + ".", ignoreCase = true) ||
+                source == context.packageName ||
+                (source.isBlank() && foregroundPackageName(appContext) == context.packageName)
+            )
         if (sourceIsSelf) {
             HyperLog.d(TAG, "来源为本App, 跳过处理(防日志复制误触发)")
             return
@@ -288,9 +305,17 @@ object ClipboardTextHandler {
                     // （逆向实证：launchIntent + extras{url=guoguo://go/logistic?mailNo=X, from=entrust}
                     //   → HomePageActivity.startEntrustActivity → Router → LogisticDetailActivity，无需弹窗/扫描）
                     if (rule.category == RuleCategory.Express && targetPkg == io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.CAINIAO_PACKAGE) {
-                        val entrust = io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.buildCainiaoEntrustIntent(appContext, input)
-                        HyperLog.d(TAG, "委托直达详情页: ${entrust.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_URL)}")
-                        intent = entrust
+                        // v1.141.48 修复：mailNo 必须为纯单号。原实现传整段剪贴板文本（如短信原文
+                        // 【京东物流】关于运单JD0228717729868配送情况...），菜鸟 Router 解析 mailNo
+                        // 失败 → 打不开详情页（实测：纯单号可直达、整段短信文本打不开，且触发系统选择器）
+                        val entrustTrackingNo = ExpressCompanyDetector.extractTrackingNumber(input)?.uppercase()
+                        if (entrustTrackingNo != null) {
+                            val entrust = io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.buildCainiaoEntrustIntent(appContext, entrustTrackingNo)
+                            HyperLog.d(TAG, "委托直达详情页: ${entrust.getStringExtra(io.github.hypercopy.clipboard.monitor.CainiaoAutoConfirm.ENTRUST_EXTRA_URL)}")
+                            intent = entrust
+                        } else {
+                            HyperLog.w(TAG, "菜鸟委托直达: 未提取到纯单号, 走默认启动(可能落首页) input=${input.take(40)}")
+                        }
                     }
                     var fallbackUsed = false
                     // v1.83 快递兜底：目标 App 未安装时回退快递100 网页查件（网页端自动识别快递公司）
@@ -439,6 +464,20 @@ object ClipboardTextHandler {
 
     private fun startWebViewResolve(context: Context, rule: RuleConfig, input: String) {
         val resolveUrl = rule.resolveInputUrl(input)
+        // v1.141.24 外卖取件跳转：后台无头 WebView 自动走完整链（软件内模拟浏览器）。
+        // mt.cn → 302 peisong → 页面 JS 生成 weixin://dl/business/?t=TICKET 并 location.href 跳转
+        // → WebView shouldOverrideUrlLoading 捕获该 scheme → 自动拉起微信小程序（用户仅点一次系统"打开"确认）。
+        // 不能用纯 HTTP 302(OneRedirectResolver)，拿不到页面 JS 动态生成的 scheme；需真实 WebView 引擎。
+        if (resolveUrl.contains("mt.cn", ignoreCase = true) || resolveUrl.contains("ele.me", ignoreCase = true)) {
+            HyperLog.d(TAG, "外卖取件跳转: 后台无头WebView走链 $resolveUrl")
+            HeadlessWebViewResolver.resolveAndLaunch(
+                context = context,
+                url = resolveUrl,
+                packageName = "",
+                clearClipboardAfterJump = rule.clearClipboardAfterJump,
+            )
+            return
+        }
         if (rule.parseAfterRedirect) {
             thread(name = "HyperCopyRedirectResolve") {
                 val redirectedUrl = OneRedirectResolver.resolve(resolveUrl)
@@ -615,6 +654,9 @@ object ClipboardTextHandler {
 
     private fun shouldSkipByAppList(source: String, workMode: String, packages: Set<String>): Boolean {
         if (source.isBlank()) return false
+        // v1.141.26 内置通道来源（短信监听等 source="sms"）不应受"来源 App 黑白名单"限制。
+        // App 黑白名单语义是"控制哪些 App 内复制能触发"，短信不是 App 复制，放行。
+        if (source == "sms") return false
         return when (workMode) {
             Config.APP_LIST_WORK_MODE_BLACKLIST -> source in packages
             Config.APP_LIST_WORK_MODE_WHITELIST -> source !in packages

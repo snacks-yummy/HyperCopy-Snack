@@ -71,11 +71,14 @@ fun RuleSuggestionPage(
     var showManualInput by remember { mutableStateOf(false) }
     // v1.77 返回保护：输入了内容但未保存时确认
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    // v1.141.24 修复：只要保存过任一规则，返回即视为已处理，不再弹"放弃分析"确认
+    var savedSomething by remember { mutableStateOf(false) }
     BackHandler {
-        if (text.isNotBlank() || suggestions.isNotEmpty()) {
-            showDiscardConfirm = true
-        } else {
+        // 已保存过 → 直接返回，不再误弹（保存成功后 text/suggestions 仍在但不应再提示丢弃）
+        if (savedSomething || (text.isBlank() && suggestions.isEmpty())) {
             onBack()
+        } else {
+            showDiscardConfirm = true
         }
     }
 
@@ -212,6 +215,7 @@ fun RuleSuggestionPage(
                                         }
                                     }
                                     existingRules = repository.readRules()
+                                    if (saved > 0) savedSomething = true
                                     val msg = if (skipped > 0) {
                                         context.getString(R.string.suggestion_save_all_done_with_skip, saved, skipped)
                                     } else {
@@ -230,18 +234,24 @@ fun RuleSuggestionPage(
                             existingRules = existingRules,
                             onSave = {
                                 when (repository.saveRuleMerged(suggestion.toRuleConfig(context))) {
-                                    io.github.hypercopy.data.rules.RuleSaveResult.Duplicate ->
+                                    io.github.hypercopy.data.rules.RuleSaveResult.Duplicate -> {
                                         Toast.makeText(
                                             context,
                                             context.getString(R.string.rule_toast_duplicate_with_name, repository.findDuplicate(suggestion.toRuleConfig(context))?.name.orEmpty()),
                                             Toast.LENGTH_SHORT,
                                         ).show()
-                                    io.github.hypercopy.data.rules.RuleSaveResult.Merged ->
+                                        // v1.141.29 重复也算"已处理"：返回不再弹"放弃分析"（内容已被识别为重复不该误判未保存）
+                                        savedSomething = true
+                                    }
+                                    io.github.hypercopy.data.rules.RuleSaveResult.Merged -> {
                                         Toast.makeText(context, R.string.rule_toast_merged_same_target, Toast.LENGTH_SHORT).show()
+                                        savedSomething = true
+                                    }
                                     else -> {
                                         Toast.makeText(context, R.string.rule_toast_saved, Toast.LENGTH_SHORT).show()
                                         // 保存成功后刷新"已添加"状态，候选卡立即变为已添加（灰显）
                                         existingRules = repository.readRules()
+                                        savedSomething = true
                                     }
                                 }
                             },
@@ -310,7 +320,9 @@ fun RuleSuggestionPage(
 /** 把分析候选转换为规则配置（内容与内置/已存口令规则一致 → 去重自动合并） */
 private fun RuleAnalyzer.Suggestion.toRuleConfig(context: Context): RuleConfig = RuleConfig(
     name = platform,
-    category = RuleCategory.Link,
+    // v1.141.18 分类归属：NotifyOnly（仅通知，取件码/验证码等纯通知场景）→ 文本分类 ——
+    // 链接分类在编辑器不显示"通知渠道"选项，且是跳转场景；纯通知规则需归文本才能自选通知渠道。
+    category = if (actionMode == RuleActionMode.NotifyOnly) RuleCategory.Text else RuleCategory.Link,
     actionMode = actionMode,
     matchRegex = matchRegex,
     parameterRegex = extractionRegex,
@@ -366,7 +378,12 @@ private fun SuggestionCard(
                 }
                 if (suggestion.packageName.isNotBlank()) {
                     val installed = runCatching { context.packageManager.getPackageInfo(suggestion.packageName, 0) }.isSuccess
-                    val (installLabel, installColor) = if (installed) "已安装" to Color(0xFF00B578) else "未安装" to Color(0xFFFF5A52)
+                    // v1.141.53 文案去歧义："已安装"→"App已装"（原"已安装"脱离上下文会误以为"正则已安装"）
+                    val (installLabel, installColor) = if (installed) {
+                        stringResource(R.string.suggestion_app_installed) to Color(0xFF00B578)
+                    } else {
+                        stringResource(R.string.suggestion_app_not_installed) to Color(0xFFFF5A52)
+                    }
                     Text(
                         text = installLabel,
                         style = MiuixTheme.textStyles.body2,
@@ -530,9 +547,9 @@ private fun matchFragment(suggestion: RuleAnalyzer.Suggestion, sourceText: Strin
 private fun RuleAnalyzer.Suggestion.jumpMode(): Pair<String, Color>? {
     if (actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return "改写" to Color(0xFF9C6ADE)
     return when {
-        template.isBlank() && packageName.isNotBlank() -> "包名" to Color(0xFF6C8EF5)
+        template.isBlank() && packageName.isNotBlank() -> "直开" to Color(0xFF6C8EF5)
         template.startsWith("http", ignoreCase = true) -> "网页" to Color(0xFF00B578)
-        template.isNotBlank() -> "Scheme" to Color(0xFFF5A623)
+        template.isNotBlank() -> "协议" to Color(0xFFF5A623)
         else -> null
     }
 }
