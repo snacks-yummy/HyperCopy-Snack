@@ -743,18 +743,30 @@ object ClipboardTextHandler {
         } else content
         val label = notifyLabel(rule, effectiveContent)
         // ② 渠道适配：灵动岛/普通/live 统一结构化（v1.141.87 不再因 miui_island 丢弃平台名）
-        // v1.141.87c 关键词式通知：title=平台+类型+：+码值（如 飞书验证码：915922），content 置空避免重复
-        val title = when {
-            effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
-            // 外卖：模板已含"取件码"标签，去重后拼 平台取件码：码值 · 柜位
-            rule.name.contains("外卖") && platform.isNotBlank() ->
-                "${platform}取件码：${effectiveContent.removePrefix("取件码").trimStart()}"
-            platform.isNotBlank() && label.isNotBlank() -> "$platform$label：$effectiveContent"
-            platform.isNotBlank() -> "$platform：$effectiveContent"
-            label.isNotBlank() -> "$label：$effectiveContent"
-            else -> effectiveContent
+        // v1.141.87c 关键词式通知：title=平台+类型+码值；content 多行结构化
+        val title: String
+        val text: String
+        if (rule.name.contains("外卖")) {
+            // v1.141.87e 外卖结构化：title=平台外卖取件码+码值；content=地址+存放位置
+            val params = rule.extractParameters(input)
+            val code = params["r2"].orEmpty()
+            val cabinet = params["r1"].orEmpty()
+            val address = extractWaimaiAddress(input)
+            title = if (platform.isNotBlank()) "${platform}外卖取件码$code" else "外卖取件码$code"
+            text = buildString {
+                if (address.isNotBlank()) append("地址：$address\n")
+                if (cabinet.isNotBlank()) append("存放位置：$cabinet")
+            }
+        } else {
+            title = when {
+                effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
+                platform.isNotBlank() && label.isNotBlank() -> "$platform$label：$effectiveContent"
+                platform.isNotBlank() -> "$platform：$effectiveContent"
+                label.isNotBlank() -> "$label：$effectiveContent"
+                else -> effectiveContent
+            }
+            text = ""
         }
-        val text = ""
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,
@@ -797,6 +809,10 @@ object ClipboardTextHandler {
     /** v1.141.87 平台提取：从短信【XX】提取来源（招商银行/丰巢/美团…），无则空串 */
     private fun extractNotifyPlatform(input: String): String =
         Regex("【([^】]+)】").find(input)?.groupValues?.get(1)?.trim() ?: ""
+
+    /** v1.141.87e 外卖地址提取：「已放在{地址}{柜位}…」→ 地址部分（柜位前文本） */
+    private fun extractWaimaiAddress(input: String): String =
+        Regex("已放[在至](.+?)(?:[A-Za-z0-9]{0,3}号?柜|外卖柜|格口)").find(input)?.groupValues?.get(1)?.trim() ?: ""
 
     /** v1.141.87 通知类型标签：content 已含类型词时不再重复（如外卖模板已含"取件码"） */
     private fun notifyLabel(rule: RuleConfig, content: String): String = when {
