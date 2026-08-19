@@ -12,12 +12,17 @@ import java.util.concurrent.Executors
  *
  * 与 HyperLog（技术诊断日志）分离，专门记录用户在软件内的**全部操作**，
  * 如点击 UI 选项、打开页面、测试正则、跳转、规则调整（含详情）等，
- * 全部使用**中文**描述，落盘到 Via 绑定文件夹内的 HyperCopy_logs 目录，便于外部直接读取。
+ * 全部使用**中文**描述。
  *
- * 【日志位置】/storage/emulated/0/Via/复制直达项目二改/HyperCopy_logs/ui_actions.log
- * 新增独立文件 ui_actions.log（仅中文操作），不混入技术日志，便于按操作语义检索。
+ * v1.141.57 双写兜底：主写 Via 绑定文件夹 + 镜像到 Download/HyperCopy_logs。
+ * - Via 文件夹（工作区根）便于外部直读，但写权限依赖 MANAGE_EXTERNAL_STORAGE；
+ * - 若 Via 权限丢失/不可写，Download 镜像保证日志永不丢失、可稳定查询。
  *
- * 线程安全：单线程串行写盘，避免乱序/线程爆炸。
+ * 【日志位置】
+ *   Via:   /storage/emulated/0/Via/复制直达项目二改/HyperCopy_logs/ui_actions.log
+ *   镜像:  /storage/emulated/0/Download/HyperCopy_logs/ui_actions.log
+ *
+ * 线程安全：单线程串行写盘，避免乱序。两文件各自 runCatching，一个失败不影响另一个。
  */
 object UiActionLogger {
     private const val TAG = "UiAction"
@@ -30,7 +35,7 @@ object UiActionLogger {
     }
 
     @Volatile
-    private var logFile: File? = null
+    private var logFiles: List<File> = emptyList()
 
     @Volatile
     private var enabled = true
@@ -38,14 +43,33 @@ object UiActionLogger {
     fun init(context: Context) {
         runCatching {
             val ctx = context.applicationContext
-            // Via 绑定文件夹工作区根目录
-            val baseDir = File("/storage/emulated/0/Via/复制直达项目二改")
-            // 组件实现（对 Via 绑定文件夹写入）+ 兜底降级到 Download/HyperCopy
-            val dir = File(baseDir, DIR_NAME)
-            dir.mkdirs()
-            val primary = File(dir, FILE_NAME)
-            logFile = resolveWritableLogFile(dir, primary)
-            logFile?.appendText("\n========== UI 操作日志 ${fmt()} ==========\n")
+            // v1.141.57 双写：主 Via 文件夹 + 镜像 Download
+            val targets = mutableListOf<File>()
+            // Via 绑定文件夹（工作区根，用户直读）
+            val viaDir = File("/storage/emulated/0/Via/复制直达项目二改", DIR_NAME)
+            runCatching {
+                viaDir.mkdirs()
+                val primary = File(viaDir, FILE_NAME)
+                resolveWritableLogFile(viaDir, primary)?.let { targets += it }
+            }
+            // 镜像兜底：Download 公共目录（App 天然可写，不依赖"所有文件访问"授权）
+            val dlDir = File(
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                ),
+                DIR_NAME,
+            )
+            runCatching {
+                dlDir.mkdirs()
+                val primary = File(dlDir, FILE_NAME)
+                resolveWritableLogFile(dlDir, primary)?.let { targets += it }
+            }
+            // 去重
+            logFiles = targets.distinct()
+            val header = "\n========== UI 操作日志 ${fmt()} ==========\n"
+            logFiles.forEach { f ->
+                runCatching { java.io.FileWriter(f, true).use { it.write(header) } }
+            }
         }
     }
 
@@ -109,13 +133,13 @@ object UiActionLogger {
     /** 通用操作日志 */
     fun log(category: String, message: String) {
         if (!enabled) return
-        val file = logFile
-        if (file == null) return
+        val files = logFiles
+        if (files.isEmpty()) return
         val line = "${fmt()} [${category}] $message"
         val clean = sanitize(line)
         writer.execute {
-            runCatching {
-                java.io.FileWriter(file, true).use { it.write(clean + "\n") }
+            files.forEach { f ->
+                runCatching { java.io.FileWriter(f, true).use { it.write(clean + "\n") } }
             }
         }
     }

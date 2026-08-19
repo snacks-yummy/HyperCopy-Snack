@@ -42,27 +42,42 @@ object HyperLog {
     }
     @Volatile
     private var logFile: java.io.File? = null
+
+    /** v1.141.57 双写兜底：Via 文件夹主写 + Download 镜像，保证日志永不丢失 */
+    @Volatile
+    private var logFiles: List<java.io.File> = emptyList()
+
     fun init(context: Context) {
         this.context = context.applicationContext
         initLogFile(context.applicationContext)
     }
     private fun initLogFile(ctx: Context) {
         runCatching {
-            // v1.141.56 日志统一落到 Via 绑定文件夹内的 HyperCopy_logs 目录（用户可直接读取，测试便利）
-            // 原为 Download/HyperCopy，应需求改为工作区根目录下新建日志文件夹。
-            val dir = File(
-                File("/storage/emulated/0/Via/复制直达项目二改"),
+            val targets = mutableListOf<java.io.File>()
+            // v1.141.56 主写 Via 绑定文件夹内 HyperCopy_logs（用户可直接读取，测试便利）
+            val viaDir = File(File("/storage/emulated/0/Via/复制直达项目二改"), LOG_DIR)
+            runCatching {
+                viaDir.mkdirs()
+                val primary = File(viaDir, LOG_FILE)
+                resolveWritableLogFile(viaDir, primary)?.let { targets += it }
+            }
+            // v1.141.57 镜像兜底：Download 公共目录（App 天然可写，不依赖"所有文件访问"授权）
+            val dlDir = File(
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                ),
                 LOG_DIR,
             )
-            dir.mkdirs()
-            // v1.141.31 修复：卸载重装后 uid 变化，旧 hypercopy.log 属主残留（如 u0_a240），
-            // 新进程（新 uid）无写权限 → 日志停更、外部读不到。
-            // 每次启动探测主文件可写性：不可写则自动切换到一个新的可写日志文件（带序号），
-            // 使新进程总能落盘，外部 shell 用 find 即可发现并读取。
-            val primary = File(dir, LOG_FILE)
-            logFile = resolveWritableLogFile(dir, primary)
+            runCatching {
+                dlDir.mkdirs()
+                val primary = File(dlDir, LOG_FILE)
+                resolveWritableLogFile(dlDir, primary)?.let { targets += it }
+            }
+            logFiles = targets.distinct()
+            logFile = logFiles.firstOrNull()
             // 启动时标注分隔
-            logFile?.appendText("\n========== app start ${java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())} ==========\n")
+            val header = "\n========== app start ${java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())} ==========\n"
+            logFiles.forEach { f -> runCatching { java.io.FileWriter(f, true).use { it.write(header) } } }
         }
     }
 
@@ -134,23 +149,26 @@ object HyperLog {
         buffer.addLast(entry)
         while (buffer.size > bufferMax()) buffer.removeFirst()
         // v1.141.9 镜像落盘（后台写文件避免卡 UI；超 2MB 轮转归档）。全量级别落盘，方便外部直接读运行日志。
-        val file = logFile
-        if (file != null) {
+        val files = logFiles
+        if (files.isNotEmpty()) {
             // v1.141.43 修正 v1.141.38 过激过滤（"仅 debug 模式落盘 D"把关键链路 命中/提取/跳转耗时 全滤掉，
             // 日志只剩入口与保活巡检，失去时间线诊断价值）。改为精准降噪：
             // 仅跳过 [match-debug] 逐条匹配噪音（每轮 37 条规则 × 2 行），其余 D 级恢复全量落盘。
             if (level != "D" || !message.startsWith("[match-debug]")) {
-                appendToFile(file, entry.formatted())
+                appendToFile(files, entry.formatted())
             }
         }
     }
     /** v1.141.38 单线程串行写盘：净化内容 + 超限轮转归档（不再直接清空丢历史） */
-    private fun appendToFile(file: java.io.File, line: String) {
+    /** v1.141.57 双写兜底：遍历写所有目标文件（Via + Download），各自 runCatching 互不影响 */
+    private fun appendToFile(files: List<java.io.File>, line: String) {
         val clean = sanitize(line)
         writer.execute {
-            runCatching {
-                rotateIfNeeded(file)
-                java.io.FileWriter(file, true).use { it.write(clean + "\n") }
+            files.forEach { f ->
+                runCatching {
+                    rotateIfNeeded(f)
+                    java.io.FileWriter(f, true).use { it.write(clean + "\n") }
+                }
             }
         }
     }
