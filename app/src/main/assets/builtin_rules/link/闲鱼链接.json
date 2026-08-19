@@ -9,12 +9,12 @@
       "enabled": true,
       "actionMode": "parse_and_open",
       "matchRegex": ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|(?<!e\\.)tb\\.cn[^\\s]*).*",
-      "parameterRegex": "(https?:\\/\\/[^\\s]+)",
+      "parameterRegex": "(https?:\/\/[^\\s]+)",
       "triggerRegexes": [
         ".*(goofish\\.com[^\\s]*|idlefish\\.com[^\\s]*|(?<!e\\.)tb\\.cn[^\\s]*).*"
       ],
       "extractionRegexes": [
-        "(https?:\\/\\/[^\\s]+)"
+        "(https?:\/\/[^\\s]+)"
       ],
       "parseAfterRedirect": false,
       "target": {
