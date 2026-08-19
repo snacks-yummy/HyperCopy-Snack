@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,6 +89,14 @@ fun RuleSuggestionPage(
             suggestions = RuleAnalyzer.analyze(initialText)
             analyzed = true
         }
+    }
+    // v1.141.68 修复：清空后手动输入/粘贴新内容 → 自动分析（防抖 600ms，跳过初始）
+    // 场景：识别保存后清空 → 填入新信息 → 之前必须手动点「分析」，用户期望自动
+    LaunchedEffect(text) {
+        if (text.isBlank() || text == initialText) return@LaunchedEffect
+        delay(600)
+        suggestions = RuleAnalyzer.analyze(text)
+        analyzed = true
     }
 
     Scaffold { paddingValues ->
