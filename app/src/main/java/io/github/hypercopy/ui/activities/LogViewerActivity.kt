@@ -11,6 +11,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 class LogViewerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("日志查看")
         setContent {
             HyperCopyTheme(this) {
                 LogViewerPage(onBack = { finish() })

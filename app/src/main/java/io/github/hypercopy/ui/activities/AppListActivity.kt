@@ -46,6 +46,7 @@ import java.util.Locale
 class AppListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("应用列表")
         setContent {
             val settingsRepository = remember { SettingsRepository(applicationContext) }
             val colorMode = remember { appColorModeFromValue(settingsRepository.readColorMode()) }

@@ -12,6 +12,8 @@ class App : Application(), XposedServiceHelper.OnServiceListener {
     override fun onCreate() {
         super.onCreate()
         HyperLog.init(this)
+        // v1.141.56 中文 UI 操作日志初始化（写到 Via 文件夹 HyperCopy_logs/ui_actions.log）
+        UiActionLogger.init(this)
         // 内置云规则：开箱即用，无需手动下载
         runCatching { RuleRepository(this).ensureBuiltinRules() }
         XposedServiceHelper.registerListener(this)

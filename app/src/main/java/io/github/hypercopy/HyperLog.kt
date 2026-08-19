@@ -29,8 +29,9 @@ object HyperLog {
     //   磁盘 2MB 容量≈6000-10000 行，内存窗口需 ≥ 磁盘容量，否则 UI 日志页出现"磁盘有但 UI 看不到"的断裂。
     //   实测空闲 ~20 行/分，10000 条≈8 小时窗口，每条 LogEntry≈200B，10000 条≈2MB 内存可接受。
     private val buffer = ArrayDeque<LogEntry>()
-    // v1.141.9 落盘日志：镜像到 /sdcard/Download/HyperCopy/hypercopy.log，便于外部/工具直接读取运行日志（免前台抓取）
-    private const val LOG_DIR = "HyperCopy"
+    // v1.141.9 落盘日志：镜像到 Via 文件夹/HyperCopy_logs/hypercopy.log，便于外部/工具直接读取运行日志（免前台抓取）
+    // v1.141.56 从 Download/HyperCopy 迁移到 Via 绑定文件夹（工作区根目录）下，统一日志目录
+    private const val LOG_DIR = "HyperCopy_logs"
     private const val LOG_FILE = "hypercopy.log"
     private const val MAX_FILE_BYTES = 2 * 1024 * 1024 // 2MB 超限轮转归档（v1.141.38 前为直接清空）
     private const val MAX_LINE_CHARS = 2000             // v1.141.38 单行日志最大字符（防超长文本撑爆文件）
@@ -47,11 +48,10 @@ object HyperLog {
     }
     private fun initLogFile(ctx: Context) {
         runCatching {
-            // 统一写到公共下载目录 Download/HyperCopy（shell 可直接读取，免前台抓取）
+            // v1.141.56 日志统一落到 Via 绑定文件夹内的 HyperCopy_logs 目录（用户可直接读取，测试便利）
+            // 原为 Download/HyperCopy，应需求改为工作区根目录下新建日志文件夹。
             val dir = File(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS
-                ),
+                File("/storage/emulated/0/Via/复制直达项目二改"),
                 LOG_DIR,
             )
             dir.mkdirs()

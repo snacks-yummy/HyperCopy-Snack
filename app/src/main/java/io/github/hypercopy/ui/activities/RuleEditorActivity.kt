@@ -24,6 +24,7 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 class RuleEditorActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("规则编辑器")
         setContent {
             val settingsRepository = remember { SettingsRepository(applicationContext) }
             val colorMode = remember { appColorModeFromValue(settingsRepository.readColorMode()) }

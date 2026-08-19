@@ -173,6 +173,20 @@ fun RuleEditorPage(
     // v1.44 上移测试输入 state：供智能识别成功后自动填入（识别→立即看到匹配/提取结果）
     var testText by remember { mutableStateOf("") }
 
+    // v1.141.56 正则测试实时记录：testText 变化时输出命中/提取结果
+    androidx.compose.runtime.LaunchedEffect(testText, triggerRegexes.toList(), extractionRegexes.toList()) {
+        if (testText.isNotBlank()) {
+            val hit = RulePatterns.matchesAny(triggerRegexes.toList(), testText)
+            val ext = extractionRegexes.filter { it.isNotBlank() }.mapNotNull { pattern ->
+                runCatching { Regex(pattern).find(testText) }.getOrNull()?.let { m ->
+                    val groups = m.groups.drop(1).mapNotNull { it?.value }
+                    if (groups.isEmpty()) null else "$pattern → ${groups.joinToString(",")}"
+                }
+            }.joinToString("; ")
+            io.github.hypercopy.UiActionLogger.regexTest(triggerRegexes.filter { it.isNotBlank() }.joinToString(" | "), testText, hit, ext)
+        }
+    }
+
     Scaffold { paddingValues ->
         // v1.68 保存按钮固定底部：内容区可滚动，底部常驻保存栏
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -268,6 +282,7 @@ fun RuleEditorPage(
                                 if (group.isBlank()) group = io.github.hypercopy.data.settings.SettingsRepository(context.applicationContext).readSceneGroup()
                                 // v1.44 识别成功自动填入测试输入：立即看到"命中/提取"结果，确认识别正确
                                 testText = finalText
+                                io.github.hypercopy.UiActionLogger.autoRecognize(finalText, "识别为「" + s.platform + "」 分类=" + category.name + " 动作=" + s.actionMode.name + " 包=" + s.packageName.ifBlank { "-" } + " 模板=" + s.template.ifBlank { "-" })
                                 Toast.makeText(context, context.getString(R.string.editor_auto_recognize_ok, s.platform), Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -418,8 +433,10 @@ fun RuleEditorPage(
                                         clearClipboardAfterJump = false,
                                         notificationModeOverride = Config.JUMP_NOTIFICATION_MODE_NONE,
                                     )
+                                    io.github.hypercopy.UiActionLogger.jumpTest(name.ifBlank { "未命名" }, "已提交跳转", "目标=包[" + packageName + "] 模板[" + targetTemplate + "]")
                                     Toast.makeText(context, testJumpSentText, Toast.LENGTH_SHORT).show()
                                 } else {
+                                    io.github.hypercopy.UiActionLogger.jumpTest(name.ifBlank { "未命名" }, "跳转失败(未生成intent)", "目标=包[" + packageName + "] 模板[" + targetTemplate + "]")
                                     Toast.makeText(context, testJumpFailedText, Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -693,6 +710,16 @@ fun RuleEditorPage(
                             packageName = if (category == RuleCategory.Link || isCategoryUrlOpen || isCategoryDirectAppOpen) packageName else "",
                         ),
                     )
+                    io.github.hypercopy.UiActionLogger.ruleChanged(
+                        if (editingRule == null) "新增" else "修改",
+                        rule.name.ifBlank { "未命名" },
+                        "分类=" + rule.category.name +
+                            " 动作=" + rule.actionMode.name +
+                            " 触发=[" + rule.triggerRegexes.joinToString(" | ") + "]" +
+                            " 提取=[" + rule.extractionRegexes.joinToString(" | ") + "]" +
+                            " 目标包=[" + rule.target.packageName + "]" +
+                            " 目标模板=[" + rule.target.template + "]"
+                    )
                     when (repository.saveRuleMerged(rule)) {
                         io.github.hypercopy.data.rules.RuleSaveResult.Duplicate ->
                             Toast.makeText(
@@ -836,6 +863,7 @@ fun RuleEditorPage(
                     showDeleteConfirm = false
                     val id = editingRule?.id ?: run { onBack(); return@TextButton }
                     repository.moveToTrash(setOf(id))
+                    io.github.hypercopy.UiActionLogger.ruleChanged("删除", editingRule?.name?.ifBlank { "未命名" } ?: "未知", "id=" + id)
                     Toast.makeText(context, R.string.rule_toast_moved_to_trash, Toast.LENGTH_SHORT).show()
                     onBack()
                 },

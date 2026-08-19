@@ -23,6 +23,7 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 class SystemLinkAppDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("系统链接App详情")
         val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME).orEmpty()
         if (packageName.isBlank()) {
             finish()

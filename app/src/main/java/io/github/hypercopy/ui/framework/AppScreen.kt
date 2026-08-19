@@ -247,6 +247,8 @@ fun AppScreen(
         contentWindowInsets = WindowInsets.navigationBars,
         bottomBar = {
             BottomNavigation(tabs, selectedTab) { _, tab ->
+                // v1.141.56 UI 操作日志：底部 Tab 切换埋点
+                io.github.hypercopy.UiActionLogger.tab(tabTabName(tab))
                 AppNav.tabFlow.value = tab
             }
         },
@@ -485,27 +487,33 @@ fun AppScreen(
                                 onLogLevelChange = {
                                     logLevel = it
                                     settingsRepository.persistLogLevel(it)
+                                    io.github.hypercopy.UiActionLogger.option("日志级别", it.toString())
                                 },
                                 onLogBufferMaxChange = {
                                     logBufferMax = it
                                     settingsRepository.persistLogBufferMax(it)
+                                    io.github.hypercopy.UiActionLogger.option("日志缓冲条数", it.toString())
                                 },
                                 onAutoCheckUpdateChange = {
                                     autoCheckUpdate = it
                                     settingsRepository.persistAutoCheckUpdate(it)
+                                    io.github.hypercopy.UiActionLogger.switch("自动检查更新", it)
                                 },
                                 onHideFromRecentsChange = {
                                     hideFromRecents = it
                                     settingsRepository.persistHideFromRecents(it)
+                                    io.github.hypercopy.UiActionLogger.switch("从最近任务隐藏", it)
                                     context.findMainActivity()?.updateRecentsVisibility(it)
                                 },
                                 onDesktopIconHiddenChange = {
                                     desktopIconHidden = it
                                     settingsRepository.persistDesktopIconHidden(it)
+                                    io.github.hypercopy.UiActionLogger.switch("隐藏桌面图标", it)
                                 },
                                 onDetectClonedAppChange = {
                                     detectClonedApp = it
                                     settingsRepository.persistDetectClonedApp(it)
+                                    io.github.hypercopy.UiActionLogger.switch("检测应用分身", it)
                                 },
                                 onClonedAppUserIdChange = {
                                     clonedAppUserId = it
@@ -514,15 +522,18 @@ fun AppScreen(
                                 onMiuiIslandBypassRestrictionChange = {
                                     miuiIslandBypassRestriction = it
                                     settingsRepository.persistMiuiIslandBypassRestriction(it)
+                                    io.github.hypercopy.UiActionLogger.switch("澎湃岛绕过限制", it)
                                 },
                                 onAppLanguageChange = {
                                     appLanguage = it
                                     settingsRepository.persistAppLanguage(it.value)
+                                    io.github.hypercopy.UiActionLogger.option("应用语言", it.toString())
                                     onAppLanguageChange(it)
                                 },
                                 onJumpNotificationModeChange = {
                                     jumpNotificationMode = it
                                     settingsRepository.persistJumpNotificationMode(it.value)
+                                    io.github.hypercopy.UiActionLogger.option("跳转通知方式", it.toString())
                                     if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
@@ -530,6 +541,7 @@ fun AppScreen(
                                 onTextNotificationModeChange = {
                                     textNotificationMode = it
                                     settingsRepository.persistTextNotificationMode(it.value)
+                                    io.github.hypercopy.UiActionLogger.option("文本通知方式", it.toString())
                                     if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
@@ -537,62 +549,77 @@ fun AppScreen(
                                 onNotifyUnmatchedChange = {
                                     notifyUnmatched = it
                                     settingsRepository.persistNotifyUnmatched(it)
+                                    io.github.hypercopy.UiActionLogger.switch("未匹配通知", it)
                                 },
                                 onNotifyPickupCodeChange = {
                                     notifyPickupCode = it
                                     settingsRepository.persistNotifyPickupCode(it)
+                                    io.github.hypercopy.UiActionLogger.switch("取件码通知", it)
                                 },
                                 onNotifyIncludePlatformChange = {
                                     notifyIncludePlatform = it
                                     settingsRepository.persistNotifyIncludePlatform(it)
+                                    io.github.hypercopy.UiActionLogger.switch("通知包含平台", it)
                                 },
                                 onMatchDebugLogChange = {
                                     matchDebugLog = it
                                     settingsRepository.persistMatchDebugLog(it)
+                                    io.github.hypercopy.UiActionLogger.switch("匹配调试日志", it)
                                 },
                                 onMonitorEnabledChange = {
                                     monitorEnabled = it
                                     settingsRepository.persistMonitorEnabled(it)
+                                    io.github.hypercopy.UiActionLogger.switch("监听开关", it)
                                 },
                                 onShowHitToastChange = {
                                     showHitToast = it
                                     settingsRepository.persistShowHitToast(it)
+                                    io.github.hypercopy.UiActionLogger.switch("命中提示Toast", it)
                                 },
                                 onCloudExpressDetectChange = {
                                     cloudExpressDetect = it
                                     settingsRepository.persistCloudExpressDetect(it)
+                                    io.github.hypercopy.UiActionLogger.switch("云端快递检测", it)
                                 },
                                 onExpressDirectJumpChange = {
                                     expressDirectJump = it
                                     settingsRepository.persistExpressDirectJump(it)
+                                    io.github.hypercopy.UiActionLogger.switch("快递直达跳转", it)
                                 },
                                 onCainiaoAutoConfirmChange = {
                                     cainiaoAutoConfirm = it
                                     settingsRepository.persistCainiaoAutoConfirm(it)
+                                    io.github.hypercopy.UiActionLogger.switch("菜鸟自动确认", it)
                                 },
                                 onCainiaoAutoExpandChange = {
                                     cainiaoAutoExpand = it
                                     settingsRepository.persistCainiaoAutoExpand(it)
+                                    io.github.hypercopy.UiActionLogger.switch("菜鸟自动展开", it)
                                 },
                                 onSchemeDirectJumpChange = {
                                     schemeDirectJump = it
                                     settingsRepository.persistSchemeDirectJump(it)
+                                    io.github.hypercopy.UiActionLogger.switch("Scheme直接跳转", it)
                                 },
                                 onJumpFallbackWebChange = {
                                     jumpFallbackWeb = it
                                     settingsRepository.persistJumpFallbackWeb(it)
+                                    io.github.hypercopy.UiActionLogger.switch("跳转网页兜底", it)
                                 },
                                 onJumpPrecheckChange = {
                                     jumpPrecheck = it
                                     settingsRepository.persistJumpPrecheck(it)
+                                    io.github.hypercopy.UiActionLogger.switch("跳转预检", it)
                                 },
                                 onDuplicateWindowMillisChange = {
                                     duplicateWindowMillis = it
                                     settingsRepository.persistDuplicateWindowMillis(it)
+                                    io.github.hypercopy.UiActionLogger.option("重复窗口间隔", it.toString())
                                 },
                                 onAutoActivateChange = {
                                     autoActivate = it
                                     settingsRepository.persistAutoActivate(it)
+                                    io.github.hypercopy.UiActionLogger.switch("自动激活", it)
                                 },
                                 onCheckUpdate = { checkUpdate(showNoUpdate = true) },
                                 onOpenTheme = { context.startActivity(Intent(context, ThemeSettingsActivity::class.java)) },
@@ -600,7 +627,11 @@ fun AppScreen(
                                 topContentPadding = pagePadding.calculateTopPadding() + 12.dp,
                                 bottomContentPadding = pagePadding.calculateBottomPadding() + 16.dp,
                                 subPage = settingsSubPage,
-                                onSubPageChange = { AppNav.subPageFlow.value = it },
+                                onSubPageChange = {
+                                    // v1.141.56 UI 操作日志：设置子页进入
+                                    io.github.hypercopy.UiActionLogger.page(subPageNameOrBack(it))
+                                    AppNav.subPageFlow.value = it
+                                },
 )
                         }
                     }
@@ -678,5 +709,24 @@ fun appBackground(colorMode: AppColorMode = AppColorMode.System): Color {
         AppColorMode.Dark -> true
         AppColorMode.Light -> false
     }
-    return if (dark) Color(0xFF101010) else Color(0xFFF5F5F7)
+return if (dark) Color(0xFF101010) else Color(0xFFF5F5F7)
+}
+
+/** v1.141.56 Tab 枚举 → 中文名（供 UiActionLogger 记录） */
+private fun tabTabName(tab: Tab): String = when (tab) {
+    Tab.Home -> "首页"
+    Tab.Copy -> "云规则"
+    Tab.Rules -> "规则"
+    Tab.Settings -> "设置"
+}
+
+/** v1.141.56 设置子页 → 中文名（null 表示返回设置主页） */
+private fun subPageNameOrBack(p: SettingsSubPage?): String = when (p) {
+    null -> "设置主页"
+    SettingsSubPage.KEEP_ALIVE -> "保活设置"
+    SettingsSubPage.NOTIFY -> "通知设置"
+    SettingsSubPage.JUMP -> "跳转设置"
+    SettingsSubPage.EXPRESS -> "快递设置"
+    SettingsSubPage.MONITOR -> "监听设置"
+    SettingsSubPage.UPDATE_PRIVACY -> "更新/隐私"
 }

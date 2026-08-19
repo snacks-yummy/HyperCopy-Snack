@@ -17,6 +17,7 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 class RuleBrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("规则浏览")
         setContent {
             val settingsRepository = remember { SettingsRepository(applicationContext) }
             val colorMode = remember { appColorModeFromValue(settingsRepository.readColorMode()) }

@@ -31,6 +31,7 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 class ThemeSettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("主题设置")
         setContent {
             val settingsRepository = remember { SettingsRepository(applicationContext) }
             var colorMode by remember { mutableStateOf(appColorModeFromValue(settingsRepository.readColorMode())) }

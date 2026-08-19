@@ -11,6 +11,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 class StatsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        io.github.hypercopy.UiActionLogger.page("统计")
         setContent {
             HyperCopyTheme(this) {
                 StatsPage(onBack = { finish() })
