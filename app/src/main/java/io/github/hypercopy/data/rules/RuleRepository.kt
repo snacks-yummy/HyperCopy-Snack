@@ -125,7 +125,12 @@ class RuleRepository(private val context: Context) {
                     it.id != rule.id &&
                     it.target.packageName.isNotBlank() &&
                     it.target.packageName == rule.target.packageName &&
-                    it.category == rule.category
+                    it.category == rule.category &&
+                    // v1.141.62 修复：口令 vs 链接不应合并（用户实锤：先加淘宝口令再加淘宝链接被误合并）
+                    // 口令规则 target 模板为空（走剪贴板），链接规则模板=${url:input}（直接开 URL），
+                    // 虽同包名(com.taobao.taobao)同分类(Link)但目标模板不同 → 非同质规则，不合并
+                    it.target.type == rule.target.type &&
+                    it.target.template == rule.target.template
             }
             .maxByOrNull { it.createdAt }
         if (sameTarget != null) {
