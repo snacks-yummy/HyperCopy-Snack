@@ -36,6 +36,12 @@ object TextNotification {
      */
     private val lastIslandIds = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
+    // v1.141.87l 通知层去重：系统剪贴板检测可能双触发（不同 pid 间隔 ~1.5s，超出检测去重窗口 1500ms）
+    // 同一 title+content 在 3s 内只发一次通知，防止灵动岛重复弹出；不同规则/不同内容不受影响
+    private val lastNotifyKey = java.util.concurrent.atomic.AtomicReference("")
+    private val lastNotifyAt = java.util.concurrent.atomic.AtomicLong(0)
+    private const val NOTIFY_DEDUP_MILLIS = 3_000L
+
     /** 灵动岛独立自增 id：以规则基础 id(3002/3003) 为高位，低位递增，保证同 class 的每一条都是全新通知 id。 */
     private val islandSeq = java.util.concurrent.atomic.AtomicInteger(0)
 
@@ -73,6 +79,15 @@ object TextNotification {
             HyperLog.d(tag, "文本通知渠道=无通知, 跳过: ${entry.title}")
             return false
         }
+        // v1.141.87l 通知层去重：同 title+content 3s 内只发一次（防剪贴板双触发导致的灵动岛重复弹出）
+        val notifyKey = "${entry.title}|${entry.content}"
+        val nowMs = System.currentTimeMillis()
+        if (notifyKey == lastNotifyKey.get() && nowMs - lastNotifyAt.get() < NOTIFY_DEDUP_MILLIS) {
+            HyperLog.d(tag, "通知去重: ${entry.title} 距上次 ${nowMs - lastNotifyAt.get()}ms < ${NOTIFY_DEDUP_MILLIS}ms, 跳过")
+            return false
+        }
+        lastNotifyKey.set(notifyKey)
+        lastNotifyAt.set(nowMs)
         // 独立文本 channel（与跳转 channel 硬隔离）
         val channelId = Config.TEXT_NOTIFICATION_CHANNEL_PREFIX + mode
         val isIsland = mode == Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND
