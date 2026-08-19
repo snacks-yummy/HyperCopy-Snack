@@ -181,6 +181,10 @@ object ClipboardTextHandler {
             HyperLog.d(TAG, "忽略自身写入的剪贴板内容(防抖)")
             return
         }
+        // v1.141.60 记录最近处理文本（供剪贴板被清理后"从剪贴板添加"兜底）
+        // 提前到去重/防循环/监控开关拦截前：任何有效复制都会持久化，App 重启后仍可读回
+        lastProcessedText = input
+        persistLastProcessed(appContext, input)
         val now = System.currentTimeMillis()
         val duplicateWindow = SettingsRepository(context.applicationContext).readDuplicateWindowMillis()
         // v1.112 菜鸟委托跳转同单号长去重：浮动窗口会重复嗅探剪贴板残留单号（source=miui.home 等），
@@ -202,10 +206,6 @@ object ClipboardTextHandler {
         val settingsRepository = SettingsRepository(appContext)
         // v1.85 快递直达：express 分类命中时强制直接跳转（跳过通知/灵动岛），默认开
         val expressDirectJump = settingsRepository.readExpressDirectJump()
-        // v1.40 记录最近处理文本（供剪贴板被清理后"从剪贴板添加"兜底）
-        lastProcessedText = input
-        // v1.141.59 持久化兜底：App 重启后仍可读回
-        persistLastProcessed(appContext, input)
         // v1.30 快捷磁贴总开关：暂停时跳过一切处理
         if (!settingsRepository.readMonitorEnabled()) {
             HyperLog.d(TAG, "监控总开关已关闭, 跳过处理")
