@@ -750,10 +750,10 @@ object ClipboardTextHandler {
         }
         val text = when {
             effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
-            platform.isNotBlank() && label.isNotBlank() -> "【$platform】$label $effectiveContent"
-            platform.isNotBlank() -> "【$platform】$effectiveContent"
-            label.isNotBlank() -> "$label $effectiveContent"
-            else -> effectiveContent
+            // v1.141.87b 去重：content 只放类型标签（title 已含平台+值，避免卡片两行重复）
+            label.isNotBlank() -> label
+            rule.name.contains("外卖") -> "外卖取件"
+            else -> rule.name
         }
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
@@ -777,7 +777,8 @@ object ClipboardTextHandler {
         val includePlatform = SettingsRepository(context).readNotifyIncludePlatform()
         val platform = if (includePlatform) extractNotifyPlatform(input) else ""
         val title = if (platform.isNotBlank()) "$platform $text" else rule.name
-        val content = if (platform.isNotBlank()) "【$platform】验证码 $text" else "验证码 $text"
+        // v1.141.87b 去重：content 只放类型标签（title 已含平台+码值，避免卡片两行重复）
+        val content = "验证码"
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,
