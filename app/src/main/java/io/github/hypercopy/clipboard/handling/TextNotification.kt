@@ -92,19 +92,39 @@ object TextNotification {
                 Config.JUMP_NOTIFICATION_MODE_LIVE -> R.string.notification_channel_jump_live_name
                 else -> R.string.notification_channel_notify_only_name
             }
+            // v1.141.77 渠道→重要性映射：灵动岛最高(MAX)、live 高(HIGH)、普通默认(DEFAULT)
+            val channelImportance = when (mode) {
+                Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND -> android.app.NotificationManager.IMPORTANCE_MAX
+                Config.JUMP_NOTIFICATION_MODE_LIVE -> android.app.NotificationManager.IMPORTANCE_HIGH
+                else -> android.app.NotificationManager.IMPORTANCE_DEFAULT
+            }
             val channel = android.app.NotificationChannel(
                 channelId,
                 context.getString(nameRes),
-                android.app.NotificationManager.IMPORTANCE_HIGH,
+                channelImportance,
             )
-            context.getSystemService(android.app.NotificationManager::class.java).createNotificationChannel(channel)
+            val notifManager = context.getSystemService(android.app.NotificationManager::class.java)
+            // v1.141.77 升级兼容：已存在 channel 的 importance 创建后只读，不一致时删除重建
+            val existingChannel = notifManager.getNotificationChannel(channelId)
+            if (existingChannel != null && existingChannel.importance != channelImportance) {
+                notifManager.deleteNotificationChannel(channelId)
+                HyperLog.d(tag, "文本通知渠道重要性变更, 重建 channel: $channelId ($existingChannel.importance -> $channelImportance)")
+            }
+            notifManager.createNotificationChannel(channel)
         }
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(entry.icon)
             .setContentTitle(entry.title)
             .setContentText(entry.content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(entry.content))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // v1.141.77 渠道→优先级映射：灵动岛 MAX、live HIGH、普通 DEFAULT（不再固定 HIGH 打扰）
+            .setPriority(
+                when (mode) {
+                    Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND -> NotificationCompat.PRIORITY_MAX
+                    Config.JUMP_NOTIFICATION_MODE_LIVE -> NotificationCompat.PRIORITY_HIGH
+                    else -> NotificationCompat.PRIORITY_DEFAULT
+                }
+            )
             .setAutoCancel(true)
             // v1.141.12 通知栏一键清除优化：明确非持续（ongoing=false）+ 消息语义，
             // 使灵动岛/文本通知在通知栏可用"全部清除"批量关闭，而不是只能右滑单条关闭。
