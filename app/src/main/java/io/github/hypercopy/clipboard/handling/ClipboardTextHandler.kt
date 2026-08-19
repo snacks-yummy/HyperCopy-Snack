@@ -534,7 +534,7 @@ object ClipboardTextHandler {
     }
 
     private fun submitJumpNow(context: Context, jump: PendingJump, clearClipboardAfterJump: Boolean, notificationModeOverride: String?) {
-        HyperLog.d(TAG, "跳转: ${jump.title} -> ${jump.packageName.ifBlank { "web" }} (mode=$notificationModeOverride) tid=${HyperLog.TraceContext.current}")
+        HyperLog.d(TAG, "跳转: ${jump.title} -> ${jump.packageName.ifBlank { "web" }} (mode=${notificationModeOverride ?: "跟随全局"}) tid=${HyperLog.TraceContext.current}")
         // v1.93 引导：express 跳菜鸟且自动确认未开启时提示一次
         val guideRepo = SettingsRepository(context.applicationContext)
         if (jump.packageName == "com.cainiao.wireless" &&
