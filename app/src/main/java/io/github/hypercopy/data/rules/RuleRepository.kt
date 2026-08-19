@@ -43,6 +43,9 @@ class RuleRepository(private val context: Context) {
         // v1.141.73 幂等迁移：取件码通知 extraction 位数对齐（\d{9,12}→\d{4,12}，修复 4-8 位尾号提取为空）
         // + 快递单号 matchRegex 补 JDVA（与 trigger 对齐，京东生鲜单号可查件）
         migrateTextRulesV14173()
+        // v1.141.79 幂等迁移：本地美团小程序(takeout_jump) pkg 对齐——v1.141.75 assets 已改 pkg 为空
+        // （实测最终走 weixin://dl/business 小程序，setPackage 强投美团App失败），本地旧版需显式迁移
+        migrateTakeoutJumpPkgV14179()
         // v1.141.32 幂等迁移：短信验证码提取 + 取件码通知 内置规则关键词全量扩充
         // 背景：v1.141.32 默认覆盖行业全量短信码场景（认证/激活/授权/绑定/OTP/PIN + 领货/寄件/寄存等），
         //      但内置规则一旦写入本地不自动覆盖（v1.43 设计），需用 assets 权威正则显式升级原版。
@@ -434,6 +437,31 @@ class RuleRepository(private val context: Context) {
         persistRules(newList)
     }
         /**
+     * v1.141.79 幂等迁移：美团小程序内置规则 pkg 对齐（takeoutnew → 空）。
+     * 背景：v1.141.75 assets/takeout_jump.json pkg 已改为空（实测 mt.cn → peisong → weixin://dl/business
+     *       拉起微信小程序，https 网页+美团包名 setPackage 强投失败），但本地已写入旧版不覆盖（v1.43），
+     *       需显式迁移。幂等：pkg 已空/非目标规则不动。
+     */
+    private fun migrateTakeoutJumpPkgV14179() {
+        if (!rulesFile().exists()) return
+        var changed = false
+        val migrated = runCatching {
+            rulesFromJson(rulesFile().readText())
+        }.getOrDefault(emptyList()).map { rule ->
+            if (rule.id == "${BuiltinRules.ID_PREFIX}cloud_link_takeout_jump" &&
+                rule.target.packageName == "com.sankuai.meituan.takeoutnew"
+            ) {
+                changed = true
+                rule.copy(target = rule.target.copy(packageName = ""))
+            } else rule
+        }
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.141.79 migrate takeout_jump pkg -> empty (weixin:// 小程序实测)")
+        }
+    }
+
+    /**
      * v1.141.73 幂等迁移：文本类内置规则两处修复（本地已写入的旧版不自动覆盖，需显式迁移）。
      * ① 取件码通知 extraction 第三分支 (\\d{9,12}) → (\\d{4,12})：
      *    matchRegex 匹配 4-12 位但 extraction 只提取 9-12 位 → 「手机尾号/尾号」4-8 位命中但提取为空。
@@ -974,6 +1002,10 @@ class RuleRepository(private val context: Context) {
         prefs.edit().putBoolean(KEY_BUILTIN_RULES_V14145, true).apply()
     }
     private fun migrateTakeoutJumpIconV14130() {
+        // v1.141.80 废弃：v1.141.75 实测 mt.cn → peisong.meituan.com → weixin://dl/business 拉起微信小程序，
+        // pkg 必须为空（https 网页 + 美团包名 setPackage 强投失败）。v1.141.30 强制 takeoutnew 与新标准冲突，
+        // 且与 v1.141.79 迁移互相拉锯（每次 readRules 来回改写）→ 本函数直接失效。
+        return
         val file = rulesFile()
         if (!file.exists()) return
         val targetId = "${BuiltinRules.ID_PREFIX}cloud_link_takeout_jump"
