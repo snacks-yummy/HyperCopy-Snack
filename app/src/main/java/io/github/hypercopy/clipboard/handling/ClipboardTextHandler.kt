@@ -735,7 +735,20 @@ object ClipboardTextHandler {
         val platform = if (includePlatform) {
             Regex("【([^】]+)】").find(input)?.groupValues?.get(1)?.let { "【$it】" } ?: ""
         } else ""
-        val text = if (platform.isNotBlank()) "$platform $content" else content
+        // v1.141.78 通知方式适配 + 结构化排版：
+        // ① 空内容兜底：template 空时用提取参数结构化渲染（不回退原文，避免通知含链接）
+        val effectiveContent = if (content.isBlank()) {
+            val params = rule.extractParameters(input).toMutableMap()
+            params["input"] = input
+            runCatching { rule.target.resolveTemplate(params, encode = { it }) }.getOrDefault("")
+        } else content
+        // ② 渠道适配：灵动岛(miui_island)空间小 → 去平台名精简；normal/live → 平台名+结构化完整
+        val mode = TextNotification.resolveMode(context, rule)
+        val text = when {
+            effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
+            platform.isNotBlank() && mode != Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND -> "$platform $effectiveContent"
+            else -> effectiveContent
+        }
         // v1.141 委托独立文本通知引擎：渠道=规则级>全局文本渠道>普通，channel/ID独立，不混用跳转
         TextNotification.notify(
             context,
