@@ -87,8 +87,9 @@ class RuleRepository(private val context: Context) {
     }
 
     fun saveRule(rule: RuleConfig): RuleSaveResult {
-        // v1.33 空白规则防御：触发器为空（兜底 .* 匹配一切）拒绝保存，防止误跳转
-        if (rule.triggerRegexes.none { it.isNotBlank() }) return RuleSaveResult.Rejected
+        // v1.33 空白规则防御：matchRegex 与 triggerRegexes 都为空（兜底 .* 匹配一切）才拒绝保存，防止误跳转
+        // v1.141.87o 修正：triggerRegexes 空但 matchRegex 有值 → 放行（triggerPatterns 会回退 matchRegex，京东云规则等合法）
+        if (rule.matchRegex.isBlank() && rule.triggerRegexes.none { it.isNotBlank() }) return RuleSaveResult.Rejected
         val currentRules = readRules()
         val existingIndex = currentRules.indexOfFirst { it.id == rule.id }
         if (existingIndex >= 0) {
@@ -111,8 +112,8 @@ class RuleRepository(private val context: Context) {
     /** v1.36 合并同类规则：同目标 App（包名+分类）已有规则时合并触发器，而不是新增。
      *  解决"同一个 App 的不同口令被保存成多条规则"的问题。 */
     fun saveRuleMerged(rule: RuleConfig): RuleSaveResult {
-        // 空白规则防御同 saveRule
-        if (rule.triggerRegexes.none { it.isNotBlank() }) return RuleSaveResult.Rejected
+        // 空白规则防御同 saveRule（v1.141.87o：matchRegex 有值时放行）
+        if (rule.matchRegex.isBlank() && rule.triggerRegexes.none { it.isNotBlank() }) return RuleSaveResult.Rejected
         val currentRules = readRules()
         // 编辑已有规则（id 匹配）→ 正常更新
         val existingIndex = currentRules.indexOfFirst { it.id == rule.id }
