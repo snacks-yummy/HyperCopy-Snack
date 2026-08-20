@@ -17,14 +17,12 @@ class ClipboardAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         running.set(true)
         CainiaoAutoConfirm.attach(this)
-        TaobaoKoulingConfirm.attach(this)
         HyperLog.d(TAG, "accessibility keepalive connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 无障碍辅助功能（非规则检测）：菜鸟查件自动确认 + 淘宝口令弹窗自动确认
+        // 无障碍辅助功能（非规则检测）：菜鸟查件自动确认
         CainiaoAutoConfirm.onEvent(this, event)
-        TaobaoKoulingConfirm.onEvent(this, event)
     }
 
     override fun onInterrupt() {
