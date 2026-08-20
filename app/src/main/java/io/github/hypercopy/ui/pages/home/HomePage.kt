@@ -720,61 +720,54 @@ private fun runShellSetup(
 ) {
     thread(name = "HyperCopyOneTapSetup") {
         val pkg = context.packageName
+        val shell = io.github.hypercopy.clipboard.privileged.PrivilegedShell
+        val settingsRepo = io.github.hypercopy.data.settings.SettingsRepository(context)
         fun update(index: Int, value: Int) = mainHandler.post { states[index] = value }
-        // ③ 省电无限制（电池优化白名单）
+        // 查询命令：exit 0 且（可选）输出含关键字 → 已授权
+        fun granted(query: String, outputContains: String? = null): Boolean {
+            val r = shell.run(settingsRepo, query)
+            return r.exitCode == 0 && (outputContains == null || r.output.contains(outputContains))
+        }
+        fun grant(set: String, fallback: String? = null): Boolean {
+            return runShellCommand(context, set) || (fallback != null && runShellCommand(context, fallback))
+        }
+        // ③ 省电无限制（电池优化白名单）——已授权自动跳过
         update(1, 1)
-        val batteryOk = runShellCommand("dumpsys deviceidle whitelist +$pkg") ||
-            runShellCommand("cmd deviceidle whitelist +$pkg")
+        val batteryOk = granted("dumpsys deviceidle whitelist | grep -q $pkg") ||
+            granted("cmd deviceidle whitelist | grep -q $pkg") ||
+            grant("dumpsys deviceidle whitelist +$pkg", "cmd deviceidle whitelist +$pkg")
         update(1, if (batteryOk) 2 else 3)
-        // ④ 后台弹出页面：标准 op 10021（ALLOW_BACKGROUND_ACTIVITY_STARTS，实测 MIUIOP(10021) 生效）
-        //    + HyperOS/MIUI 私有 10024 双保险（10024 注释实测亦有效）
+        // ④ 后台弹出页面：标准 op 10021（实测 MIUIOP(10021) 生效）+ MIUI 私有 10024 双保险——已授权自动跳过
         update(2, 1)
-        val backgroundOk = runShellCommand("appops set $pkg 10021 allow") ||
-            runShellCommand("appops set $pkg 10024 allow")
+        val backgroundOk = granted("appops get $pkg 10021", "allow") ||
+            granted("appops get $pkg 10024", "allow") ||
+            grant("appops set $pkg 10021 allow", "appops set $pkg 10024 allow")
         update(2, if (backgroundOk) 2 else 3)
-        // ⑤ 自启动：MIUI 私有 op 10050（OP_AUTO_START）+ 10051（关联启动兜底）
+        // ⑤ 自启动：MIUI 私有 op 10050（OP_AUTO_START）+ 10051（关联启动兜底）——已授权自动跳过
         update(3, 1)
-        val autostartOk = runShellCommand("appops set $pkg 10050 allow") ||
-            runShellCommand("appops set $pkg 10051 allow")
+        val autostartOk = granted("appops get $pkg 10050", "allow") ||
+            granted("appops get $pkg 10051", "allow") ||
+            grant("appops set $pkg 10050 allow", "appops set $pkg 10051 allow")
         update(3, if (autostartOk) 2 else 3)
         // 应用列表：黑名单模式默认已启用（空集合不影响任何应用），标记完成
         update(4, 2)
         mainHandler.post(onDone)
     }
 }
-
-/** Shizuku shell 执行：成功=命令 exit 0（v1.75 修复：原实现不检查 exit code，
- *  把 appops 报错 Unknown operation 等失败也当成功 → 后台弹出/自启动"假成功"） */
-private fun runShellCommand(command: String): Boolean {
+/** Shizuku shell 执行（v1.142.1d 重构）：委托 PrivilegedShell（其 waitForExit 用 try exitValue 轮询，
+ *  兼容 ShizukuProcess 的异常语义——此前直接 waitFor/isAlive 判定在 ShizukuProcess 上均不可靠，
+ *  导致 appops 命令假失败/随机失败）。成功=exit 0。 */
+private fun runShellCommand(context: Context, command: String): Boolean {
     if (!ShizukuPermission.isGranted()) {
         io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置跳过: Shizuku 未授权: $command")
         return false
     }
-    return runCatching {
-        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置执行: $command")
-        val process = ShizukuProcess.start(arrayOf("sh", "-c", command))
-        if (process == null) {
-            // v1.142.1 修复盲区：start 失败此前静默返回 false（导致 || 兜底命令被误执行且无日志）
-            io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败: ShizukuProcess.start 返回 null: $command")
-            return false
-        }
-        val out = process.inputStream.bufferedReader().use { it.readText() }
-        // v1.142.1c 修复：ShizukuProcess.waitFor(timeout) 返回 true 但进程未退出（语义不一致）→
-        // 直接 exitValue() 抛 process hasn't exited 假失败。改轮询 isAlive() 等退出。
-        val deadline = System.currentTimeMillis() + 10_000
-        while (process.isAlive() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(50)
-        }
-        if (process.isAlive()) {
-            process.destroyForcibly()
-            io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败: 10s 超时: $command")
-            return false
-        }
-        val exit = process.exitValue()
-        process.destroyForcibly()
-        if (exit != 0) io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败 exit=$exit: $command")
-        exit == 0
-    }.onFailure { e ->
-        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置异常: $command → $e")
-    }.getOrDefault(false)
+    val result = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(
+        io.github.hypercopy.data.settings.SettingsRepository(context),
+        command,
+    )
+    if (result.exitCode != 0) {
+        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败 exit=${result.exitCode}: $command → ${result.output.take(120)}")
+    }
+    return result.exitCode == 0
 }
