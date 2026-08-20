@@ -1,6 +1,6 @@
 {
   "id": "cloud_text_快递单号_菜鸟查件",
-  "name": "快递单号-菜鸟查件",
+  "name": "快递单号菜鸟查件",
   "category": "express",
   "enabled": true,
   "actionMode": "direct_open",
