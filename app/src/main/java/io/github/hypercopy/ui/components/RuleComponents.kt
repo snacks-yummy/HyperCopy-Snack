@@ -505,24 +505,33 @@ internal fun RuleCard(
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
             // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
             if (swipeEnabled && swipeOffset > 0f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(deleteBtnWidth)
-                        .align(Alignment.CenterEnd)
-                        .background(Color(0xFFFF5A52))
-                        .clickable(enabled = swipeOffset > 0f) {
-                            swipeOffset = 0f
-                            onDeleteClick?.invoke()
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        style = MiuixTheme.textStyles.body2,
-                        color = Color.White,
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(deleteBtnWidth)
+                            .align(Alignment.CenterEnd)
+                            .background(Color(0xFFFF5A52))
+                            .clickable(enabled = swipeOffset > 0f) {
+                                swipeOffset = 0f
+                                onDeleteClick?.invoke()
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_delete),
+                            style = MiuixTheme.textStyles.body2,
+                            color = Color.White,
+                            // v1.142.6m 修复：删除按钮加图标 + 更明显（右对齐，文字居中）
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
+                        Icon(
+                            imageVector = MiuixIcons.Delete,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
             }
         Row(
             modifier = Modifier
