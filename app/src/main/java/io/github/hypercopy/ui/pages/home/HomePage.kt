@@ -146,9 +146,12 @@ fun HomePage(
     }
     // 修复：规则数量实时刷新（监听规则变更事件，新增/删除/启停后自动更新）
     var enabledRuleCount by remember { mutableStateOf(ruleRepository.readRules().count { it.enabled }) }
+    // v1.142.6o D4：总命中次数（主页统计可视化，随规则变更刷新）
+    var totalHitCount by remember { mutableStateOf(io.github.hypercopy.data.rules.RuleStatsRepository(context).getAll().values.sum()) }
     LaunchedEffect(ruleRepository) {
         RuleRepository.changes.collect {
             enabledRuleCount = ruleRepository.readRules().count { it.enabled }
+            totalHitCount = io.github.hypercopy.data.rules.RuleStatsRepository(context).getAll().values.sum()
         }
     }
     val workMode = clipboardMonitorMode.value
@@ -205,6 +208,8 @@ fun HomePage(
                 batteryUnrestricted = batteryUnrestricted,
                 workMode = workMode,
                 enabledRuleCount = enabledRuleCount,
+                // v1.142.6o D4：命中统计
+                hitCount = totalHitCount,
             )
         }
         // v1.74 新装一键配置卡片（配置完成或稍后后消失）
@@ -292,7 +297,7 @@ fun HomePage(
 }
 
 @Composable
-private fun StatusCard(active: Boolean, batteryUnrestricted: Boolean, workMode: String, enabledRuleCount: Int) {
+private fun StatusCard(active: Boolean, batteryUnrestricted: Boolean, workMode: String, enabledRuleCount: Int, hitCount: Int = 0) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth >= 600.dp) {
             Row(
@@ -313,6 +318,12 @@ private fun StatusCard(active: Boolean, batteryUnrestricted: Boolean, workMode: 
                 StatCard(
                     title = stringResource(R.string.home_rule_count),
                     content = stringResource(R.string.home_enabled_rule_count, enabledRuleCount),
+                    modifier = Modifier.weight(1f).height(112.dp),
+                )
+                // v1.142.6o D4：命中统计（宽屏第 4 格）
+                StatCard(
+                    title = stringResource(R.string.home_hit_count),
+                    content = hitCount.toString(),
                     modifier = Modifier.weight(1f).height(112.dp),
                 )
             }

@@ -25,6 +25,7 @@
     <string name="home_work_mode">工作模式</string>
     <string name="home_rule_count">规则</string>
     <string name="home_enabled_rule_count">已启用 %1$d 条</string>
+    <string name="home_hit_count">命中次数</string>
     <string name="permission_root_status">Root 权限状态</string>
     <string name="permission_shizuku_status">Shizuku 权限状态</string>
     <string name="permission_granted">已授权</string>
@@ -452,6 +453,8 @@
     <string name="notification_channel_foreground_service_name">后台剪贴板监听</string>
     <string name="notification_channel_foreground_service_description">Shizuku 剪贴板监听运行时显示的常驻通知</string>
     <string name="notification_foreground_service_title">HyperCopy 剪贴板监听</string>
+    <string name="notification_action_pause">暂停监听</string>
+    <string name="notification_action_resume">恢复监听</string>
     <string name="notification_foreground_service_checking">正在检查 Shizuku 状态和权限</string>
     <string name="notification_foreground_service_running_shizuku">监听已启动，正在通过 Shizuku 监听剪贴板</string>
     <string name="notification_foreground_service_running_read_logs">监听已启动，正在通过 READ_LOGS 权限监听剪贴板</string>

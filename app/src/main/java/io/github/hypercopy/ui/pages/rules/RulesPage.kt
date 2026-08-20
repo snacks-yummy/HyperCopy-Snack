@@ -282,6 +282,52 @@ fun RulesPage(
         }
     }
 
+    // v1.142.6o D3 复制即测：进入页面时剪贴板有内容且测试框为空 → 自动填入并执行测试（规则分类；System 不自动跳转防误触）
+    LaunchedEffect(Unit) {
+        if (selectedCategory != RulePageCategory.System) {
+            val clip = runCatching {
+                val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
+            }.getOrNull()
+            if (!clip.isNullOrBlank() && testInput.isBlank()) {
+                testInput = clip
+                resultText = executeRuleTest(
+                    context = context,
+                    input = clip,
+                    rules = categoryRules,
+                    category = selectedCategory,
+                    onStartWebViewResolve = { url, rule ->
+                        resolvingUrl = url
+                        resolvingRule = rule
+                    },
+                    onStartRedirectParse = { url, rule ->
+                        resultText = context.getString(R.string.rule_result_match_redirect_parse, rule.name)
+                        thread(name = "HyperCopyRedirectTest") {
+                            val redirectedUrl = OneRedirectResolver.resolve(url)
+                            val intent = rule.parseIntent(
+                                redirectedUrl,
+                                requireMatch = false,
+                                extraParameters = mapOf("input" to clip.trim(), "redirectUrl" to redirectedUrl),
+                            )
+                            (context as? android.app.Activity)?.runOnUiThread {
+                                if (intent == null) {
+                                    resultText = context.getString(R.string.rule_result_redirect_parse_no_param, redirectedUrl)
+                                } else {
+                                    resultText = runCatching { context.startActivity(intent) }
+                                        .fold(
+                                            onSuccess = { context.getString(R.string.rule_result_match_parse_open, rule.name, intent.data) },
+                                            onFailure = { context.getString(R.string.rule_result_launch_failed, it.message) },
+                                        )
+                                }
+                            }
+                        }
+                    },
+                    onStartActivity = { context.startActivity(it) },
+                )
+            }
+        }
+    }
+
     LaunchedEffect(selectedCategory, categoryRuleIds) {
         selectedRuleIds = selectedRuleIds.intersect(categoryRuleIds)
         if (selectedCategory == RulePageCategory.System) {

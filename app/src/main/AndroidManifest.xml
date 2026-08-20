@@ -122,7 +122,11 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Maintains the user-enabled Shizuku clipboard monitor." />
         </service>
-        <service
+        <!-- v1.142.6o D6：常驻通知「暂停/恢复」按钮接收器 -->
+        <receiver
+            android:name=".clipboard.monitor.ToggleMonitorReceiver"
+            android:exported="false" />
+<service
             android:name=".clipboard.monitor.ClipboardAccessibilityService"
             android:exported="true"
             android:label="@string/accessibility_service_label"

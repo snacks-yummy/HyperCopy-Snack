@@ -474,6 +474,19 @@ object ClipboardTextHandler {
     }
 
     private fun startWebViewResolve(context: Context, rule: RuleConfig, input: String) {
+        // v1.142.6o D1 补齐：WebView 模拟浏览器分支也显示命中 Toast（此前仅跳转类有）
+        val hitSettings = SettingsRepository(context.applicationContext)
+        if (hitSettings.readShowHitToast()) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching {
+                    android.widget.Toast.makeText(
+                        context.applicationContext,
+                        context.getString(io.github.hypercopy.R.string.toast_hit_rule, rule.name, ""),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+        }
         val resolveUrl = rule.resolveInputUrl(input)
         // v1.141.24 外卖取件跳转：后台无头 WebView 自动走完整链（软件内模拟浏览器）。
         // mt.cn → 302 peisong → 页面 JS 生成 weixin://dl/business/?t=TICKET 并 location.href 跳转

@@ -68,6 +68,22 @@ class ClipboardMonitorForegroundService : Service() {
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .apply {
+                // v1.142.6o D6：常驻通知加「暂停/恢复」按钮（通知栏一键开关监听）
+                val monitorEnabled = io.github.hypercopy.data.settings.SettingsRepository(this@ClipboardMonitorForegroundService).readMonitorEnabled()
+                addAction(
+                    NotificationCompat.Action(
+                        R.drawable.ic_launcher_foreground,
+                        getString(if (monitorEnabled) R.string.notification_action_pause else R.string.notification_action_resume),
+                        PendingIntent.getBroadcast(
+                            this@ClipboardMonitorForegroundService,
+                            1,
+                            Intent(this@ClipboardMonitorForegroundService, ToggleMonitorReceiver::class.java),
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                        ),
+                    )
+                )
+            }
             .build()
 
         if (!startForeground) {
@@ -101,7 +117,8 @@ class ClipboardMonitorForegroundService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private companion object {
+    // v1.142.6o D6：NOTIFICATION_ID 公开供 ToggleMonitorReceiver 刷新通知
+    companion object {
         const val TAG = "HyperCopy"
         const val CHANNEL_ID = "clipboard_monitor_service"
         const val NOTIFICATION_ID = 1002

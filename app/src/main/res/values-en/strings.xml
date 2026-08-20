@@ -22,6 +22,7 @@
     <string name="home_work_mode">Work mode</string>
     <string name="home_rule_count">Rules</string>
     <string name="home_enabled_rule_count">%1$d enabled</string>
+    <string name="home_hit_count">Total hits</string>
     <string name="permission_root_status">Root permission status</string>
     <string name="permission_shizuku_status">Shizuku permission status</string>
     <string name="permission_granted">Granted</string>
@@ -297,6 +298,8 @@
     <string name="notification_channel_foreground_service_name">Background clipboard monitor</string>
     <string name="notification_channel_foreground_service_description">Persistent notification shown while Shizuku clipboard monitoring is enabled</string>
     <string name="notification_foreground_service_title">HyperCopy clipboard monitor</string>
+    <string name="notification_action_pause">Pause monitor</string>
+    <string name="notification_action_resume">Resume monitor</string>
     <string name="notification_foreground_service_checking">Checking Shizuku status and permission</string>
     <string name="notification_foreground_service_running_shizuku">Monitoring started through Shizuku</string>
     <string name="notification_foreground_service_running_read_logs">Monitoring started with READ_LOGS permission</string>
