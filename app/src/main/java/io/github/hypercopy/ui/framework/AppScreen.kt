@@ -735,5 +735,4 @@ private fun subPageNameOrBack(p: SettingsSubPage?): String = when (p) {
     SettingsSubPage.JUMP -> "跳转设置"
     SettingsSubPage.EXPRESS -> "快递设置"
     SettingsSubPage.MONITOR -> "监听设置"
-    SettingsSubPage.UPDATE_PRIVACY -> "更新/隐私"
 }

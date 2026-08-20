@@ -74,7 +74,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** v1.140.18 设置页二级子页（避免一级开关过多） */
-enum class SettingsSubPage { KEEP_ALIVE, NOTIFY, JUMP, EXPRESS, MONITOR, UPDATE_PRIVACY }
+enum class SettingsSubPage { KEEP_ALIVE, NOTIFY, JUMP, EXPRESS, MONITOR }
 
 @Composable
 fun SettingsPage(
@@ -208,7 +208,6 @@ fun SettingsPage(
                         SettingsSubPage.JUMP -> stringResource(R.string.settings_sub_jump)
                         SettingsSubPage.EXPRESS -> stringResource(R.string.settings_sub_express)
                         SettingsSubPage.MONITOR -> stringResource(R.string.settings_sub_monitor)
-                        SettingsSubPage.UPDATE_PRIVACY -> stringResource(R.string.settings_sub_update)
                     },
                     style = MiuixTheme.textStyles.body1,
                     modifier = Modifier.padding(start = 8.dp),
@@ -474,35 +473,6 @@ fun SettingsPage(
                                         },
                                     )
                     }
-                    SettingsSubPage.UPDATE_PRIVACY -> {
-                                    SettingsAction(
-                                        icon = MiuixIcons.Download,
-                                        title = stringResource(R.string.check_update),
-                                        summary = stringResource(R.string.check_update_summary),
-                                        onClick = onCheckUpdate,
-                                    )
-                                    SwitchAction(
-                                        icon = MiuixIcons.Update,
-                                        title = stringResource(R.string.auto_check_update),
-                                        summary = stringResource(R.string.auto_check_update_summary),
-                                        checked = autoCheckUpdate,
-                                        onCheckedChange = { onAutoCheckUpdateChange(!autoCheckUpdate) },
-                                    )
-                                    SwitchAction(
-                                        icon = MiuixIcons.Unpin,
-                                        title = stringResource(R.string.hide_from_recents),
-                                        summary = stringResource(R.string.hide_from_recents_summary),
-                                        checked = hideFromRecents,
-                                        onCheckedChange = { onHideFromRecentsChange(!hideFromRecents) },
-                                    )
-                                    SwitchAction(
-                                        icon = MiuixIcons.AppRecording,
-                                        title = stringResource(R.string.hide_desktop_icon),
-                                        summary = stringResource(R.string.hide_desktop_icon_summary),
-                                        checked = desktopIconHidden,
-                                        onCheckedChange = { onDesktopIconHiddenChange(!desktopIconHidden) },
-                                    )
-                    }
                     }
                 }
             }
@@ -627,14 +597,36 @@ fun SettingsPage(
                     )
                 }
             }
+            // v1.141.87n 更新/隐私设置放回一级菜单（原 UPDATE_PRIVACY 二级页移除）
             item { SmallTitle(text = stringResource(R.string.settings_group_update_privacy)) }
             item {
                 Card {
-                    SettingsActionWithArrow(
+                    SettingsAction(
+                        icon = MiuixIcons.Download,
+                        title = stringResource(R.string.check_update),
+                        summary = stringResource(R.string.check_update_summary),
+                        onClick = onCheckUpdate,
+                    )
+                    SwitchAction(
                         icon = MiuixIcons.Update,
-                        title = stringResource(R.string.settings_sub_update),
-                        summary = stringResource(R.string.settings_sub_update_summary),
-                        onClick = { onSubPageChange(SettingsSubPage.UPDATE_PRIVACY) },
+                        title = stringResource(R.string.auto_check_update),
+                        summary = stringResource(R.string.auto_check_update_summary),
+                        checked = autoCheckUpdate,
+                        onCheckedChange = { onAutoCheckUpdateChange(!autoCheckUpdate) },
+                    )
+                    SwitchAction(
+                        icon = MiuixIcons.Unpin,
+                        title = stringResource(R.string.hide_from_recents),
+                        summary = stringResource(R.string.hide_from_recents_summary),
+                        checked = hideFromRecents,
+                        onCheckedChange = { onHideFromRecentsChange(!hideFromRecents) },
+                    )
+                    SwitchAction(
+                        icon = MiuixIcons.AppRecording,
+                        title = stringResource(R.string.hide_desktop_icon),
+                        summary = stringResource(R.string.hide_desktop_icon_summary),
+                        checked = desktopIconHidden,
+                        onCheckedChange = { onDesktopIconHiddenChange(!desktopIconHidden) },
                     )
                 }
             }
