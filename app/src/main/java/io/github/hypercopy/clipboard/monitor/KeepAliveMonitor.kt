@@ -145,7 +145,8 @@ object KeepAliveMonitor {
             "am set-inactive $pkg false",
             "am set-standby-bucket $pkg active",
             // ② MIUI/HyperOS 增强层
-            "cmd appops set $pkg AUTO_START allow",
+            // v1.144.2 删除 AUTO_START 命名版：HyperOS 3 实测 exit 255「Unknown operation string: AUTO_START」
+            // （MIUI 私有命名 op 已移除），自启动由下方数字版 10050/10051 承担——此前被 ShizukuShell 假成功掩盖
             "cmd appops set $pkg GET_USAGE_STATS allow",
             // ③ 数字 op 兜底（MIUI 私有 code，部分版本命名 op 不识别）
             // v1.143.4 补 10021（后台弹出界面生效 op，v1.142.1 实测 10024 非全机型生效）——与一键配置对齐
