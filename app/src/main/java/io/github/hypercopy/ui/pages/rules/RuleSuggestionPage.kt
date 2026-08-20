@@ -67,6 +67,7 @@ fun RuleSuggestionPage(
 ) {
     val context = LocalContext.current
     val repository = remember { RuleRepository(context.applicationContext) }
+    var existingRules by remember { mutableStateOf(repository.readRules()) }
     var text by remember { mutableStateOf(initialText) }
     var suggestions by remember { mutableStateOf<List<RuleAnalyzer.Suggestion>>(emptyList()) }
     var analyzed by remember { mutableStateOf(false) }
@@ -76,9 +77,14 @@ fun RuleSuggestionPage(
     var showDiscardConfirm by remember { mutableStateOf(false) }
     // v1.141.24 修复：只要保存过任一规则，返回即视为已处理，不再弹"放弃分析"确认
     var savedSomething by remember { mutableStateOf(false) }
+    // v1.142.6q 是否还有可保存的建议（未被完全重复/同类规则阻止）
+    val hasSavableSuggestion = suggestions.any { s ->
+        val cfg = s.toRuleConfig(context)
+        existingRules.none { it.sameContentAs(cfg) } && existingRules.none { it.isSameTargetRule(cfg) }
+    }
     BackHandler {
-        // 已保存过 → 直接返回，不再误弹（保存成功后 text/suggestions 仍在但不应再提示丢弃）
-        if (savedSomething || (text.isBlank() && suggestions.isEmpty())) {
+        // 已保存过 / 无任何可保存建议（全被重复或同类规则阻止）→ 直接返回，不弹"放弃分析"
+        if (savedSomething || !hasSavableSuggestion || (text.isBlank() && suggestions.isEmpty())) {
             onBack()
         } else {
             showDiscardConfirm = true
@@ -202,7 +208,6 @@ fun RuleSuggestionPage(
                     }
                 }
                 else -> {
-                    var existingRules by remember { mutableStateOf(repository.readRules()) }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = stringResource(R.string.suggestion_analyzed_count, suggestions.size),
@@ -378,7 +383,8 @@ private fun SuggestionCard(
     onEdit: () -> Unit,
 ) {
     var showDetails by remember { mutableStateOf(false) }
-    var showExistingPreview by remember { mutableStateOf(false) }
+    // v1.142.6q 自动预览：识别到已存在同类规则时默认展开内容（无需点击），让用户直接看到重复详情
+    var showExistingPreview by remember { mutableStateOf(sameTargetRule != null) }
     val preview = previewRecognizedContent(suggestion, sourceText)
     val context = LocalContext.current
     Card {
@@ -457,7 +463,8 @@ private fun SuggestionCard(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(text = stringResource(R.string.suggestion_existing_preview_title, sameTargetRule.name), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.primary)
-                        Text(text = stringResource(R.string.suggestion_existing_mode, ruleActionLabelRes(sameTargetRule)), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        // v1.142.6q 修复：labelRes 是 Int 资源 ID，直接传 %1$s 会显示数字（如 2131362231）→ 先取字符串
+                        Text(text = stringResource(R.string.suggestion_existing_mode, stringResource(ruleActionLabelRes(sameTargetRule))), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                         if (sameTargetRule.matchRegex.isNotBlank()) {
                             Text(text = stringResource(R.string.suggestion_existing_match, sameTargetRule.matchRegex), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                         }
