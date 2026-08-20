@@ -625,6 +625,11 @@
     <string name="suggestion_match_fragment">Matched content: %1$s</string>
     <string name="suggestion_open_browser">Simulate browser fetch (short link)</string>
     <string name="suggestion_platform_count">%1$s has %2$d rules</string>
+    <string name="suggestion_same_target_exists">A rule with the same target already exists: %1$s. Tap to preview (duplicate save blocked)</string>
+    <string name="suggestion_existing_preview_title">Existing rule "%1$s" preview</string>
+    <string name="suggestion_existing_mode">Mode: %1$s</string>
+    <string name="suggestion_existing_match">Trigger regex: %1$s</string>
+    <string name="suggestion_existing_template">Jump template: %1$s</string>
     <string name="suggestion_preview_copied">Recognized content copied</string>
     <string name="suggestion_preview_label">Recognized: %1$s</string>
     <string name="suggestion_save_all">Save All</string>

@@ -90,6 +90,15 @@ fun RuleConfig.contentSignature(): String = listOf(
     sourcePackages, activeTimeStart, activeTimeEnd,
 ).joinToString("|")
 
+/** v1.142.6p 同目标规则判定：同包名+同分类+同目标类型+同模板（"同一类规则"语义，
+ *  与 saveRuleMerged 合并判定一致，但含内置/云规则——用于建议页阻止重复新增） */
+fun RuleConfig.isSameTargetRule(other: RuleConfig): Boolean =
+    category == other.category &&
+        target.packageName.isNotBlank() &&
+        target.packageName == other.target.packageName &&
+        target.type == other.target.type &&
+        target.template == other.target.template
+
 enum class RuleTargetType(val value: String) {
     Url("url"),
     Intent("intent"),

@@ -197,6 +197,11 @@
     <string name="suggestion_target_preview">将打开：%1$s</string>
     <string name="suggestion_target_parse_later">保存后解析短链/口令直达「%1$s」内容页（内容 ID 需跳转后提取）</string>
     <string name="suggestion_platform_count">%1$s 已有 %2$d 条规则</string>
+    <string name="suggestion_same_target_exists">已存在同类规则「%1$s」，点击预览内容（无法重复保存）</string>
+    <string name="suggestion_existing_preview_title">已有规则「%1$s」内容预览</string>
+    <string name="suggestion_existing_mode">执行方式：%1$s</string>
+    <string name="suggestion_existing_match">触发正则：%1$s</string>
+    <string name="suggestion_existing_template">跳转模板：%1$s</string>
     <string name="suggestion_match_fragment">匹配内容：%1$s</string>
     <string name="suggestion_open_browser">模拟浏览器抓取（短链）</string>
     <string name="suggestion_too_long">内容过长（%1$d 字符，上限 %2$d），超长部分可能无法识别</string>

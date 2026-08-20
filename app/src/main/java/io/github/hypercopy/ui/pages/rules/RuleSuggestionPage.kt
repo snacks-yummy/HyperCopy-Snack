@@ -41,7 +41,9 @@ import io.github.hypercopy.data.rules.RuleRepository
 import io.github.hypercopy.data.rules.RuleTarget
 import io.github.hypercopy.data.rules.RuleTargetType
 import io.github.hypercopy.data.rules.sameContentAs
+import io.github.hypercopy.data.rules.isSameTargetRule
 import io.github.hypercopy.ui.activities.RuleEditorActivity
+import io.github.hypercopy.ui.components.ruleActionLabelRes
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -209,14 +211,23 @@ fun RuleSuggestionPage(
                             modifier = Modifier.weight(1f),
                         )
                         // v1.72 全部保存：多条建议（多平台口令）一键保存
-                        if (suggestions.any { s -> existingRules.none { it.sameContentAs(s.toRuleConfig(context)) } }) {
+                        if (suggestions.any { s ->
+                                val cfg = s.toRuleConfig(context)
+                                existingRules.none { it.sameContentAs(cfg) } && existingRules.none { it.isSameTargetRule(cfg) }
+                            }) {
                             TextButton(
                                 text = stringResource(R.string.suggestion_save_all),
                                 onClick = {
                                     var saved = 0
                                     var skipped = 0
                                     suggestions.forEach { s ->
-                                        when (repository.saveRuleMerged(s.toRuleConfig(context))) {
+                                        val cfg = s.toRuleConfig(context)
+                                        // v1.142.6p 已存在同目标规则（内置/云/自定义）→ 跳过，避免重复新增
+                                        if (existingRules.any { it.isSameTargetRule(cfg) }) {
+                                            skipped++
+                                            return@forEach
+                                        }
+                                        when (repository.saveRuleMerged(cfg)) {
                                             io.github.hypercopy.data.rules.RuleSaveResult.Duplicate,
                                             io.github.hypercopy.data.rules.RuleSaveResult.Rejected,
                                             -> skipped++
@@ -236,10 +247,14 @@ fun RuleSuggestionPage(
                         }
                     }
                     suggestions.forEach { suggestion ->
+                        val cfg = suggestion.toRuleConfig(context)
+                        // v1.142.6p 同目标规则检测：同包名+同分类+同目标类型+同模板（与 saveRuleMerged 合并判定一致，含内置/云）
+                        val sameTargetRule = existingRules.firstOrNull { it.isSameTargetRule(cfg) }
                         SuggestionCard(
                             suggestion = suggestion,
                             sourceText = text,
-                            duplicateOf = existingRules.firstOrNull { it.sameContentAs(suggestion.toRuleConfig(context)) },
+                            duplicateOf = existingRules.firstOrNull { it.sameContentAs(cfg) },
+                            sameTargetRule = sameTargetRule,
                             existingRules = existingRules,
                             onSave = {
                                 when (repository.saveRuleMerged(suggestion.toRuleConfig(context))) {
@@ -355,12 +370,15 @@ private fun SuggestionCard(
     suggestion: RuleAnalyzer.Suggestion,
     sourceText: String,
     duplicateOf: RuleConfig?,
+    // v1.142.6p 同目标同类规则（含内置/云）：存在则阻止保存并支持预览已有规则内容
+    sameTargetRule: RuleConfig?,
     // v1.72 全部规则（统计平台已有规则数，辅助保存决策）
     existingRules: List<RuleConfig>,
     onSave: () -> Unit,
     onEdit: () -> Unit,
 ) {
     var showDetails by remember { mutableStateOf(false) }
+    var showExistingPreview by remember { mutableStateOf(false) }
     val preview = previewRecognizedContent(suggestion, sourceText)
     val context = LocalContext.current
     Card {
@@ -418,6 +436,36 @@ private fun SuggestionCard(
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
+                }
+            }
+            // v1.142.6p 已存在同类规则（同包名+同分类+同目标）：阻止保存 + 支持预览已有规则内容
+            if (sameTargetRule != null) {
+                Text(
+                    text = stringResource(R.string.suggestion_same_target_exists, sameTargetRule.name),
+                    style = MiuixTheme.textStyles.body2,
+                    color = Color(0xFFFF5A52),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showExistingPreview = !showExistingPreview },
+                )
+                if (showExistingPreview) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(text = stringResource(R.string.suggestion_existing_preview_title, sameTargetRule.name), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.primary)
+                        Text(text = stringResource(R.string.suggestion_existing_mode, ruleActionLabelRes(sameTargetRule)), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        if (sameTargetRule.matchRegex.isNotBlank()) {
+                            Text(text = stringResource(R.string.suggestion_existing_match, sameTargetRule.matchRegex), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        }
+                        if (sameTargetRule.target.template.isNotBlank()) {
+                            Text(text = stringResource(R.string.suggestion_existing_template, sameTargetRule.target.template), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        }
+                        Text(text = sameTargetRule.target.packageName, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    }
                 }
             }
             // v1.62 识别内容预览：让用户确认识别到了什么（口令码/链接/关键词）
@@ -487,13 +535,14 @@ private fun SuggestionCard(
                 TextButton(
                     text = stringResource(R.string.suggestion_save_only),
                     onClick = onSave,
-                    enabled = duplicateOf == null,
+                    // v1.142.6p 完全重复 or 已存在同类规则 → 禁用（内置京东链接已存在则不能重复保存）
+                    enabled = duplicateOf == null && sameTargetRule == null,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
                     text = stringResource(R.string.suggestion_edit_save),
                     onClick = onEdit,
-                    enabled = duplicateOf == null,
+                    enabled = duplicateOf == null && sameTargetRule == null,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.textButtonColorsPrimary(),
                 )
