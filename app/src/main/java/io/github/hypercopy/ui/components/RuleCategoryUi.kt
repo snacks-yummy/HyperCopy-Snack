@@ -49,9 +49,9 @@ internal val MY_BUILTIN_RULE_IDS: Set<String> = setOf(
     "builtin_cloud_link_微信视频号下载_com.lcw.easydownload",
     // link: 二改项目自研/二改版（v1.141.87 确认归类）：美团小程序/淘宝口令/淘宝链接/闲鱼链接
     "builtin_cloud_link_takeout_jump",
-    "builtin_cloud_link_淘宝口令",
-    "builtin_cloud_link_淘宝链接",
-    "builtin_cloud_link_闲鱼链接",
+    "builtin_cloud_link_淘宝 · 口令",
+    "builtin_cloud_link_淘宝 · 链接",
+    "builtin_cloud_link_闲鱼 · 链接",
     // link: v1.141.87s 二改修复（template 空+保留剪贴板，实测跳转正常）后归入内置
     "builtin_cloud_link_阿里云盘_com.alicloud.databox",
 )
