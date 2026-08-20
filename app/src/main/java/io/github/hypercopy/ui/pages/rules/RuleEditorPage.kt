@@ -44,10 +44,14 @@ import io.github.hypercopy.data.rules.RuleRepository
 import io.github.hypercopy.data.rules.RulePatterns
 import io.github.hypercopy.data.rules.RuleTarget
 import io.github.hypercopy.data.rules.RuleTargetType
+import io.github.hypercopy.data.rules.cachedRegex
 import io.github.hypercopy.data.rules.extractionPatterns
 import io.github.hypercopy.data.rules.parseIntent
+import io.github.hypercopy.data.rules.resolveTemplate
+import io.github.hypercopy.data.rules.ruleConfigFromJson
 import io.github.hypercopy.data.rules.toJson
 import io.github.hypercopy.data.rules.triggerPatterns
+import org.json.JSONObject
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -159,6 +163,8 @@ fun RuleEditorPage(
     BackHandler(enabled = isDirty) { showDiscardConfirm = true }
     // v1.42 智能识别读取失败时手动输入兜底
     var showManualInput by remember { mutableStateOf(false) }
+    // v1.141.87u 已装应用选择器（包名点选，避免手输错误）
+    var showAppPicker by remember { mutableStateOf(false) }
     val isLinkDirectOpen = category == RuleCategory.Link && actionMode == RuleActionMode.DirectOpen
     val isCategoryDirectAppOpen = category != RuleCategory.Link && openMode == CategoryOpenMode.DirectApp
     val isCategoryUrlOpen = category != RuleCategory.Link && openMode == CategoryOpenMode.Url
@@ -221,12 +227,89 @@ fun RuleEditorPage(
                     TextButton(text = stringResource(R.string.action_share_short), onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, githubRuleSubmissionUri(editingRule)))
                     })
+                    // v1.141.87u 规则复制：用当前字段创建副本（新 id + 名称加"副本"），不影响原规则
+                    TextButton(text = stringResource(R.string.action_duplicate_rule), onClick = {
+                        if (triggerRegexes.none { it.isNotBlank() }) {
+                            Toast.makeText(context, R.string.rule_toast_trigger_required, Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        val copy = RuleConfig(
+                            id = UUID.randomUUID().toString(),
+                            name = (name.ifBlank { context.getString(R.string.rule_unnamed) }) + " 副本",
+                            category = category,
+                            actionMode = actionMode,
+                            matchRegex = triggerRegexes.firstNonBlankOr(""),
+                            parameterRegex = if (usesExtraction) extractionRegexes.firstOrNull { it.isNotBlank() }.orEmpty() else "",
+                            triggerRegexes = triggerRegexes.filter { it.isNotBlank() },
+                            extractionRegexes = if (usesExtraction) extractionRegexes.filter { it.isNotBlank() } else emptyList(),
+                            parseAfterRedirect = parseAfterRedirect,
+                            clearClipboardAfterJump = clearClipboardAfterJump,
+                            priority = priorityText.toIntOrNull() ?: 0,
+                            group = group.trim(),
+                            excludeRegex = excludeRegex.trim(),
+                            regexOptions = regexOptions.trim(),
+                            sourcePackages = sourcePackages.trim(),
+                            activeTimeStart = activeTimeStart.trim(),
+                            activeTimeEnd = activeTimeEnd.trim(),
+                            notificationMode = ruleNotificationMode.ifBlank { null },
+                            matchAllTriggers = matchAllTriggers,
+                            delayMillis = delayMillisText.toIntOrNull()?.coerceIn(0, 5000) ?: 0,
+                            target = RuleTarget(
+                                type = if (targetTemplate.startsWith("intent://", true)) RuleTargetType.Intent else RuleTargetType.Url,
+                                template = if (usesTemplate) targetTemplate else "",
+                                packageName = packageName,
+                            ),
+                        )
+                        repository.saveRule(copy)
+                        io.github.hypercopy.UiActionLogger.ruleChanged("复制", copy.name, "源=" + editingRule.name)
+                        Toast.makeText(context, R.string.rule_toast_rule_copied, Toast.LENGTH_SHORT).show()
+                    })
                     // v1.77 编辑页删除入口（破坏性操作，弹确认）
                     TextButton(
                         text = stringResource(R.string.action_delete),
                         onClick = { showDeleteConfirm = true },
                         colors = ButtonDefaults.textButtonColors(textColor = Color(0xFFFF5A52)),
                     )
+                } else {
+                    // v1.141.87u 新建模式：从剪贴板导入规则 JSON（一键填充所有字段）
+                    TextButton(text = stringResource(R.string.action_import_json), onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString().orEmpty()
+                        if (clip.isBlank()) {
+                            Toast.makeText(context, R.string.rule_toast_import_invalid, Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        val imported = runCatching {
+                            ruleConfigFromJson(JSONObject(clip))
+                        }.getOrNull() ?: runCatching {
+                            JSONObject(clip).optJSONArray("rules")?.optJSONObject(0)?.let { ruleConfigFromJson(it) }
+                        }.getOrNull()
+                        if (imported == null) {
+                            Toast.makeText(context, R.string.rule_toast_import_invalid, Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        if (name.isBlank()) name = imported.name
+                        triggerRegexes.clear()
+                        triggerRegexes.addAll(imported.triggerRegexes.ifEmpty { listOf(imported.matchRegex) }.filter { it.isNotBlank() })
+                        extractionRegexes.clear()
+                        extractionRegexes.addAll(imported.extractionRegexes.ifEmpty { listOf(imported.parameterRegex) }.filter { it.isNotBlank() })
+                        targetTemplate = imported.target.template
+                        packageName = imported.target.packageName
+                        actionMode = imported.actionMode
+                        parseAfterRedirect = imported.parseAfterRedirect
+                        clearClipboardAfterJump = imported.clearClipboardAfterJump
+                        priorityText = imported.priority.takeIf { it != 0 }?.toString() ?: ""
+                        group = imported.group
+                        excludeRegex = imported.excludeRegex
+                        regexOptions = imported.regexOptions
+                        sourcePackages = imported.sourcePackages
+                        activeTimeStart = imported.activeTimeStart
+                        activeTimeEnd = imported.activeTimeEnd
+                        ruleNotificationMode = imported.notificationMode.orEmpty()
+                        matchAllTriggers = imported.matchAllTriggers
+                        delayMillisText = imported.delayMillis.takeIf { it > 0 }?.toString() ?: ""
+                        Toast.makeText(context, R.string.rule_toast_import_editor, Toast.LENGTH_SHORT).show()
+                    })
                 }
             }
 
@@ -337,13 +420,17 @@ fun RuleEditorPage(
                         )
                     }
                     if (category == RuleCategory.Link) {
-                        TextField(
-                            value = packageName,
-                            onValueChange = { packageName = it },
-                            label = stringResource(R.string.editor_label_package_name_optional),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextField(
+                                value = packageName,
+                                onValueChange = { packageName = it },
+                                label = stringResource(R.string.editor_label_package_name_optional),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            // v1.141.87u 已装应用选择器
+                            TextButton(text = stringResource(R.string.action_pick_app), onClick = { showAppPicker = true })
+                        }
                     } else {
                         CategoryOpenModeSelector(selected = openMode, onSelected = { openMode = it })
                         if (openMode == CategoryOpenMode.DirectApp) {
@@ -460,7 +547,16 @@ fun RuleEditorPage(
                     val invalidRegex = RulePatterns.firstInvalid(allRegexPatterns)
                     val dangerousTrigger = triggerRegexes.firstOrNull { RulePatterns.isDangerousMatchAll(it) }
                         ?: if (triggerRegexes.none { it.isNotBlank() }) "" else null
-                    val testHit = if (testText.isNotBlank()) RulePatterns.matchesAny(triggerRegexes.toList(), testText) else null
+                    val testHit = if (testText.isNotBlank()) {
+                        // v1.141.87u 一致性：应用 regexOptions（i/s/m）编译，与运行时 matchesInput 对齐
+                        val patterns = triggerRegexes.filter { it.isNotBlank() }.ifEmpty { listOf(".*") }
+                        patterns.any { pattern ->
+                            runCatching { cachedRegex(pattern, regexOptions.trim()).containsMatchIn(testText) }.getOrDefault(false)
+                        }
+                    } else null
+                    // v1.141.87u 一致性：excludeRegex 拦截提示（命中但被排除 = 运行时不会触发）
+                    val excludedByRegex = testHit == true && excludeRegex.isNotBlank() &&
+                        runCatching { cachedRegex(excludeRegex.trim(), regexOptions.trim()).containsMatchIn(testText) }.getOrDefault(false)
                     val testExtractionText = if (testText.isNotBlank() && usesExtraction) {
                         extractionRegexes.filter { it.isNotBlank() }.mapNotNull { pattern ->
                             runCatching { Regex(pattern).find(testText) }.getOrNull()?.let { m ->
@@ -505,6 +601,14 @@ fun RuleEditorPage(
                             style = MiuixTheme.textStyles.body2,
                             color = if (testHit == true) Color(0xFF00B578) else Color(0xFFFF5A52),
                         )
+                        // v1.141.87u 一致性：命中但被排除正则拦截 → 运行时不会触发
+                        if (excludedByRegex) {
+                            Text(
+                                text = stringResource(R.string.editor_test_excluded),
+                                style = MiuixTheme.textStyles.body2,
+                                color = Color(0xFFF5A623),
+                            )
+                        }
                         if (testExtractionText.isNotBlank()) {
                             Text(
                                 text = stringResource(R.string.editor_test_extracted, testExtractionText),
@@ -525,6 +629,30 @@ fun RuleEditorPage(
                                     style = MiuixTheme.textStyles.body2,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 )
+                            }
+                            // v1.141.87u 模板渲染预览：显示 ${r1}/${input}/${url:input} 渲染后的最终跳转地址，无需真跳转即可验证
+                            if (usesTemplate && targetTemplate.isNotBlank()) {
+                                val extractedParams = extractionRegexes.filter { it.isNotBlank() }.mapNotNull { pattern ->
+                                    runCatching { Regex(pattern).find(testText) }.getOrNull()?.let { m ->
+                                        m.groups.drop(1).mapIndexedNotNull { idx, g -> g?.value?.let { "r${idx + 1}" to it } }
+                                    }
+                                }.flatten().toMap()
+                                val params = extractedParams + ("input" to testText) + ("redirectUrl" to "")
+                                val rendered = runCatching {
+                                    RuleTarget(
+                                        type = if (targetTemplate.startsWith("intent://", true)) RuleTargetType.Intent else RuleTargetType.Url,
+                                        template = targetTemplate,
+                                        packageName = packageName,
+                                    ).resolveTemplate(params)
+                                }.getOrNull()
+                                if (!rendered.isNullOrBlank()) {
+                                    Text(
+                                        text = stringResource(R.string.editor_test_rendered) + "：" + rendered,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = Color(0xFF00B578),
+                                        maxLines = 3,
+                                    )
+                                }
                             }
                         }
                     }
@@ -821,7 +949,41 @@ fun RuleEditorPage(
             }
         }
     }
-// v1.77 未保存修改确认（返回时）
+// v1.141.87u 已装应用选择器（Link 分类包名点选）
+    WindowDialog(
+        title = stringResource(R.string.editor_pick_app_title),
+        summary = stringResource(R.string.editor_pick_app_title),
+        show = showAppPicker,
+        onDismissRequest = { showAppPicker = false },
+    ) {
+        val launchIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = remember {
+            context.packageManager.queryIntentActivities(launchIntent, 0)
+                .sortedBy { it.loadLabel(context.packageManager).toString() }
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            apps.forEach { info ->
+                val label = info.loadLabel(context.packageManager).toString()
+                Text(
+                    text = "$label  ·  ${info.activityInfo.packageName}",
+                    style = MiuixTheme.textStyles.body2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            packageName = info.activityInfo.packageName
+                            if (name.isBlank()) name = label
+                            showAppPicker = false
+                        }
+                        .padding(vertical = 8.dp),
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+    // v1.77 未保存修改确认（返回时）
     WindowDialog(
         title = stringResource(R.string.editor_discard_title),
         summary = stringResource(R.string.editor_discard_summary),

@@ -160,6 +160,15 @@
     <string name="editor_source_packages_hint">来源应用包名，逗号分隔；留空=所有应用</string>
     <string name="action_export_short">导出</string>
     <string name="action_share_short">分享</string>
+    <string name="action_duplicate_rule">复制</string>
+    <string name="action_import_json">导入 JSON</string>
+    <string name="action_pick_app">选择</string>
+    <string name="rule_toast_rule_copied">已创建副本（名称+副本）</string>
+    <string name="rule_toast_import_editor">已从剪贴板导入规则</string>
+    <string name="rule_toast_import_invalid">剪贴板内容不是有效规则 JSON</string>
+    <string name="editor_pick_app_title">选择已安装应用</string>
+    <string name="editor_test_rendered">渲染结果</string>
+    <string name="editor_test_excluded">命中但被排除正则拦截（excludeRegex）</string>
     <string name="app_list_empty">未找到匹配的应用</string>
     <string name="domain_verified_hint">已验证域名，自动放行</string>
     <!-- v1.71 编辑器说明补齐 -->
