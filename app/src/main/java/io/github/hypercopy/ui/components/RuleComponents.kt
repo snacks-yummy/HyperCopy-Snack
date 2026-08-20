@@ -505,35 +505,39 @@ internal fun RuleCard(
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
             // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
             if (swipeEnabled && swipeOffset > 0f) {
-                    // v1.142.6m 修复：删除按钮区改 Row 并排（Icon 左 + 文字右，整体居中）
-                    // 此前 Box(contentAlignment=Center) 里 Text(padding end=8) 与 Icon(居中) 直接叠放重叠
-                    // → 视觉上糊成白色一团、红色背景被盖住（用户实测"滑动都是白色的"）
-                    Row(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(deleteBtnWidth)
-                            .align(Alignment.CenterEnd)
-                            .background(Color(0xFFFF5A52))
-                            .clickable(enabled = swipeOffset > 0f) {
-                                swipeOffset = 0f
-                                onDeleteClick?.invoke()
-                            },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
-                        Icon(
-                            imageVector = MiuixIcons.Delete,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.action_delete),
-                            style = MiuixTheme.textStyles.body2,
-                            color = Color.White,
-                            modifier = Modifier.padding(start = 4.dp),
-                        )
+                    // v1.142.6m 修复（3rd）：红色按钮区必须撑满整卡高度！
+                    // 根因：fillMaxHeight 在 Box 内高度约束无限时只取内容高度(~24dp) → 红色按钮区只有中间一条，
+                    // 上下露出 Card 背景(surfaceContainer=白) → 用户实测"滑动都是白色的"
+                    // 修复：外层透明 Box matchParentSize() 撑满卡片实际高度（由内容 Row 决定），
+                    // 内层 Row fillMaxHeight 才有明确高度约束 → 红色按钮区占满整卡右侧
+                    Box(modifier = Modifier.matchParentSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(deleteBtnWidth)
+                                .align(Alignment.CenterEnd)
+                                .background(Color(0xFFFF5A52))
+                                .clickable(enabled = swipeOffset > 0f) {
+                                    swipeOffset = 0f
+                                    onDeleteClick?.invoke()
+                                },
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
+                            Icon(
+                                imageVector = MiuixIcons.Delete,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.action_delete),
+                                style = MiuixTheme.textStyles.body2,
+                                color = Color.White,
+                                modifier = Modifier.padding(start = 4.dp),
+                            )
+                        }
                     }
             }
         Row(
