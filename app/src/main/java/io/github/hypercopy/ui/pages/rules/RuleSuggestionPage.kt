@@ -382,7 +382,7 @@ private fun SuggestionCard(
     onSave: () -> Unit,
     onEdit: () -> Unit,
 ) {
-    var showDetails by remember { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf(true) }
     // v1.142.6q 自动预览：识别到已存在同类规则时默认展开内容（无需点击），让用户直接看到重复详情
     var showExistingPreview by remember { mutableStateOf(sameTargetRule != null) }
     val preview = previewRecognizedContent(suggestion, sourceText)
