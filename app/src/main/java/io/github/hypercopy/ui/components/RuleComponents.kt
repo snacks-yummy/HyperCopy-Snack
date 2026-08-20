@@ -505,7 +505,10 @@ internal fun RuleCard(
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
             // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
             if (swipeEnabled && swipeOffset > 0f) {
-                    Box(
+                    // v1.142.6m 修复：删除按钮区改 Row 并排（Icon 左 + 文字右，整体居中）
+                    // 此前 Box(contentAlignment=Center) 里 Text(padding end=8) 与 Icon(居中) 直接叠放重叠
+                    // → 视觉上糊成白色一团、红色背景被盖住（用户实测"滑动都是白色的"）
+                    Row(
                         modifier = Modifier
                             .fillMaxHeight()
                             .width(deleteBtnWidth)
@@ -515,21 +518,21 @@ internal fun RuleCard(
                                 swipeOffset = 0f
                                 onDeleteClick?.invoke()
                             },
-                        contentAlignment = Alignment.Center,
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = stringResource(R.string.action_delete),
-                            style = MiuixTheme.textStyles.body2,
-                            color = Color.White,
-                            // v1.142.6m 修复：删除按钮加图标 + 更明显（右对齐，文字居中）
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
                         // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
                         Icon(
                             imageVector = MiuixIcons.Delete,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.action_delete),
+                            style = MiuixTheme.textStyles.body2,
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 4.dp),
                         )
                     }
             }
