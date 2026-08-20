@@ -56,10 +56,21 @@ object HyperLog {
             val targets = mutableListOf<java.io.File>()
             // v1.141.56 主写 Via 绑定文件夹内 HyperCopy_logs（用户可直接读取，测试便利）
             val viaDir = File(File("/storage/emulated/0/Via/复制直达项目二改"), LOG_DIR)
-            runCatching {
+            val viaWritable = runCatching {
                 viaDir.mkdirs()
                 val primary = File(viaDir, LOG_FILE)
-                resolveWritableLogFile(viaDir, primary)?.let { targets += it }
+                resolveWritableLogFile(viaDir, primary)?.let { targets += it; true } ?: false
+            }.getOrDefault(false)
+            // v1.142.1e 降级提示：重装后 App uid 变化 → Via 目录（旧 uid 属主）无写权限
+            // （MANAGE_EXTERNAL_STORAGE 重装后丢失），日志会静默切到 Download——用户读旧 Via 日志误判。
+            // 把降级事实写进最终可写日志，任何日志文件都能看到提示。
+            if (!viaWritable) {
+                val hint = "\n[HyperLog] ⚠️ Via 日志目录不可写（重装后可能丢失\"所有文件访问\"权限，uid 变化）→ 日志已降级写入 Download/HyperCopy_logs/，请重新授权或以此为最新日志源\n"
+                runCatching {
+                    val dlDir0 = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), LOG_DIR)
+                    dlDir0.mkdirs()
+                    java.io.FileWriter(File(dlDir0, LOG_FILE), true).use { it.write(hint) }
+                }
             }
             // v1.141.57 镜像兜底：Download 公共目录（App 天然可写，不依赖"所有文件访问"授权）
             val dlDir = File(
