@@ -335,7 +335,7 @@
     <string name="accessibility_service_label">HyperCopy Clipboard Detection</string>
     <string name="action_clear">Clear</string>
     <string name="action_disable">Disable</string>
-    <string name="action_edit_short">Edit</string>
+    <string name="action_edit_short">Multi-select</string>
     <string name="action_enable">Enable</string>
     <string name="action_export_all">Export All Rules</string>
     <string name="action_export_file">Export to File</string>

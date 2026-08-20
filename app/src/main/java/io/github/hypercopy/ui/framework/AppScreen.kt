@@ -54,6 +54,7 @@ import io.github.hypercopy.ui.activities.ThemeSettingsActivity
 import io.github.hypercopy.ui.pages.cloudrules.CloudRulesPage
 import io.github.hypercopy.ui.pages.home.HomePage
 import io.github.hypercopy.ui.pages.rules.RulesPage
+import io.github.hypercopy.ui.components.RulePageCategory
 import io.github.hypercopy.ui.pages.settings.SettingsPage
 import io.github.hypercopy.ui.pages.settings.SettingsSubPage
 import androidx.compose.runtime.collectAsState
@@ -375,6 +376,8 @@ fun AppScreen(
                         var ruleEditMode by remember { mutableStateOf(false) }
                         var ruleActionsAvailable by remember { mutableStateOf(false) }
                         var systemLinkUserId by remember { mutableStateOf(settingsRepository.readSystemLinkUserId()) }
+                        // v1.142.6n H2修复：顶栏按分类固定按钮（默认 Link，与 RulesPage 默认一致）
+                        var rulesCategory by remember { mutableStateOf(RulePageCategory.Link.name) }
                         Scaffold(
                             topBar = {
                                 TopAppBar(
@@ -382,18 +385,27 @@ fun AppScreen(
                                     largeTitle = stringResource(R.string.tab_rules),
                                     scrollBehavior = scrollBehavior,
                                     actions = {
-                                        if (ruleActionsAvailable) {
-                                            // v1.66 顶栏按钮带文字（纯图标用户看不懂）
-                                            TextButton(text = stringResource(R.string.action_sort_short), onClick = {
-                                                ruleEditMode = false
-                                                ruleSortMode = true
-                                            })
-                                            TextButton(text = stringResource(R.string.action_edit_short), onClick = {
-                                                ruleSortMode = false
-                                                ruleEditMode = true
-                                            })
-                                        }
-                                        if (!ruleActionsAvailable) {
+                                        // v1.142.6n H2修复：顶栏按分类固定渲染（不再随列表状态动态切换）
+                                        if (rulesCategory != RulePageCategory.System.name) {
+                                            // 规则分类：排序/多选常驻（空列表置灰）
+                                            TextButton(
+                                                text = stringResource(R.string.action_sort_short),
+                                                enabled = ruleActionsAvailable,
+                                                onClick = {
+                                                    ruleEditMode = false
+                                                    ruleSortMode = true
+                                                },
+                                            )
+                                            TextButton(
+                                                text = stringResource(R.string.action_edit_short),
+                                                enabled = ruleActionsAvailable,
+                                                onClick = {
+                                                    ruleSortMode = false
+                                                    ruleEditMode = true
+                                                },
+                                            )
+                                        } else {
+                                            // 系统分类：多开 user 切换
                                             Box {
                                                 TextButton(text = stringResource(R.string.system_user_short), onClick = { showRulesMenu = true })
                                                 OverlayCascadingListPopup(
@@ -432,6 +444,7 @@ fun AppScreen(
                                 editMode = ruleEditMode,
                                 onEditModeChange = { ruleEditMode = it },
                                 onRuleActionsAvailableChange = { ruleActionsAvailable = it },
+                                onCategoryChange = { rulesCategory = it },
                                 topContentPadding = pagePadding.calculateTopPadding(),
                                 bottomContentPadding = pagePadding.calculateBottomPadding() + 16.dp,
                                 systemLinkUserId = systemLinkUserId,

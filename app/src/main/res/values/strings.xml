@@ -134,7 +134,7 @@
     <string name="action_import_rule">导入规则</string>
     <!-- v1.66 顶栏文字按钮短文案 -->
     <string name="action_sort_short">排序</string>
-    <string name="action_edit_short">编辑</string>
+    <string name="action_edit_short">多选</string>
     <string name="action_import_short">导入</string>
     <string name="system_user_short">多开</string>
     <string name="cloud_menu_short">菜单</string>

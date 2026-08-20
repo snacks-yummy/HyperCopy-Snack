@@ -115,6 +115,8 @@ fun RulesPage(
     editMode: Boolean = false,
     onEditModeChange: (Boolean) -> Unit = {},
     onRuleActionsAvailableChange: (Boolean) -> Unit = {},
+    // v1.142.6n H2修复：向顶栏上报当前分类（String 规避 public 暴露 internal 类型）
+    onCategoryChange: (String) -> Unit = {},
     topContentPadding: Dp = 12.dp,
     bottomContentPadding: Dp = 16.dp,
     systemLinkUserId: Int = 0,
@@ -163,7 +165,8 @@ fun RulesPage(
     }
     var systemLinkHandling by remember { mutableStateOf(settingsRepository.readSystemLinkHandling()) }
     var systemLinkClearClipboardAfterJump by remember { mutableStateOf(settingsRepository.readSystemLinkClearClipboardAfterJump()) }
-    var selectedCategory by remember { mutableStateOf(RulePageCategory.System) }
+    // v1.142.6n H1修复：默认分类 System → Link（用户核心是规则管理，系统链接是边缘功能）
+    var selectedCategory by remember { mutableStateOf(RulePageCategory.Link) }
     // v1.139.1 规则来源筛选：全部/内置(我的打包)/云端(作者仓库)/自定义(手动添加)
     var selectedSource by remember { mutableStateOf(RuleSource.All) }
     // v1.139.1c 用户修改过的内置规则 id（修改过=内置/我的；未修改的作者原版=云端）
@@ -285,7 +288,9 @@ fun RulesPage(
             onSortModeChange(false)
             onEditModeChange(false)
         }
-        onRuleActionsAvailableChange(selectedCategory != RulePageCategory.System)
+        // v1.142.6n H2修复：可用=非System且当前分类有规则（空列表排序/多选置灰，顶栏不再动态切换）
+        onRuleActionsAvailableChange(selectedCategory != RulePageCategory.System && categoryRules.isNotEmpty())
+        onCategoryChange(selectedCategory.name)
     }
 
     LaunchedEffect(sortMode, selectedCategory, categoryRuleIds) {
