@@ -536,7 +536,9 @@ internal fun RuleCard(
                 .graphicsLayer { translationX = -swipeOffset }
                 .then(
                     if (swipeEnabled) {
-                        Modifier.pointerInput(rule.id, swipeOffset) {
+                        // v1.142.6h 修复：pointerInput key 不能含 swipeOffset（每次偏移变化会重启手势协程，拖拽被不断打断）
+                        // key 仅 rule.id，手势闭包内通过 state 委托读取实时偏移
+                        Modifier.pointerInput(rule.id) {
                             detectHorizontalDragGestures(
                                 onDragEnd = {
                                     val target = when {
