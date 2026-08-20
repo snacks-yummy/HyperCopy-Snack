@@ -36,6 +36,10 @@ object AutoActivator {
                     } else {
                         // 已授权：静默开启无障碍（兜底通道）
                         enableAccessibilityIfNeeded(appContext)
+                        // v1.143.4 覆盖安装权限自愈：启动立即执行完整保活命令链（不等 60s 巡检），
+                        // 修复系统重置的 appops（后台弹出 10021/自启动/前台服务/通知）+ 省电白名单；
+                        // 命令幂等无副作用（本线程已为后台线程，同步 shell 不阻塞 UI）
+                        KeepAliveMonitor.ensureFullKeepAlive(appContext)
                     }
                 } else {
                     HyperLog.d(TAG, "shizuku not available, skip auto activate")

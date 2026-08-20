@@ -130,7 +130,8 @@ object KeepAliveMonitor {
      * ③ 数字 op 兜底：10024(后台弹出) + 10050(自启动) + 10051(关联启动)
      * 命令幂等，重复执行无副作用；每 60s 巡检一次防系统周期性重置。
      */
-    private fun ensureFullKeepAlive(context: Context) {
+    // v1.143.4 可见性放宽：AutoActivator 启动自愈复用（覆盖安装后立即执行，不等 60s 巡检）
+    internal fun ensureFullKeepAlive(context: Context) {
         if (!ShizukuPermission.isGranted()) return
         val pkg = context.packageName
         val commands = listOf(
@@ -147,6 +148,8 @@ object KeepAliveMonitor {
             "cmd appops set $pkg AUTO_START allow",
             "cmd appops set $pkg GET_USAGE_STATS allow",
             // ③ 数字 op 兜底（MIUI 私有 code，部分版本命名 op 不识别）
+            // v1.143.4 补 10021（后台弹出界面生效 op，v1.142.1 实测 10024 非全机型生效）——与一键配置对齐
+            "appops set $pkg 10021 allow",
             "appops set $pkg 10024 allow",
             "appops set $pkg 10050 allow",
             "appops set $pkg 10051 allow",
