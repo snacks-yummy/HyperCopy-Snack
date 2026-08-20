@@ -114,7 +114,8 @@ object Config {
 
     // v1.141 文本类("文本类"规则：取件码/验证码)独立通知渠道，不随全局跳转渠道 jump_notification_mode
     const val KEY_TEXT_NOTIFICATION_MODE = "text_notification_mode"
-    const val DEFAULT_TEXT_NOTIFICATION_MODE = JUMP_NOTIFICATION_MODE_NORMAL
+    // v1.142.6t 文本类通知全局默认：普通点击 → 灵动岛（HyperOS 体验；已有用户设置不受影响）
+    const val DEFAULT_TEXT_NOTIFICATION_MODE = JUMP_NOTIFICATION_MODE_MIUI_ISLAND
     // 文本类通知独立 channel 前缀（与跳转 channel hypercopy_jump_* 硬隔离）
     const val TEXT_NOTIFICATION_CHANNEL_PREFIX = "hypercopy_text_"
     // 取件码/验证码独立通知 ID（混用 NOTIFY_ONLY_NOTIFICATION_ID 会导致互相顶掉）

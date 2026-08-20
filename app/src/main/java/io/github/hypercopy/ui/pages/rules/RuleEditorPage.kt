@@ -106,7 +106,13 @@ fun RuleEditorPage(
     var activeTimeStart by remember { mutableStateOf(editingRule?.activeTimeStart ?: "") }
     var activeTimeEnd by remember { mutableStateOf(editingRule?.activeTimeEnd ?: "") }
     // v1.39 规则级通知模式（"" = 跟随全局）
-    var ruleNotificationMode by remember { mutableStateOf(editingRule?.notificationMode ?: "") }
+    // v1.142.6t 新建文本规则默认灵动岛（可手动调整）；编辑已有规则保持原值
+    var ruleNotificationMode by remember {
+        mutableStateOf(
+            editingRule?.notificationMode
+                ?: if (category == RuleCategory.Text) io.github.hypercopy.Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND else "",
+        )
+    }
     // v1.79 触发条件 AND + 延迟跳转
     var matchAllTriggers by remember { mutableStateOf(editingRule?.matchAllTriggers ?: false) }
     var delayMillisText by remember { mutableStateOf((editingRule?.delayMillis ?: 0).takeIf { it > 0 }?.toString() ?: "") }

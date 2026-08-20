@@ -1,6 +1,7 @@
 package io.github.hypercopy.ui.pages.cloudrules
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import java.io.File
 import org.json.JSONArray
 import io.github.hypercopy.R
 import io.github.hypercopy.Config
+import io.github.hypercopy.HyperLog
 import io.github.hypercopy.data.rules.BuiltinRules
 import io.github.hypercopy.data.rules.CloudRule
 import io.github.hypercopy.data.rules.CloudRuleException
@@ -265,9 +267,24 @@ fun CloudRulesPage(
     LaunchedEffect(Unit) {
         installedPackageNames = withContext(Dispatchers.IO) {
             val packageManager = context.packageManager
-            packageManager.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
-                .map { it.packageName }
-                .toSet()
+            // v1.142.6t 修复：getInstalledApplications 在 HyperOS 受包可见性限制只返回自身（installedCount=1），
+            // 改用 launcher intent 查询（与 AppListPage 已验证方案一致）+ getInstalledApplications 并集兜底
+            val fromLauncher = runCatching {
+                val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                packageManager.queryIntentActivities(launcherIntent, 0)
+                    .mapNotNull { it.activityInfo?.packageName }
+                    .toSet()
+            }.getOrDefault(emptySet())
+            val fromInstalled = runCatching {
+                packageManager.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+                    .map { it.packageName }
+                    .toSet()
+            }.getOrDefault(emptySet())
+            val merged = fromLauncher + fromInstalled
+            HyperLog.d("HyperCopy-CloudRules", "installedPackages: launcher=${fromLauncher.size}, installed=${
+                fromInstalled.size
+            }, merged=${merged.size}")
+            merged
         }
     }
 
@@ -287,8 +304,17 @@ fun CloudRulesPage(
     val filteredRules by remember(cloudRules, searchQuery, showInstalledOnly, installedPackageNames) {
         derivedStateOf {
             val query = searchQuery.trim()
+            // v1.142.6t 诊断：记录筛选入参，定位"仅已安装"无效问题
+            HyperLog.d(
+                "HyperCopy-CloudRules",
+                "filter: showInstalledOnly=$showInstalledOnly, installedCount=${installedPackageNames.size}, " +
+                    "total=${cloudRules.size}, emptyPkg=${cloudRules.count { it.packageName.isBlank() }}",
+            )
             cloudRules.filter { rule ->
-                val matchesInstalled = !showInstalledOnly || rule.packageName in installedPackageNames
+                // v1.142.6t 修复：无包名规则（文件名未含包名，如零食仓库 淘宝·口令/美团·小程序）不参与"仅已安装"过滤，
+                // 避免已安装应用对应规则被误过滤（"" 不在 installedPackageNames 中）
+                val matchesInstalled = !showInstalledOnly || rule.packageName.isBlank() ||
+                    rule.packageName in installedPackageNames
                 val matchesQuery = query.isEmpty() ||
                     rule.name.contains(query, ignoreCase = true) ||
                     rule.packageName.contains(query, ignoreCase = true)
