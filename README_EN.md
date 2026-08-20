@@ -72,6 +72,11 @@ Adapts to the system link invocation service and supports quick configuration of
 
 ## Usage
 
+### 🔧 Shizuku Dependency
+This project's rootless clipboard monitoring and system-level capabilities run on **Shizuku**:
+- **Official project**: [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) (https://github.com/RikkaApps/Shizuku)
+- **Tested build**: [thedjchi/Shizuku v13.7.0-thedjchi](https://github.com/thedjchi/Shizuku/releases/tag/v13.7.0-thedjchi)
+
 1. Install HyperCopy.
 2. Choose a monitoring method based on your environment: `LSPosed` or `Shizuku`.
 3. Download common app rules from the Cloud Rules page, or manually add rules on the Rules page.

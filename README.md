@@ -95,6 +95,12 @@
 | **v1.9 – v1.28** | 内置云规则 / 淘口令新旧格式 / 口令识别 43 平台 / 规则优先级 / 排除负规则 / SAF 导入导出 / 回收站 / 模板库 / 统计 / 首次引导 |
 
 ## 使用说明
+
+### 🔧 Shizuku 依赖
+本项目的免 Root 剪贴板监听与系统级能力基于 **Shizuku** 运行：
+- **官方项目**：[RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku)（https://github.com/RikkaApps/Shizuku）
+- 本二改版实测环境：[thedjchi/Shizuku v13.7.0-thedjchi](https://github.com/thedjchi/Shizuku/releases/tag/v13.7.0-thedjchi)
+
 1. 安装 HyperCopy（中文版）。
 2. 新装首次打开，按首页「新装一键配置」卡片自动完成：Shizuku 授权 / 通知权限 / 省电无限制 / 后台弹出页面 / 自启动等设置。
 3. 按使用环境选择监听方案：`LSPosed`（root）、`Shizuku`（免 root）或 `无障碍`（免 root 无悬浮窗）。
