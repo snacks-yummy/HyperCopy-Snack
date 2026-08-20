@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import io.github.hypercopy.HyperLog
 import io.github.hypercopy.R
 import io.github.hypercopy.data.rules.BuiltinRules
 import io.github.hypercopy.data.rules.RuleCategory
@@ -504,41 +507,52 @@ internal fun RuleCard(
         Box {
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
             // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
-            if (swipeEnabled && swipeOffset > 0f) {
-                    // v1.142.6m 修复（3rd）：红色按钮区必须撑满整卡高度！
-                    // 根因：fillMaxHeight 在 Box 内高度约束无限时只取内容高度(~24dp) → 红色按钮区只有中间一条，
-                    // 上下露出 Card 背景(surfaceContainer=白) → 用户实测"滑动都是白色的"
-                    // 修复：外层透明 Box matchParentSize() 撑满卡片实际高度（由内容 Row 决定），
-                    // 内层 Row fillMaxHeight 才有明确高度约束 → 红色按钮区占满整卡右侧
-                    Box(modifier = Modifier.matchParentSize()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .width(deleteBtnWidth)
-                                .align(Alignment.CenterEnd)
-                                .background(Color(0xFFFF5A52))
-                                .clickable(enabled = swipeOffset > 0f) {
-                                    swipeOffset = 0f
-                                    onDeleteClick?.invoke()
-                                },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
-                            Icon(
-                                imageVector = MiuixIcons.Delete,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.action_delete),
-                                style = MiuixTheme.textStyles.body2,
-                                color = Color.White,
-                                modifier = Modifier.padding(start = 4.dp),
-                            )
-                        }
+            // v1.142.6m 修复（4th，换方案）：红色按钮区**始终组合**（swipeEnabled 时），不再依赖 swipeOffset>0f 条件渲染
+            // （此前 3 版均用 if(swipeOffset>0f) 条件渲染，用户实测 3 版滑动均白色 → 怀疑条件渲染未触发/布局未撑满）
+            // 平时被内容 Row 不透明背景完全盖住（视觉不可见），左滑内容 Row 平移后露出；alpha 与内容平移双保险
+            // 高度用 matchParentSize 撑满卡片实际尺寸（fillMaxHeight 在 Box 内 maxHeight 无限时只取内容高度 ~24dp）
+            if (swipeEnabled) {
+                var deleteAreaLogged by remember(rule.id) { mutableStateOf(false) }
+                SideEffect {
+                    if (!deleteAreaLogged) {
+                        deleteAreaLogged = true
+                        HyperLog.i("左滑调试", "删除按钮区已组合 rule=${rule.name} enabled=$swipeEnabled offset=${swipeOffset.toInt()}")
                     }
+                }
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        // 平时 alpha=0（内容 Row 也盖住），左滑 offset>0 → alpha=1 可见
+                        .alpha(if (swipeOffset > 0f) 1f else 0f),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(deleteBtnWidth)
+                            .align(Alignment.CenterEnd)
+                            .background(Color(0xFFFF5A52))
+                            .clickable(enabled = swipeOffset > 0f) {
+                                swipeOffset = 0f
+                                onDeleteClick?.invoke()
+                            },
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
+                        Icon(
+                            imageVector = MiuixIcons.Delete,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.action_delete),
+                            style = MiuixTheme.textStyles.body2,
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
+                }
             }
         Row(
             modifier = Modifier
@@ -588,6 +602,8 @@ internal fun RuleCard(
                                     change.consume()
                                     // 手指左滑 dragAmount<0 → swipeOffset 增大（内容左移露出右侧删除）
                                     swipeOffset = (swipeOffset - dragAmount).coerceIn(0f, deleteBtnPx * 1.6f)
+                                    // v1.142.6m 日志：拖动过程打印 offset（定位"滑动白色"根因）
+                                    HyperLog.i("左滑调试", "drag rule=${rule.name} offset=${swipeOffset.toInt()} enabled=$swipeEnabled")
                                 },
                             )
                         }
