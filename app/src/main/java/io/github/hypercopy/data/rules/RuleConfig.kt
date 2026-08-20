@@ -90,14 +90,18 @@ fun RuleConfig.contentSignature(): String = listOf(
     sourcePackages, activeTimeStart, activeTimeEnd,
 ).joinToString("|")
 
-/** v1.142.6p 同目标规则判定：同包名+同分类+同目标类型+同模板（"同一类规则"语义，
- *  与 saveRuleMerged 合并判定一致，但含内置/云规则——用于建议页阻止重复新增） */
+/** v1.142.6p 同目标规则判定：同包名+同分类+同为链接类/口令类（含内置/云规则）。
+ *  链接类 = DirectOpen（建议器对 URL 的默认模式，template 空）或 template 非空（scheme/URL 模板直达）——
+ *  内置京东链接 template 非空而建议器生成 template 空，但二者对同一链接处理效果等价，必须视为同类阻止重复保存；
+ *  口令类 = 剪贴板提取参数后跳转（ParseAndOpen 等），与链接类不同类，允许分别保存（v1.141.62 口令 vs 链接不合并） */
 fun RuleConfig.isSameTargetRule(other: RuleConfig): Boolean =
     category == other.category &&
         target.packageName.isNotBlank() &&
         target.packageName == other.target.packageName &&
-        target.type == other.target.type &&
-        target.template == other.target.template
+        isLinkLikeRule() == other.isLinkLikeRule()
+
+private fun RuleConfig.isLinkLikeRule(): Boolean =
+    actionMode == RuleActionMode.DirectOpen || target.template.isNotBlank()
 
 enum class RuleTargetType(val value: String) {
     Url("url"),
