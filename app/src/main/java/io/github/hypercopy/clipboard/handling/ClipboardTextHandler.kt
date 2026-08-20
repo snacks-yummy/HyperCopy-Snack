@@ -124,21 +124,26 @@ object ClipboardTextHandler {
     private val TAKEOUT_LOOP_WINDOW_MILLIS = 8_000L
 
     private fun shouldBlockJumpLoop(targetPkg: String, content: String): Boolean {
-        if (targetPkg.isBlank() || content.isBlank()) return false
+        if (content.isBlank()) return false
+        // v1.145.1 防循环 key 退化：规则 pkg 为空（如 v1.141.75 美团规则改空）时退化为内容指纹，
+        // 否则 isBlank 短路导致防循环整体失效 → 同内容 3~13s 内重复跳转（外卖柜实测 2 次跳转根因）
+        val key = if (targetPkg.isBlank()) "content:$content" else targetPkg
         val last = lastJump ?: return false
         // 外卖取件场景（含取件短链域名）缩短防循环窗口，便于连续测试/多次取件
         val isTakeout = content.contains("mt.cn", ignoreCase = true) || content.contains("dpurl.cn", ignoreCase = true)
         val window = if (isTakeout) TAKEOUT_LOOP_WINDOW_MILLIS else JUMP_LOOP_WINDOW_MILLIS
         val blocked = System.currentTimeMillis() - last.at < window &&
-            last.targetPkg == targetPkg && last.content == content
+            last.targetPkg == key && last.content == content
         // v1.140.20 滑动续期：循环持续期间拦截持续生效（循环一停 30s 后自动解锁，不影响正常重复复制）
         if (blocked) lastJump = last.copy(at = System.currentTimeMillis())
         return blocked
     }
 
     private fun recordJump(targetPkg: String, content: String) {
-        if (targetPkg.isBlank() || content.isBlank()) return
-        lastJump = LastJump(targetPkg, content, System.currentTimeMillis())
+        if (content.isBlank()) return
+        // v1.145.1 同 key 退化规则（与 shouldBlockJumpLoop 一致）：pkg 空按内容指纹记录
+        val key = if (targetPkg.isBlank()) "content:$content" else targetPkg
+        lastJump = LastJump(key, content, System.currentTimeMillis())
         // v1.140.24 跳转后浮窗免疫：成功跳转同步写防抖记录，使跳转触发后的
         // 剪贴板清理(clearClipboardAfterJump)/写回保险/第三方回写 引发的再次嗅探，
         // 在 5s 内被 ClipboardWriteGuard 拦截 → 不再反复拉起透明浮窗阅读 → 消除屏幕闪烁
@@ -492,7 +497,11 @@ object ClipboardTextHandler {
         // mt.cn → 302 peisong → 页面 JS 生成 weixin://dl/business/?t=TICKET 并 location.href 跳转
         // → WebView shouldOverrideUrlLoading 捕获该 scheme → 自动拉起微信小程序（用户仅点一次系统"打开"确认）。
         // 不能用纯 HTTP 302(OneRedirectResolver)，拿不到页面 JS 动态生成的 scheme；需真实 WebView 引擎。
-        if (resolveUrl.contains("mt.cn", ignoreCase = true) || resolveUrl.contains("ele.me", ignoreCase = true)) {
+        // v1.145.1 dpurl.cn 加入无头链路（原走前台 WebViewJump，无 UA 覆盖 → 静态壳无跳转；与 mt.cn 同链路处理）
+        if (resolveUrl.contains("mt.cn", ignoreCase = true) ||
+            resolveUrl.contains("dpurl.cn", ignoreCase = true) ||
+            resolveUrl.contains("ele.me", ignoreCase = true)
+        ) {
             HyperLog.d(TAG, "外卖取件跳转: 后台无头WebView走链 $resolveUrl")
             HeadlessWebViewResolver.resolveAndLaunch(
                 context = context,

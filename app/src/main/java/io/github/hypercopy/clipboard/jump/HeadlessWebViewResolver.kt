@@ -129,6 +129,14 @@ object HeadlessWebViewResolver {
                         HyperLog.d(TAG, "webview page finished: $url (t=+${System.currentTimeMillis() - startMs}ms)")
                         // 页面加载完再执行"打开/跳转"JS 点击（peisong 页关键：页面自身也会自动 location.href 拉 scheme，此处双保险）
                         view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
+                        // v1.145.1 快速兜底：页面加载完成 4s 内无 scheme 捕获 → 提前 fallback（原等满 8s 超时）。
+                        // 安全边界：mt.cn 快链路 <600ms 已捕获；peisong 慢链路历史实测 3.4s < 4s；dpurl 静态壳等 4s 即兜底。
+                        handler.postDelayed({
+                            if (!finished) {
+                                HyperLog.d(TAG, "webview page finished but no scheme in 4s, early fallback (t=+${System.currentTimeMillis() - startMs}ms)")
+                                fallback()
+                            }
+                        }, 4000L)
                     }
 
                     // v1.145.0 渲染进程崩溃兜底：默认行为是杀主进程（闪退→监听/无障碍全停→跳转中断）。
@@ -143,6 +151,13 @@ object HeadlessWebViewResolver {
             // Bug③修复：超时可配置（默认 3000ms）
             val timeout = io.github.hypercopy.data.settings.SettingsRepository(context).readWebViewTimeoutMillis()
             handler.postDelayed(timeoutRunnable, timeout)
+            // v1.145.1 dpurl.cn 特判：美团服务端按 UA 分流——WebView 默认 UA 返回静态壳页（无 302/无 scheme，
+            // 实测 8s 干等 fallback）；强制移动 Chrome UA 触发 302 美团/微信链路（v1.143.3 验证方向有效，
+            // 实验线废弃后本线重实施；mt.cn 不受影响仍走默认 UA）
+            if (url.contains("dpurl.cn", ignoreCase = true)) {
+                view.settings.userAgentString = MOBILE_CHROME_UA
+                HyperLog.d(TAG, "dpurl.cn 特判: 强制移动 Chrome UA")
+            }
             HyperLog.d(TAG, "headless webview load: $url")
             view.loadUrl(url)
         }
@@ -243,6 +258,10 @@ object HeadlessWebViewResolver {
 }
 
 private fun isWebUrl(url: String): Boolean = url.startsWith("http://", true) || url.startsWith("https://", true)
+
+// v1.145.1 dpurl.cn UA 特判常量：移动 Chrome 标准 UA（与系统浏览器一致，触发美团服务端 302 分流）
+private const val MOBILE_CHROME_UA =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
 
 private const val AUTO_CLICK_ONCE_JS = """
 (function() {
