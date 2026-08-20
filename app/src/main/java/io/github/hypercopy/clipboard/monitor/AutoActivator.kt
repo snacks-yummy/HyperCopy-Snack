@@ -15,6 +15,10 @@ object AutoActivator {
     private const val TAG = "HyperCopy-AutoActivate"
 
     fun activate(context: Context) {
+        // v1.144.9 WebView 预热：启动后主线程空闲时预创建缓存实例（首个跳转省 WebView 内核初始化 ~1s；已有实例跳过，失败静默）
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching { io.github.hypercopy.clipboard.jump.HeadlessWebViewResolver.warmUp(context.applicationContext) }
+        }, 2_000L)
         val appContext = context.applicationContext
         val settingsRepository = SettingsRepository(appContext)
         if (!settingsRepository.readAutoActivate()) {

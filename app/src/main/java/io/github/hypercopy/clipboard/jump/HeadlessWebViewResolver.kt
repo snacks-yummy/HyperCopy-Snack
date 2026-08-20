@@ -28,6 +28,26 @@ object HeadlessWebViewResolver {
         return preload
     }
 
+    /**
+     * v1.144.9 WebView 预热：启动后主线程空闲时预创建缓存实例（消化内核初始化开销，首个跳转省 ~1s）。
+     * 已有实例则跳过；被系统回收时下次 acquire 自动重建（天然兜底）；失败静默（下次用时再建）。
+     */
+    fun warmUp(context: Context) {
+        synchronized(this) {
+            if (cachedWebView != null) return
+            runCatching {
+                cachedWebView = WebView(context.applicationContext).apply {
+                    settings.javaScriptEnabled = true
+                    settings.javaScriptCanOpenWindowsAutomatically = true
+                    settings.domStorageEnabled = true
+                }
+            }.onFailure {
+                cachedWebView = null
+                HyperLog.d(TAG, "webview warmUp failed: ${it.message}")
+            }
+        }
+    }
+
     class Preload internal constructor(
         private val context: Context,
         private val url: String,
