@@ -23,26 +23,31 @@ object AutoActivator {
         }
         thread(name = "HyperCopyAutoActivate") {
             runCatching {
-                if (ShizukuPermission.isAvailable()) {
-                    if (!ShizukuPermission.isGranted()) {
-                        // 发起授权（系统弹窗，用户确认一次；之后自动继续开启无障碍）
-                        HyperLog.d(TAG, "auto request shizuku permission")
-                        ShizukuPermission.requestIfNeeded { granted ->
-                            if (granted) {
-                                HyperLog.d(TAG, "shizuku granted, auto enable accessibility")
+                // v1.144.0 修复自愈失效根因：Shizuku 服务为异步绑定，App 冷启动瞬间 pingBinder 常为 false，
+                // 旧逻辑（v1.143.4）直接 skip 且无重试 → 覆盖安装后权限自愈完全不执行。
+                // 改为 waitForAvailable（监听 Binder 到达，≤BINDER_WAIT_TIMEOUT_MS）就绪后再执行授权/无障碍/自愈。
+                ShizukuPermission.waitForAvailable { available ->
+                    thread(name = "HyperCopyAutoSelfHeal") {
+                        if (available) {
+                            if (!ShizukuPermission.isGranted()) {
+                                // 发起授权（系统弹窗，用户确认一次；之后自动继续开启无障碍+自愈）
+                                HyperLog.d(TAG, "auto request shizuku permission")
+                                ShizukuPermission.requestIfNeeded { granted ->
+                                    if (granted) {
+                                        HyperLog.d(TAG, "shizuku granted, auto enable accessibility")
+                                        enableAccessibilityIfNeeded(appContext)
+                                        KeepAliveMonitor.ensureFullKeepAlive(appContext)
+                                    }
+                                }
+                            } else {
+                                // 已授权：静默开启无障碍（兜底通道）+ 完整权限自愈（对齐一键配置全项）
                                 enableAccessibilityIfNeeded(appContext)
+                                KeepAliveMonitor.ensureFullKeepAlive(appContext)
                             }
+                        } else {
+                            HyperLog.d(TAG, "shizuku not available after wait, skip auto activate")
                         }
-                    } else {
-                        // 已授权：静默开启无障碍（兜底通道）
-                        enableAccessibilityIfNeeded(appContext)
-                        // v1.143.4 覆盖安装权限自愈：启动立即执行完整保活命令链（不等 60s 巡检），
-                        // 修复系统重置的 appops（后台弹出 10021/自启动/前台服务/通知）+ 省电白名单；
-                        // 命令幂等无副作用（本线程已为后台线程，同步 shell 不阻塞 UI）
-                        KeepAliveMonitor.ensureFullKeepAlive(appContext)
                     }
-                } else {
-                    HyperLog.d(TAG, "shizuku not available, skip auto activate")
                 }
                 // v1.97 版本感知：App 升级后强制重启无障碍服务（覆盖安装不杀进程，旧代码一直跑）
                 val versionCode = runCatching {

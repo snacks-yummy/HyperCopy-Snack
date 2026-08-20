@@ -153,6 +153,17 @@ object KeepAliveMonitor {
             "appops set $pkg 10024 allow",
             "appops set $pkg 10050 allow",
             "appops set $pkg 10051 allow",
+            // v1.144.0 补齐（对齐一键配置全项，覆盖安装后系统重置的权限完整恢复）：
+            "appops set $pkg 10045 allow", // 获取应用列表（MIUIOP）
+            "appops set $pkg 10004 allow", // HyperOS3 设置相关 UI（桌面快捷方式等）
+            "appops set $pkg 10008 allow", // 锁屏显示
+            "appops set $pkg 10017 allow", // 动态壁纸等
+            "appops set $pkg 10020 allow",
+            "appops set $pkg 10053 allow",
+            "appops set $pkg 10022 foreground", // 设置相关（前台）
+            // HyperOS3 省电策略界面数据源双写（v1.142.1f 一键配置同款，幂等追加）
+            "if ! settings get system miui_power_save_whitelist | grep -q $pkg; then settings put system miui_power_save_whitelist \"$(settings get system miui_power_save_whitelist),$pkg\"; fi",
+            "if ! settings get secure miui_power_save_whitelist | grep -q $pkg; then settings put secure miui_power_save_whitelist \"$(settings get secure miui_power_save_whitelist),$pkg\"; fi",
         )
         var successCount = 0
         commands.forEach { cmd ->
