@@ -12,10 +12,10 @@
   "parameterRegex": "",
   "extractionRegexes": [],
   "parseAfterRedirect": false,
-  "clearClipboardAfterJump": true,
+  "clearClipboardAfterJump": false,
   "target": {
     "type": "url",
-    "template": "${url:input}",
+    "template": "",
     "packageName": "com.alicloud.databox",
     "action": "android.intent.action.VIEW"
   }
