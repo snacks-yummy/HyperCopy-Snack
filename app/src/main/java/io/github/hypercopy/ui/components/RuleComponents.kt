@@ -499,7 +499,9 @@ internal fun RuleCard(
     ) {
         Box {
             // v1.142.6h 左滑删除背景层：内容左移后右侧露出，点击=弹删除确认
-            if (swipeEnabled) {
+            // v1.142.6j 修复：背景层必须 swipeOffset>0 才渲染——此前无条件显示 + matchParentSize 撑满整卡
+            // + 内容 Row 透明背景 → 所有卡片平时就全红（用户实测截图确认）
+            if (swipeEnabled && swipeOffset > 0f) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
