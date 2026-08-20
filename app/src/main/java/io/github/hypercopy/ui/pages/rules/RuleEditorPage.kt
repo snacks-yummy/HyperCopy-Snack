@@ -265,6 +265,18 @@ fun RuleEditorPage(
                     // v1.62 分区标题：基础信息
                     SectionTitle(R.string.editor_section_basic)
                     TextField(value = name, onValueChange = { name = it }, label = stringResource(R.string.editor_label_name), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    // v1.142.6r 通知方式前移：从「高级选项」卡顶部移到基础信息区（名称之后），文本类规则核心配置靠前展示
+                    if (category == RuleCategory.Text) {
+                        top.yukonga.miuix.kmp.preference.OverlayDropdownPreference(
+                            title = stringResource(R.string.editor_notification_mode),
+                            summary = stringResource(R.string.editor_notification_mode_summary),
+                            items = editorNotificationModeOptions().map { stringResource(it.first) },
+                            selectedIndex = editorNotificationModeOptions().indexOfFirst { it.second == ruleNotificationMode }.coerceAtLeast(0),
+                            startAction = {},
+                            insideMargin = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                            onSelectedIndexChange = { ruleNotificationMode = editorNotificationModeOptions()[it].second },
+                        )
+                    }
                     if (category == RuleCategory.Link) {
                         // v1.62 分区标题：匹配与跳转（模式/开关/正则/智能识别）
                         SectionTitle(R.string.editor_section_match)
@@ -607,18 +619,6 @@ fun RuleEditorPage(
             }
             Card {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // v1.39+ 文本类规则独立通知渠道：仅文本类(Text)显示，链接类(Link)还原不显示、走全局跳转渠道
-                    if (category == RuleCategory.Text) {
-                        top.yukonga.miuix.kmp.preference.OverlayDropdownPreference(
-                            title = stringResource(R.string.editor_notification_mode),
-                            summary = stringResource(R.string.editor_notification_mode_summary),
-                            items = editorNotificationModeOptions().map { stringResource(it.first) },
-                            selectedIndex = editorNotificationModeOptions().indexOfFirst { it.second == ruleNotificationMode }.coerceAtLeast(0),
-                            startAction = {},
-                            insideMargin = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-                            onSelectedIndexChange = { ruleNotificationMode = editorNotificationModeOptions()[it].second },
-                        )
-                    }
                     // v1.62 高级选项标题可点击展开/收起
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { showAdvanced = !showAdvanced },
