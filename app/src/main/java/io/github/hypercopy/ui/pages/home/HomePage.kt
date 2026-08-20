@@ -736,7 +736,9 @@ private fun runShellSetup(
         val batteryOk = granted("dumpsys deviceidle whitelist | grep -q $pkg") ||
             granted("cmd deviceidle whitelist | grep -q $pkg") ||
             grant("dumpsys deviceidle whitelist +$pkg", "cmd deviceidle whitelist +$pkg")
-        update(1, if (batteryOk) 2 else 3)
+        // v1.142.1f HyperOS3 省电策略界面数据源：miui_power_save_whitelist（system/secure 双写追加，保留原值幂等）
+        val miuiPowerOk = grantMiuiPowerWhitelist(context, pkg)
+        update(1, if (batteryOk && miuiPowerOk) 2 else 3)
         // ④ 后台弹出页面：标准 op 10021（实测 MIUIOP(10021) 生效）+ MIUI 私有 10024 双保险——已授权自动跳过
         update(2, 1)
         val backgroundOk = granted("appops get $pkg 10021", "allow") ||
@@ -744,15 +746,36 @@ private fun runShellSetup(
             grant("appops set $pkg 10021 allow", "appops set $pkg 10024 allow")
         update(2, if (backgroundOk) 2 else 3)
         // ⑤ 自启动：MIUI 私有 op 10050（OP_AUTO_START）+ 10051（关联启动兜底）——已授权自动跳过
+        //    + HyperOS3「设置相关」UI 权限（用户实测手动全开后的 appops 状态复刻）：
+        //    10004/10008/10017/10020/10053=allow（桌面快捷方式/锁屏显示/动态壁纸等），10022=foreground
         update(3, 1)
         val autostartOk = granted("appops get $pkg 10050", "allow") ||
             granted("appops get $pkg 10051", "allow") ||
             grant("appops set $pkg 10050 allow", "appops set $pkg 10051 allow")
-        update(3, if (autostartOk) 2 else 3)
-        // 应用列表：黑名单模式默认已启用（空集合不影响任何应用），标记完成
-        update(4, 2)
+        val extraUiOk = listOf("10004", "10008", "10017", "10020", "10053").all {
+            granted("appops get $pkg $it", "allow") || runShellCommand(context, "appops set $pkg $it allow")
+        } && (granted("appops get $pkg 10022", "foreground") ||
+            runShellCommand(context, "appops set $pkg 10022 foreground"))
+        update(3, if (autostartOk && extraUiOk) 2 else 3)
+        // ⑥ 获取应用列表：MIUIOP(10045)（实测手动开启后 ignore→allow）
+        update(4, 1)
+        val appListOk = granted("appops get $pkg 10045", "allow") ||
+            runShellCommand(context, "appops set $pkg 10045 allow")
+        update(4, if (appListOk) 2 else 3)
         mainHandler.post(onDone)
     }
+}
+/** v1.142.1f HyperOS3 省电策略界面数据源双写：settings system/secure 的 miui_power_save_whitelist 追加包名
+ *  （保留原值、幂等——已含则跳过，避免重复逗号） */
+private fun grantMiuiPowerWhitelist(context: Context, pkg: String): Boolean {
+    fun addTo(namespace: String): Boolean {
+        return runShellCommand(
+            context,
+            "if ! settings get $namespace miui_power_save_whitelist | grep -q $pkg; then " +
+                "settings put $namespace miui_power_save_whitelist \"\$(settings get $namespace miui_power_save_whitelist),$pkg\"; fi",
+        )
+    }
+    return addTo("system") && addTo("secure")
 }
 /** Shizuku shell 执行（v1.142.1d 重构）：委托 PrivilegedShell（其 waitForExit 用 try exitValue 轮询，
  *  兼容 ShizukuProcess 的异常语义——此前直接 waitFor/isAlive 判定在 ShizukuProcess 上均不可靠，
