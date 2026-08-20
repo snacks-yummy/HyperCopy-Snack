@@ -8,6 +8,7 @@
   "parameterRegex": "",
   "triggerRegexes": [],
   "extractionRegexes": [
+    "(?:你的|您的|尊敬的用户，?|亲爱的用户，?)?\\s*((?:(?!你的|您的|的)[A-Za-z0-9\\u4e00-\\u9fa5·]){1,20}?)(?=\\s*(?:验证码|校验码|动态码|动态密码|认证码|确认码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|登录码|支付码|注册码|解锁码|应急码))",
     "(?:验证码|校验码|动态码|动态密码|认证码|确认码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|登录码|支付码|注册码|解锁码|应急码)(?:是|为)?[:：]?\\s*(\\d{4,8})"
   ],
   "parseAfterRedirect": false,
@@ -15,7 +16,7 @@
   "sourcePackages": "com.tencent.androidqqmail",
   "target": {
     "type": "url",
-    "template": "QQ邮箱 ${r1}",
+    "template": "QQ邮箱 ${r1} ${r2}",
     "packageName": "",
     "action": "android.intent.action.VIEW"
   }
