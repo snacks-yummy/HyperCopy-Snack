@@ -166,11 +166,14 @@ object KeepAliveMonitor {
             "if ! settings get secure miui_power_save_whitelist | grep -q $pkg; then settings put secure miui_power_save_whitelist \"$(settings get secure miui_power_save_whitelist),$pkg\"; fi",
         )
         var successCount = 0
+        // v1.144.1 修复假成功：ShizukuShell.exec 无条件返回 exit 0（waitFor 结果被 runCatching 吞掉 +
+        // 无论命令是否完成都 destroy → appops set 实际未生效，自愈 23/23 假成功实证）。
+        // 改用 PrivilegedShell.run（v1.142.1d 一键配置同款通道：waitForExit try exitValue 轮询 +
+        // 真实超时判定 + ShizukuProcess 启动），保证 appops 命令真实生效。
+        val settingsRepo = io.github.hypercopy.data.settings.SettingsRepository(context)
         commands.forEach { cmd ->
-            // v1.123 修复：不传 timeoutSec（用 ShizukuShell 默认 2s）——之前显式 8s × 14 条 = 112s/轮
-            // 超过 60s 巡检周期导致永追不上（时间戳不刷新的根因）
-            val (code, _) = ShizukuShell.exec(cmd)
-            if (code == 0) successCount++
+            val result = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(settingsRepo, cmd)
+            if (result.exitCode == 0) successCount++
         }
         HyperLog.d(TAG, "保活命令链巡检完成: $successCount/${commands.size} 成功")
         // v1.120 无条件 I 级日志：即使 logLevel=Basic（覆盖安装后重置）也能在 logcat 看到巡检结果
