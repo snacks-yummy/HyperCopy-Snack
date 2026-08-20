@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -520,59 +522,41 @@ internal fun RuleCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (isBuiltin) {
-                        Text(
+                        RuleBadge(
                             text = stringResource(R.string.rule_builtin_badge),
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .background(
-                                    color = MiuixTheme.colorScheme.primary.copy(alpha = 0.10f),
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            contentColor = MiuixTheme.colorScheme.primary,
+                            containerColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.10f),
                         )
                     } else if (isCloud) {
                         // v1.139.1 作者云端规则：橙色徽标（与内置/自定义区分，便于识别不适配规则）
                         val cloudColor = Color(0xFFF97316)
-                        Text(
+                        RuleBadge(
                             text = cloudBadgeText,
-                            style = MiuixTheme.textStyles.body2,
-                            color = cloudColor,
-                            modifier = Modifier
-                                .background(
-                                    color = cloudColor.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            contentColor = cloudColor,
+                            containerColor = cloudColor.copy(alpha = 0.12f),
                         )
                     } else if (isCustom) {
                         // v1.139.1 自定义规则：绿色徽标
                         val customColor = Color(0xFF16A34A)
-                        Text(
+                        RuleBadge(
                             text = stringResource(R.string.rule_custom_badge),
-                            style = MiuixTheme.textStyles.body2,
-                            color = customColor,
-                            modifier = Modifier
-                                .background(
-                                    color = customColor.copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            contentColor = customColor,
+                            containerColor = customColor.copy(alpha = 0.12f),
                         )
                     }
                     if (rule.group.isNotBlank()) {
-                        Text(
+                        RuleBadge(
                             text = rule.group,
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .background(
-                                    color = MiuixTheme.colorScheme.surfaceContainerHigh,
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            contentColor = MiuixTheme.colorScheme.onSurface,
+                            containerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
                         )
                     }
+                    // v1.142.6b 徽章与动作文字间的语义分隔符（区分「来源/场景」与「行为」）
+                    Text(
+                        text = "·",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
                     Text(
                         text = stringResource(ruleActionLabelRes(rule)),
                         style = MiuixTheme.textStyles.body2,
@@ -652,6 +636,28 @@ internal fun RuleCard(
 }
 
 /** 复制规则（JSON）到剪贴板 */
+/**
+ * v1.142.6b 统一徽章组件：严格 20dp 高度 + 文字垂直居中 + 统一圆角/内边距，
+ * 保证列表内所有徽章（来源/场景/后续新增）高度完全一致、视觉对齐。
+ */
+@Composable
+private fun RuleBadge(
+    text: String,
+    contentColor: Color,
+    containerColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MiuixTheme.textStyles.body2,
+        color = contentColor,
+        modifier = modifier
+            .background(containerColor, RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp)
+            .height(20.dp)
+            .wrapContentHeight(Alignment.CenterVertically),
+    )
+}
 private fun copyRuleToClipboard(context: Context, rule: RuleConfig) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val json = rule.toJson().toString(2)
