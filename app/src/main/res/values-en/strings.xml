@@ -99,6 +99,7 @@
     <string name="action_close">Close</string>
     <string name="action_confirm">OK</string>
     <string name="action_delete">Delete</string>
+    <string name="rule_swipe_delete_hint">Swipe left on a rule card to delete (restorable from trash)</string>
     <string name="action_edit">Edit</string>
     <string name="action_open">Open</string>
     <string name="action_jump">Jump</string>

@@ -1,9 +1,12 @@
 package io.github.hypercopy.ui.components
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +43,7 @@ import io.github.hypercopy.data.rules.RuleCategory
 import io.github.hypercopy.data.rules.RuleConfig
 import io.github.hypercopy.data.rules.toJson
 import io.github.hypercopy.data.systemlink.SystemLinkApp
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -463,7 +469,16 @@ internal fun RuleCard(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
+    // v1.142.6h 左滑删除：null=禁用滑动（System 分类/无删除语义）；排序/选择模式下自动禁用
+    onDeleteClick: (() -> Unit)? = null,
 ) {
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    // v1.142.6h 左滑删除状态：swipeOffset>0 = 内容左移露出右侧删除按钮
+    val deleteBtnWidth = 84.dp
+    val deleteBtnPx = with(density) { deleteBtnWidth.toPx() }
+    val swipeEnabled = onDeleteClick != null && !sortMode && !selectionMode
+    var swipeOffset by remember(rule.id) { mutableStateOf(0f) }
     // v1.139.1b 规则来源：我的内置(蓝) / 作者原版内置+云端下载(橙, 细化源名) / 自定义(绿)
     val isBuiltin = rule.id in MY_BUILTIN_RULE_IDS || rule.id in modifiedBuiltinIds
     val isCloud = !isBuiltin && (rule.id.startsWith(BuiltinRules.ID_PREFIX) || rule.id.startsWith("cloud_"))
@@ -482,6 +497,27 @@ internal fun RuleCard(
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer { translationY = dragOffsetY },
     ) {
+        Box {
+            // v1.142.6h 左滑删除背景层：内容左移后右侧露出，点击=弹删除确认
+            if (swipeEnabled) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color(0xFFFF5A52))
+                        .clickable(enabled = swipeOffset > 0f) {
+                            swipeOffset = 0f
+                            onDeleteClick?.invoke()
+                        },
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        style = MiuixTheme.textStyles.body2,
+                        color = Color.White,
+                        modifier = Modifier.padding(end = 20.dp),
+                    )
+                }
+            }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -495,7 +531,44 @@ internal fun RuleCard(
                         )
                     }
                 }
-                .padding(16.dp),
+                .padding(16.dp)
+                // v1.142.6h 左滑露出删除按钮：内容左移 swipeOffset，手势与点击/长按/垂直滚动天然区分
+                .graphicsLayer { translationX = -swipeOffset }
+                .then(
+                    if (swipeEnabled) {
+                        Modifier.pointerInput(rule.id, swipeOffset) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    val target = when {
+                                        // 完全滑动（超过 1.3 倍按钮宽）→ 直接弹删除确认
+                                        swipeOffset > deleteBtnPx * 1.3f -> {
+                                            onDeleteClick?.invoke()
+                                            0f
+                                        }
+                                        // 超过半宽 → 展开露出删除按钮
+                                        swipeOffset > deleteBtnPx * 0.5f -> deleteBtnPx
+                                        else -> 0f
+                                    }
+                                    scope.launch {
+                                        animate(swipeOffset, target, animationSpec = tween(180)) { value, _ -> swipeOffset = value }
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch {
+                                        animate(swipeOffset, 0f, animationSpec = tween(180)) { value, _ -> swipeOffset = value }
+                                    }
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    // 手指左滑 dragAmount<0 → swipeOffset 增大（内容左移露出右侧删除）
+                                    swipeOffset = (swipeOffset - dragAmount).coerceIn(0f, deleteBtnPx * 1.6f)
+                                },
+                            )
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PackageIcon(
@@ -601,6 +674,7 @@ internal fun RuleCard(
                 // ②编辑箭头（与整卡点击进编辑器 100% 重复）——卡片交互收敛为：点击=编辑 / 长按=多选 / 开关=启停
                 Switch(checked = rule.enabled, onCheckedChange = { onEnabledChange(!rule.enabled) })
             }
+        }
         }
     }
 }

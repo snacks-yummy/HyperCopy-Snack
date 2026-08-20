@@ -13,6 +13,7 @@ object Config {
     const val KEY_HIDE_FROM_RECENTS = "hide_from_recents"
     const val KEY_APP_LANGUAGE = "app_language"
     const val KEY_COLOR_MODE = "color_mode"
+    const val KEY_SWIPE_DELETE_HINT_SHOWN = "swipe_delete_hint_shown"
     const val KEY_CLIPBOARD_MONITOR_MODE = "clipboard_monitor_mode"
     const val KEY_JUMP_NOTIFICATION_MODE = "jump_notification_mode"
     const val KEY_WEBVIEW_TIMEOUT_MILLIS = "webview_timeout_millis"

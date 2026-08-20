@@ -61,9 +61,14 @@ class SettingsRepository(private val context: Context) {
     fun readColorMode(): String {
         return preferences().getString(Config.KEY_COLOR_MODE, Config.DEFAULT_COLOR_MODE) ?: Config.DEFAULT_COLOR_MODE
     }
-
     fun persistColorMode(value: String) {
         preferences().edit(commit = true) { putString(Config.KEY_COLOR_MODE, value) }
+    }
+
+    // v1.142.6h 左滑删除首次引导提示（一次性）
+    fun readSwipeDeleteHintShown(): Boolean = preferences().getBoolean(Config.KEY_SWIPE_DELETE_HINT_SHOWN, false)
+    fun persistSwipeDeleteHintShown() {
+        preferences().edit(commit = true) { putBoolean(Config.KEY_SWIPE_DELETE_HINT_SHOWN, true) }
     }
 
     fun readClipboardMonitorMode(): String {

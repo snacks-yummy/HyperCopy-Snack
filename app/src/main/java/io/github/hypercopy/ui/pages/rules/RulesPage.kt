@@ -193,6 +193,8 @@ fun RulesPage(
     var resolvingRule by remember { mutableStateOf<RuleConfig?>(null) }
     var selectedRuleIds by remember { mutableStateOf(emptySet<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // v1.142.6h 左滑删除：单条删除确认（swipeDeleteRuleId != null 时显示）
+    var swipeDeleteRuleId by remember { mutableStateOf<String?>(null) }
     var importText by remember { mutableStateOf("") }
     var sortedCategoryRules by remember { mutableStateOf<List<RuleConfig>?>(null) }
     var draggingRuleId by remember { mutableStateOf<String?>(null) }
@@ -267,6 +269,14 @@ fun RulesPage(
     // v1.38 修复：回收站内按返回键 → 先退出回收站回到规则列表，而不是直接退出页面
     BackHandler(enabled = showTrash) {
         showTrash = false
+    }
+
+    // v1.142.6h 左滑删除首次引导（一次性 Toast）
+    LaunchedEffect(Unit) {
+        if (!settingsRepository.readSwipeDeleteHintShown()) {
+            settingsRepository.persistSwipeDeleteHintShown()
+            Toast.makeText(context, context.getString(R.string.rule_swipe_delete_hint), Toast.LENGTH_SHORT).show()
+        }
     }
 
     LaunchedEffect(selectedCategory, categoryRuleIds) {
@@ -764,6 +774,10 @@ if (sceneGroup.isNotEmpty()) {
                             dragTotalOffsetY = 0f
                             dragMovedSteps = 0
                         },
+                        // v1.142.6h 左滑删除（System 分类不支持删除语义，不传=禁用滑动）
+                        onDeleteClick = if (selectedCategory == RulePageCategory.System) null else {
+                            { swipeDeleteRuleId = rule.id }
+                        },
                     )
                 }
             }
@@ -981,6 +995,34 @@ if (sceneGroup.isNotEmpty()) {
                 )
             }
         }
+    // v1.142.6h 左滑删除确认（单条，进回收站可恢复）
+    swipeDeleteRuleId?.let { deleteId ->
+        WindowDialog(
+            title = stringResource(R.string.rule_dialog_delete_title),
+            summary = stringResource(R.string.rule_dialog_delete_summary, 1),
+            show = true,
+            onDismissRequest = { swipeDeleteRuleId = null },
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    text = stringResource(R.string.action_cancel),
+                    onClick = { swipeDeleteRuleId = null },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = stringResource(R.string.action_confirm),
+                    onClick = {
+                        repository.moveToTrash(setOf(deleteId))
+                        rules = repository.readRules()
+                        trashEntries = repository.readTrash()
+                        swipeDeleteRuleId = null
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.textButtonColors(textColor = Color(0xFFFF5A52)),
+                )
+            }
+        }
+    }
     }
 
     // v1.65 清空回收站确认（永久删除所有回收站规则）
