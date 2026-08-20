@@ -752,12 +752,24 @@ private fun runShellCommand(command: String): Boolean {
     }
     return runCatching {
         io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置执行: $command")
-        val process = ShizukuProcess.start(arrayOf("sh", "-c", command)) ?: return false
-        process.inputStream.bufferedReader().use { it.readText() }
-        process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
-        val ok = process.exitValue() == 0
+        val process = ShizukuProcess.start(arrayOf("sh", "-c", command))
+        if (process == null) {
+            // v1.142.1 修复盲区：start 失败此前静默返回 false（导致 || 兜底命令被误执行且无日志）
+            io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败: ShizukuProcess.start 返回 null: $command")
+            return false
+        }
+        val out = process.inputStream.bufferedReader().use { it.readText() }
+        val finished = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败: 10s 超时: $command")
+            return false
+        }
+        val exit = process.exitValue()
         process.destroyForcibly()
-        if (!ok) io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败 exit!=0: $command")
-        ok
+        if (exit != 0) io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败 exit=$exit: $command")
+        exit == 0
+    }.onFailure { e ->
+        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置异常: $command → $e")
     }.getOrDefault(false)
 }
