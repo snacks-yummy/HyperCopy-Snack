@@ -759,8 +759,13 @@ private fun runShellCommand(command: String): Boolean {
             return false
         }
         val out = process.inputStream.bufferedReader().use { it.readText() }
-        val finished = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
-        if (!finished) {
+        // v1.142.1c 修复：ShizukuProcess.waitFor(timeout) 返回 true 但进程未退出（语义不一致）→
+        // 直接 exitValue() 抛 process hasn't exited 假失败。改轮询 isAlive() 等退出。
+        val deadline = System.currentTimeMillis() + 10_000
+        while (process.isAlive() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50)
+        }
+        if (process.isAlive()) {
             process.destroyForcibly()
             io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败: 10s 超时: $command")
             return false
