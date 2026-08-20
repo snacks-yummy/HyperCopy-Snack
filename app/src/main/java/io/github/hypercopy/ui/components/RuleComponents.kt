@@ -498,6 +498,8 @@ internal fun RuleCard(
         modifier = modifier
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer { translationY = dragOffsetY },
+        // v1.142.6l 显式卡片背景色：内容 Row 同色不透明 → 左滑时红色按钮区才逐渐露出（跟手变色，GitHub 同款）
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
     ) {
         Box {
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
@@ -525,6 +527,8 @@ internal fun RuleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // v1.142.6l 内容层不透明卡片背景（与 Card 同色）→ 平时盖住红色按钮区，左滑移开才跟手露出（GitHub 同款）
+                .background(MiuixTheme.colorScheme.surfaceContainer)
                 .let { rowModifier ->
                     if (sortMode) {
                         rowModifier
