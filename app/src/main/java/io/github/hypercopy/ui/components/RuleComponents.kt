@@ -557,11 +557,11 @@ internal fun RuleCard(
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
-                    // v1.142.6c 动作文字改 onSurfaceVariant（灰）：避免与内置徽章 primary 蓝同色混淆，弱化第三优先级信息
+                    // v1.142.6d 动作文字恢复 primary 蓝（用户反馈灰色不显眼；与内置徽章蓝区分靠徽章背景框）
                     Text(
                         text = stringResource(ruleActionLabelRes(rule)),
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        color = MiuixTheme.colorScheme.primary,
                     )
                 }
                 if (hitCount > 0) {

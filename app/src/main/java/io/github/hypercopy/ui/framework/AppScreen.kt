@@ -622,7 +622,8 @@ fun AppScreen(
                                     io.github.hypercopy.UiActionLogger.switch("自动激活", it)
                                 },
                                 onCheckUpdate = { checkUpdate(showNoUpdate = true) },
-                                onOpenTheme = { context.startActivity(Intent(context, ThemeSettingsActivity::class.java)) },
+                                colorMode = colorMode,
+                                onColorModeChange = onColorModeChange,
                                 onOpenAppList = { context.startActivity(Intent(context, AppListActivity::class.java)) },
                                 topContentPadding = pagePadding.calculateTopPadding() + 12.dp,
                                 bottomContentPadding = pagePadding.calculateBottomPadding() + 16.dp,

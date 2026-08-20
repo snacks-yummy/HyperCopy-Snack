@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.collect
 import io.github.hypercopy.Config
 import io.github.hypercopy.R
 import io.github.hypercopy.clipboard.monitor.AccessibilityUtils
+import io.github.hypercopy.ui.framework.AppColorMode
 import io.github.hypercopy.ui.framework.AppLanguage
 import io.github.hypercopy.ui.framework.ClipboardMonitorMode
 import io.github.hypercopy.ui.framework.JumpNotificationMode
@@ -136,7 +137,9 @@ fun SettingsPage(
     onDuplicateWindowMillisChange: (Long) -> Unit = {},
     onAutoActivateChange: (Boolean) -> Unit = {},
     onCheckUpdate: () -> Unit,
-    onOpenTheme: () -> Unit,
+    // v1.142.6d 主题切换改设置页直选（与语言同操作逻辑，不再进子页面）
+    colorMode: AppColorMode,
+    onColorModeChange: (AppColorMode) -> Unit,
     onOpenAppList: () -> Unit,
     topContentPadding: Dp = 12.dp,
     bottomContentPadding: Dp = 16.dp,
@@ -488,11 +491,16 @@ fun SettingsPage(
                     insideMargin = SettingsItemMargin,
                     onSelectedIndexChange = { onAppLanguageChange(languageOptions[it].value) },
                 )
-                SettingsAction(
-                    icon = MiuixIcons.Theme,
+                // v1.142.6d 主题改 OverlayDropdownPreference（与语言同款：设置页直选，点击弹出跟随系统/深色/浅色）
+                val themeOptions = colorModeOptions()
+                OverlayDropdownPreference(
                     title = stringResource(R.string.theme),
                     summary = stringResource(R.string.theme_summary),
-                    onClick = onOpenTheme,
+                    items = themeOptions.map { it.label },
+                    selectedIndex = themeOptions.indexOfFirst { it.value == colorMode }.coerceAtLeast(0),
+                    startAction = { SettingsIcon(imageVector = MiuixIcons.Theme) },
+                    insideMargin = SettingsItemMargin,
+                    onSelectedIndexChange = { onColorModeChange(themeOptions[it].value) },
                 )
             }
         }
@@ -823,3 +831,13 @@ private fun MonitorStatusCard(
         }
     }
 }
+
+/** v1.142.6d 主题选项（与语言操作逻辑一致，设置页直选） */
+private data class ColorModeOption(val label: String, val value: AppColorMode)
+
+@Composable
+private fun colorModeOptions() = listOf(
+    ColorModeOption(stringResource(R.string.color_mode_system), AppColorMode.System),
+    ColorModeOption(stringResource(R.string.color_mode_dark), AppColorMode.Dark),
+    ColorModeOption(stringResource(R.string.color_mode_light), AppColorMode.Light),
+)
