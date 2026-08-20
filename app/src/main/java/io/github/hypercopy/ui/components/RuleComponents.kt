@@ -473,12 +473,13 @@ internal fun RuleCard(
     val isBuiltin = rule.id in MY_BUILTIN_RULE_IDS || rule.id in modifiedBuiltinIds
     val isCloud = !isBuiltin && (rule.id.startsWith(BuiltinRules.ID_PREFIX) || rule.id.startsWith("cloud_"))
     val isCustom = !isBuiltin && !isCloud
-    // v1.139.1b 云端源名细化：cloud_1812z_/作者原版内置=作者 / cloud_snacks_=零食仓库 / cloud_custom_=自定义源
+    // v1.139.1b 云端源名细化：cloud_1812z_/作者原版内置=作者 / cloud_snacks_=零食仓库 / cloud_custom_=自定义源（v1.142.6e 资源化）
     val cloudBadgeText = when {
-        rule.id.startsWith("cloud_1812z_") || (rule.id.startsWith(BuiltinRules.ID_PREFIX) && !isBuiltin) -> "云端·作者"
-        rule.id.startsWith(BuiltinRules.ID_PREFIX) -> "内置"
-        rule.id.startsWith("cloud_snacks_") -> "云端·零食"
-        rule.id.startsWith("cloud_custom_") -> "云端·自定义"
+        rule.id.startsWith("cloud_1812z_") || (rule.id.startsWith(BuiltinRules.ID_PREFIX) && !isBuiltin) ->
+            stringResource(R.string.badge_cloud_author)
+        rule.id.startsWith(BuiltinRules.ID_PREFIX) -> stringResource(R.string.badge_builtin)
+        rule.id.startsWith("cloud_snacks_") -> stringResource(R.string.badge_cloud_snacks)
+        rule.id.startsWith("cloud_custom_") -> stringResource(R.string.badge_cloud_custom)
         else -> stringResource(R.string.rule_cloud_badge)
     }
     Card(
@@ -772,15 +773,15 @@ internal fun githubRuleSubmissionUri(rule: io.github.hypercopy.data.rules.RuleCo
 }
 internal fun String.toRuleFileNamePart(): String = trim().replace(Regex("[\\\\/:*?\"<>|]"), "_")
 
-/** v1.126 跳转方式徽标（v1.127b：去掉 emoji 前缀防豆腐块渲染，纯文字+颜色区分） */
-internal fun jumpModeBadge(rule: io.github.hypercopy.data.rules.RuleConfig): Pair<String, Color>? {
-    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return "改写" to Color(0xFF9C6ADE)
-    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.NotifyOnly) return "仅通知" to Color(0xFF00A0E9)
+/** v1.126 跳转方式徽标（v1.127b：去掉 emoji 前缀防豆腐块渲染，纯文字+颜色区分；v1.142.6e 返回 StringRes） */
+internal fun jumpModeBadge(rule: io.github.hypercopy.data.rules.RuleConfig): Pair<Int, Color>? {
+    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return R.string.badge_clipboard_write to Color(0xFF9C6ADE)
+    if (rule.actionMode == io.github.hypercopy.data.rules.RuleActionMode.NotifyOnly) return R.string.badge_notify_only to Color(0xFF00A0E9)
     val template = rule.target.template
     return when {
-        template.isBlank() && rule.target.packageName.isNotBlank() -> "直开" to Color(0xFF6C8EF5)
-        template.startsWith("http", ignoreCase = true) -> "网页" to Color(0xFF00B578)
-        template.isNotBlank() -> "协议" to Color(0xFFF5A623)
+        template.isBlank() && rule.target.packageName.isNotBlank() -> R.string.badge_direct_open to Color(0xFF6C8EF5)
+        template.startsWith("http", ignoreCase = true) -> R.string.badge_web to Color(0xFF00B578)
+        template.isNotBlank() -> R.string.badge_scheme to Color(0xFFF5A623)
         else -> null
     }
 }

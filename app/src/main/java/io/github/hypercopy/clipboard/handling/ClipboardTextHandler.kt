@@ -566,7 +566,7 @@ object ClipboardTextHandler {
             runCatching {
                 android.widget.Toast.makeText(
                     context.applicationContext,
-                    "开启「菜鸟查件自动确认」后，复制快递单号将自动直达菜鸟详情页",
+                    context.getString(R.string.toast_cainiao_auto_confirm),
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             }

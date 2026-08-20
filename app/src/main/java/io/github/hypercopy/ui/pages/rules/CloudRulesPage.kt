@@ -41,6 +41,7 @@ import io.github.hypercopy.data.rules.CloudRuleError
 import io.github.hypercopy.data.rules.CloudRulesRepository
 import io.github.hypercopy.data.rules.CloudSourceConfig
 import io.github.hypercopy.data.rules.CloudSourceRegistry
+import io.github.hypercopy.data.rules.displayNameText
 import io.github.hypercopy.data.rules.cloudRuleFromJson
 import io.github.hypercopy.data.rules.RuleRepository
 import io.github.hypercopy.data.rules.RuleSaveResult
@@ -250,10 +251,10 @@ fun CloudRulesPage(
         // 避免 scope.launch 在切走页面后仍延迟弹 Toast
         val channel = cloudRepository.probeFastestDownloadChannel()
         val label = when (channel) {
-            "ghfast" -> "ghfast 代理"
-            "ghproxy" -> "gh-proxy 代理"
-            "accel" -> "加速站"
-            else -> "GitHub 直连"
+            "ghfast" -> context.getString(R.string.channel_ghfast)
+            "ghproxy" -> context.getString(R.string.channel_ghproxy)
+            "accel" -> context.getString(R.string.channel_accel)
+            else -> context.getString(R.string.channel_github)
         }
         Toast.makeText(
             context.applicationContext,
@@ -361,7 +362,7 @@ fun CloudRulesPage(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = stringResource(R.string.cloud_source_picker, sourceConfig.displayName),
+                                    text = stringResource(R.string.cloud_source_picker, sourceConfig.displayNameText()),
                                     style = MiuixTheme.textStyles.body1,
                                     color = MiuixTheme.colorScheme.primary,
                                     modifier = Modifier.weight(1f),

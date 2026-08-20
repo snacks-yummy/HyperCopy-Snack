@@ -388,13 +388,13 @@ fun RuleEditorPage(
                     }
                     // ===== v1.126 跳转增强：跳转方式徽标 + 预检 + 测试跳转 =====
                     val pm = context.packageManager
-                    // v1.127b 纯文字徽标（去 emoji 防豆腐块渲染）
+                    // v1.127b 纯文字徽标（去 emoji 防豆腐块渲染；v1.142.6e 资源化）
                     val jumpModeText = when {
-                        actionMode == RuleActionMode.ClipboardWrite -> "剪贴板改写"
-                        actionMode == RuleActionMode.NotifyOnly -> "仅通知"
-                        targetTemplate.isBlank() && packageName.isNotBlank() -> "包名直达(App首页)"
-                        targetTemplate.startsWith("http", ignoreCase = true) -> "网页/链接"
-                        targetTemplate.isNotBlank() -> "Scheme 直达"
+                        actionMode == RuleActionMode.ClipboardWrite -> stringResource(R.string.editor_mode_clipboard_write)
+                        actionMode == RuleActionMode.NotifyOnly -> stringResource(R.string.badge_notify_only)
+                        targetTemplate.isBlank() && packageName.isNotBlank() -> stringResource(R.string.editor_mode_direct_open)
+                        targetTemplate.startsWith("http", ignoreCase = true) -> stringResource(R.string.editor_mode_web)
+                        targetTemplate.isNotBlank() -> stringResource(R.string.editor_mode_scheme)
                         else -> "—"
                     }
                     val appInstalled = packageName.isNotBlank() &&
@@ -444,7 +444,7 @@ fun RuleEditorPage(
                             text = stringResource(R.string.editor_test_jump),
                             onClick = {
                                 val testRule = RuleConfig(
-                                    name = name.ifBlank { "测试" },
+                                    name = name.ifBlank { context.getString(R.string.editor_test_rule_name) },
                                     category = category,
                                     actionMode = actionMode,
                                     matchRegex = triggerRegexes.firstOrNull().orEmpty(),
@@ -459,12 +459,12 @@ fun RuleEditorPage(
                                         packageName = packageName,
                                     ),
                                 )
-                                val sampleInput = testText.ifBlank { name.ifBlank { "测试文本" } }
+                                val sampleInput = testText.ifBlank { name.ifBlank { context.getString(R.string.editor_test_text_default) } }
                                 val intent = testRule.parseIntent(sampleInput, requireMatch = false)
                                 if (intent != null) {
                                     PendingJumpCoordinator.submit(
                                         context.applicationContext,
-                                        PendingJump.IntentJump(title = name.ifBlank { "测试跳转" }, intent = intent, packageName = packageName),
+                                        PendingJump.IntentJump(title = name.ifBlank { context.getString(R.string.editor_test_jump) }, intent = intent, packageName = packageName),
                                         clearClipboardAfterJump = false,
                                         notificationModeOverride = Config.JUMP_NOTIFICATION_MODE_NONE,
                                     )
@@ -973,7 +973,7 @@ fun RuleEditorPage(
                                     } else {
                                     val copy = RuleConfig(
                                         id = UUID.randomUUID().toString(),
-                                        name = (name.ifBlank { context.getString(R.string.rule_unnamed) }) + " 副本",
+                                        name = (name.ifBlank { context.getString(R.string.rule_unnamed) }) + context.getString(R.string.rule_copy_suffix),
                                         category = category,
                                         actionMode = actionMode,
                                         matchRegex = triggerRegexes.firstNonBlankOr(""),

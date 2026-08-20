@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import io.github.hypercopy.R
 import io.github.hypercopy.data.rules.CloudSourceConfig
 import io.github.hypercopy.data.rules.CloudSourceRegistry
+import io.github.hypercopy.data.rules.displayNameText
+import io.github.hypercopy.data.rules.descriptionText
 import io.github.hypercopy.data.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,14 +75,15 @@ fun CloudSourceManagerDialog(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = src.displayName + if (src.isBuiltin) "" else " ★",
+                            text = src.displayNameText() + if (src.isBuiltin) "" else " ★",
                             style = MiuixTheme.textStyles.body1,
                             color = if (src.key == currentSourceKey) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
                         )
-                        // v1.140.18 源说明：注明原作者 / 授权信息
-                        if (src.description.isNotBlank()) {
+                        // v1.140.18 源说明：注明原作者 / 授权信息（v1.142.6e 资源化）
+                        val srcDesc = src.descriptionText()
+                        if (srcDesc.isNotBlank()) {
                             Text(
-                                text = src.description,
+                                text = srcDesc,
                                 style = MiuixTheme.textStyles.body2,
                                 color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 maxLines = 1,

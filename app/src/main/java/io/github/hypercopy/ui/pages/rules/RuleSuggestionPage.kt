@@ -374,10 +374,10 @@ private fun SuggestionCard(
                         color = Color(0xFF00B578),
                     )
                 }
-                // v1.128 智能识别器同步适配：跳转方式徽标 + App 安装预检（与规则列表/编辑器一致）
-                suggestion.jumpMode()?.let { (label, color) ->
+                // v1.128 智能识别器同步适配：跳转方式徽标 + App 安装预检（与规则列表/编辑器一致；v1.142.6e 资源化）
+                suggestion.jumpMode()?.let { (labelRes, color) ->
                     Text(
-                        text = label,
+                        text = stringResource(labelRes),
                         style = MiuixTheme.textStyles.body2,
                         color = color,
                         modifier = Modifier
@@ -567,13 +567,13 @@ private fun matchFragment(suggestion: RuleAnalyzer.Suggestion, sourceText: Strin
     }.getOrNull()?.takeIf { it.isNotBlank() && it.length <= 40 }
 }
 
-/** v1.128 智能识别器同步适配：跳转方式徽标（与规则列表 jumpModeBadge 逻辑一致，纯文字防豆腐块） */
-private fun RuleAnalyzer.Suggestion.jumpMode(): Pair<String, Color>? {
-    if (actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return "改写" to Color(0xFF9C6ADE)
+/** v1.128 智能识别器同步适配：跳转方式徽标（与规则列表 jumpModeBadge 逻辑一致；v1.142.6e 返回 StringRes） */
+private fun RuleAnalyzer.Suggestion.jumpMode(): Pair<Int, Color>? {
+    if (actionMode == io.github.hypercopy.data.rules.RuleActionMode.ClipboardWrite) return R.string.badge_clipboard_write to Color(0xFF9C6ADE)
     return when {
-        template.isBlank() && packageName.isNotBlank() -> "直开" to Color(0xFF6C8EF5)
-        template.startsWith("http", ignoreCase = true) -> "网页" to Color(0xFF00B578)
-        template.isNotBlank() -> "协议" to Color(0xFFF5A623)
+        template.isBlank() && packageName.isNotBlank() -> R.string.badge_direct_open to Color(0xFF6C8EF5)
+        template.startsWith("http", ignoreCase = true) -> R.string.badge_web to Color(0xFF00B578)
+        template.isNotBlank() -> R.string.badge_scheme to Color(0xFFF5A623)
         else -> null
     }
 }

@@ -18,6 +18,9 @@ data class CloudSourceConfig(
     val isBuiltin: Boolean = true,
     // v1.140.18 源说明：注明原作者 / 授权信息（源管理对话框副标题展示）
     val description: String = "",
+    // v1.142.6e 内置源国际化：0=用 displayName/description，非 0=优先用资源
+    val displayNameRes: Int = 0,
+    val descriptionRes: Int = 0,
 ) {
     val githubRepo: String get() = "$repoOwner/$repoName"
     fun toJson(): JSONObject = JSONObject().apply {
@@ -51,6 +54,8 @@ object CloudSourceRegistry {
         repoName = "HyperCopy_Rules",
         acceleratedBase = "https://hypercopy.1812z.top/rules",
         description = "原项目作者：1812z（云端规则原作者）",
+        displayNameRes = io.github.hypercopy.R.string.cloud_source_author_name,
+        descriptionRes = io.github.hypercopy.R.string.cloud_source_author_desc,
     )
     // 内置源 ②：零食仓库（用户自维护规则仓库）
     val MINE = CloudSourceConfig(
@@ -59,6 +64,8 @@ object CloudSourceRegistry {
         repoOwner = "snacks-yummy",
         repoName = "HyperCopy_Rules",
         description = "我的二改仓库（基于原项目二次开发，已获作者授权）",
+        displayNameRes = io.github.hypercopy.R.string.cloud_source_mine_name,
+        descriptionRes = io.github.hypercopy.R.string.cloud_source_mine_desc,
     )
     val builtinSources: List<CloudSourceConfig> = listOf(AUTHOR, MINE)
 
@@ -86,3 +93,12 @@ object CloudSourceRegistry {
         return trimmed
     }
 }
+
+// v1.142.6e 国际化显示辅助（顶层扩展）：内置源优先资源，自定义源用动态字符串
+@androidx.compose.runtime.Composable
+fun CloudSourceConfig.displayNameText(): String =
+    if (displayNameRes != 0) androidx.compose.ui.res.stringResource(displayNameRes) else displayName
+
+@androidx.compose.runtime.Composable
+fun CloudSourceConfig.descriptionText(): String =
+    if (descriptionRes != 0) androidx.compose.ui.res.stringResource(descriptionRes) else description

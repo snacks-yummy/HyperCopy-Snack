@@ -52,6 +52,7 @@ import io.github.hypercopy.data.systemlink.AndroidUser
 import io.github.hypercopy.ui.components.SettingsAction
 import io.github.hypercopy.ui.components.CloudSourceManagerDialog
 import io.github.hypercopy.data.rules.CloudSourceRegistry
+import io.github.hypercopy.data.rules.displayNameText
 import io.github.hypercopy.ui.components.SettingsActionWithArrow
 import io.github.hypercopy.ui.components.SettingsIcon
 import io.github.hypercopy.ui.components.SwitchAction
@@ -539,7 +540,7 @@ fun SettingsPage(
                             style = MiuixTheme.textStyles.body1,
                         )
                         Text(
-                            text = stringResource(R.string.setting_cloud_source_summary, currentCloudSource.displayName),
+                            text = stringResource(R.string.setting_cloud_source_summary, currentCloudSource.displayNameText()),
                             style = MiuixTheme.textStyles.body2,
                             color = MiuixTheme.colorScheme.onSurface,
                         )
