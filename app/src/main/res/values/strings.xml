@@ -279,7 +279,7 @@
     <string name="rule_system_app_link_allowed_summary">控制该应用是否允许接管受支持链接</string>
     <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
     <string name="rule_system_user_menu">系统链接用户</string>
-    <string name="rule_sort_tip">规则从上往下顺序命中</string>
+    <string name="rule_sort_tip">长按右侧手柄拖动调整顺序，规则从上往下命中</string>
     <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
     <string name="rule_system_user_0">主用户 user 0</string>
     <string name="rule_result_waiting">等待测试</string>

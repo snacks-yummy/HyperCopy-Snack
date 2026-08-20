@@ -1,8 +1,4 @@
 package io.github.hypercopy.ui.components
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -468,7 +464,6 @@ internal fun RuleCard(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
 ) {
-    val context = LocalContext.current
     // v1.139.1b 规则来源：我的内置(蓝) / 作者原版内置+云端下载(橙, 细化源名) / 自定义(绿)
     val isBuiltin = rule.id in MY_BUILTIN_RULE_IDS || rule.id in modifiedBuiltinIds
     val isCloud = !isBuiltin && (rule.id.startsWith(BuiltinRules.ID_PREFIX) || rule.id.startsWith("cloud_"))
@@ -601,37 +596,10 @@ internal fun RuleCard(
                 )
             }
             if (!selectionMode && !sortMode) {
+                // v1.142.6g 卡片右侧仅保留 Switch（最常用开关）
+                // 删除冗余入口：①复制按钮（复制 JSON 是极客操作，编辑器「更多」菜单/选择模式批量复制已覆盖，三重重复）
+                // ②编辑箭头（与整卡点击进编辑器 100% 重复）——卡片交互收敛为：点击=编辑 / 长按=多选 / 开关=启停
                 Switch(checked = rule.enabled, onCheckedChange = { onEnabledChange(!rule.enabled) })
-                IconButton(
-                    onClick = { copyRuleToClipboard(context, rule) },
-                    minWidth = 32.dp,
-                    minHeight = 32.dp,
-                    cornerRadius = 16.dp,
-                    backgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    modifier = Modifier.padding(start = 10.dp),
-                ) {
-                    Icon(
-                        imageVector = MiuixIcons.Copy,
-                        contentDescription = stringResource(R.string.action_copy_rule),
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                IconButton(
-                    onClick = onEditClick,
-                    minWidth = 32.dp,
-                    minHeight = 32.dp,
-                    cornerRadius = 16.dp,
-                    backgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    modifier = Modifier.padding(start = 10.dp),
-                ) {
-                    Icon(
-                        imageVector = MiuixIcons.ChevronForward,
-                        contentDescription = stringResource(R.string.action_edit),
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
             }
         }
     }
@@ -660,12 +628,7 @@ private fun RuleBadge(
             .wrapContentHeight(Alignment.CenterVertically),
     )
 }
-private fun copyRuleToClipboard(context: Context, rule: RuleConfig) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val json = rule.toJson().toString(2)
-    clipboard.setPrimaryClip(ClipData.newPlainText(rule.name, json))
-    Toast.makeText(context, context.getString(R.string.rule_toast_copied), Toast.LENGTH_SHORT).show()
-}
+/** 复制规则（JSON）到剪贴板 —— v1.142.6g 移除：卡片复制按钮已删（与编辑器更多菜单/选择模式批量复制三重重复），此函数不再被引用 */
 
 @Composable
 internal fun AddRuleMenu(
