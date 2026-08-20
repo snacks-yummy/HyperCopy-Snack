@@ -209,7 +209,9 @@ fun RuleEditorPage(
                         if (editingRule == null) R.string.editor_title_add else R.string.editor_title_edit,
                         stringResource(category.labelRes()),
                     ),
-                    style = MiuixTheme.textStyles.title1,
+                    style = MiuixTheme.textStyles.title2,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 if (editingRule != null) {

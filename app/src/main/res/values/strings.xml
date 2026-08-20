@@ -582,6 +582,10 @@
     <string name="setting_jump_fallback_web_summary">目标 App 未安装或无法处理时，自动用浏览器搜索兜底</string>
     <string name="setting_jump_precheck">跳转前预检</string>
     <string name="setting_jump_precheck_summary">跳转前检测 intent 是否有处理器，避免无效跳转（黑屏/无响应）</string>
+    <string name="setting_allow_background_title">一键开启后台弹出权限（始终允许）</string>
+    <string name="setting_allow_background_summary">Shizuku 执行 appops 允许后台弹出界面，跳转不再弹系统确认（MIUI/HyperOS）</string>
+    <string name="setting_allow_background_done">后台弹出权限已开启（始终允许）</string>
+    <string name="setting_allow_background_failed">开启失败：%1$s</string>
 
 
     <string name="toast_hit_rule">命中：%1$s → %2$s</string>

@@ -350,6 +350,28 @@ fun SettingsPage(
                                         checked = jumpPrecheck,
                                         onCheckedChange = { onJumpPrecheckChange(!jumpPrecheck) },
                                     )
+                                    // v1.142.0 一键开启后台弹出权限：MIUI 弹窗「始终允许」= appops MIUIOP(10021)（实测 set 后变 allow），Shizuku 直接授予
+                                    SettingsAction(
+                                        icon = MiuixIcons.Tune,
+                                        title = stringResource(R.string.setting_allow_background_title),
+                                        summary = stringResource(R.string.setting_allow_background_summary),
+                                        onClick = {
+                                            val repo = SettingsRepository(context)
+                                            val result = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(
+                                                repo,
+                                                "appops set ${context.packageName} 10021 allow",
+                                            )
+                                            if (result.exitCode == 0) {
+                                                Toast.makeText(context, R.string.setting_allow_background_done, Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.setting_allow_background_failed, result.output.take(80).ifBlank { "exit=${result.exitCode}" }),
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            }
+                                        },
+                                    )
                     }
                     SettingsSubPage.EXPRESS -> {
                                     SwitchAction(
