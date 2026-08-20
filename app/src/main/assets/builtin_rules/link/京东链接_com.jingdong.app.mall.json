@@ -1,0 +1,22 @@
+{
+  "name": "京东链接",
+  "category": "link",
+  "enabled": true,
+  "actionMode": "direct_open",
+  "priority": 0,
+  "matchRegex": ".*[/.]3\\.cn.*|.*[/.]jd\\.com.*",
+  "triggerRegexes": [
+    ".*[/.]3\\.cn.*",
+    ".*[/.]jd\\.com.*"
+  ],
+  "parameterRegex": "",
+  "extractionRegexes": [],
+  "parseAfterRedirect": false,
+  "clearClipboardAfterJump": true,
+  "target": {
+    "type": "url",
+    "template": "openapp.jdmobile://virtual?params={'category':'jump','des':'m','url':'${url:input}'}",
+    "packageName": "com.jingdong.app.mall",
+    "action": "android.intent.action.VIEW"
+  }
+}

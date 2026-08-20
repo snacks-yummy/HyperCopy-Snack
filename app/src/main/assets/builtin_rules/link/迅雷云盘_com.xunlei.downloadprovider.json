@@ -1,0 +1,21 @@
+{
+  "name": "迅雷云盘",
+  "category": "link",
+  "enabled": true,
+  "actionMode": "direct_open",
+  "priority": 0,
+  "matchRegex": "pan\\.xunlei\\.com",
+  "triggerRegexes": [
+    "pan\\.xunlei\\.com"
+  ],
+  "parameterRegex": "",
+  "extractionRegexes": [],
+  "parseAfterRedirect": false,
+  "clearClipboardAfterJump": true,
+  "target": {
+    "type": "url",
+    "template": "${url:input}",
+    "packageName": "com.xunlei.downloadprovider",
+    "action": "android.intent.action.VIEW"
+  }
+}

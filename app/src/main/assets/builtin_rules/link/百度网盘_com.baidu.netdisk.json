@@ -1,0 +1,22 @@
+{
+  "name": "百度网盘",
+  "category": "link",
+  "enabled": true,
+  "actionMode": "direct_open",
+  "priority": 0,
+  "matchRegex": "pan\\.baidu\\.com|yun\\.baidu\\.com",
+  "triggerRegexes": [
+    "pan\\.baidu\\.com",
+    "yun\\.baidu\\.com"
+  ],
+  "parameterRegex": "",
+  "extractionRegexes": [],
+  "parseAfterRedirect": false,
+  "clearClipboardAfterJump": true,
+  "target": {
+    "type": "url",
+    "template": "${url:input}",
+    "packageName": "com.baidu.netdisk",
+    "action": "android.intent.action.VIEW"
+  }
+}
