@@ -104,8 +104,8 @@
     <string name="support_development_summary">支持项目开发</string>
     <string name="open_home_page">打开主页</string>
     <string name="open_home_page_summary">打开 HyperCopy 项目主页</string>
-    <string name="fork_project">二改项目地址</string>
-    <string name="fork_project_summary">基于原作者 1812z 项目二次开发，已获作者授权</string>
+    <string name="fork_project">HyperCopy-snack 二改项目</string>
+    <string name="fork_project_summary">基于 1812z/HyperCopy 二次开发 · 已获作者授权</string>
 
     <!-- 通用操作 -->
     <string name="action_back">返回</string>

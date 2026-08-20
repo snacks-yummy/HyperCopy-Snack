@@ -696,8 +696,8 @@
     <string name="editor_test_jump_failed">Jump build failed, check target settings</string>
     <string name="editor_test_jump_sent">Test jump sent</string>
     <string name="editor_test_rendered">Rendered Result</string>
-    <string name="fork_project">Fork Project URL</string>
-    <string name="fork_project_summary">Based on original 1812z project, authorized</string>
+    <string name="fork_project">HyperCopy-snack (Fork)</string>
+    <string name="fork_project_summary">Fork of 1812z/HyperCopy · Authorized by original author</string>
     <string name="keep_alive_self_heal">Heal Now</string>
     <string name="keep_alive_self_heal_done">Heal check done, service refreshed</string>
     <string name="keep_alive_self_heal_summary">Check &amp; restore accessibility and Shizuku (auto every 60s)</string>
