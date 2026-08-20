@@ -127,7 +127,8 @@ object Config {
     const val APP_LIST_WORK_MODE_WHITELIST = "whitelist"
     const val APP_LIST_WORK_MODE_BLACKLIST = "blacklist"
 
-    const val DEFAULT_LOG_LEVEL = LOG_LEVEL_BASIC
+    // v1.144.8 默认日志级别改调试（便于排查命中/跳转细节；App 内日志本就全量，此值影响 logcat 输出）
+    const val DEFAULT_LOG_LEVEL = LOG_LEVEL_DEBUG
     const val DEFAULT_AUTO_CHECK_UPDATE = true
     const val DEFAULT_HIDE_FROM_RECENTS = false
     const val DEFAULT_APP_LANGUAGE = APP_LANGUAGE_SYSTEM
