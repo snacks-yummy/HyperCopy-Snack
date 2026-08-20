@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +41,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import io.github.hypercopy.HyperLog
 import io.github.hypercopy.R
 import io.github.hypercopy.data.rules.BuiltinRules
 import io.github.hypercopy.data.rules.RuleCategory
@@ -507,58 +506,63 @@ internal fun RuleCard(
         Box {
             // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
             // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
-            // v1.142.6m 修复（4th，换方案）：红色按钮区**始终组合**（swipeEnabled 时），不再依赖 swipeOffset>0f 条件渲染
-            // （此前 3 版均用 if(swipeOffset>0f) 条件渲染，用户实测 3 版滑动均白色 → 怀疑条件渲染未触发/布局未撑满）
-            // 平时被内容 Row 不透明背景完全盖住（视觉不可见），左滑内容 Row 平移后露出；alpha 与内容平移双保险
-            // 高度用 matchParentSize 撑满卡片实际尺寸（fillMaxHeight 在 Box 内 maxHeight 无限时只取内容高度 ~24dp）
+            // v1.142.6m 修复(最终)：红色按钮区始终组合（swipeEnabled 时），平时被内容 Row 不透明背景盖住
+            // 左滑内容+背景一起平移露出红色；alpha 与内容平移双保险（跟手变色，露多少红多少）
             if (swipeEnabled) {
-                var deleteAreaLogged by remember(rule.id) { mutableStateOf(false) }
-                SideEffect {
-                    if (!deleteAreaLogged) {
-                        deleteAreaLogged = true
-                        HyperLog.i("左滑调试", "删除按钮区已组合 rule=${rule.name} enabled=$swipeEnabled offset=${swipeOffset.toInt()}")
-                    }
-                }
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        // 平时 alpha=0（内容 Row 也盖住），左滑 offset>0 → alpha=1 可见
+                        // 平时 alpha=0，左滑 offset>0 → alpha=1 可见
                         .alpha(if (swipeOffset > 0f) 1f else 0f),
                 ) {
+                    // v1.142.6m 根因修复：fillMaxHeight 在 matchParentSize Box(Constraints 无界)内退化为内容高度(~24dp)
+                    // → 红色只有中间一条。改 Row fillMaxSize 撑满（已验证）+ Arrangement.End 右对齐，
+                    // 84dp Box 的 fillMaxHeight 在 Row 内获得明确约束 → 撑满整卡高度
                     Row(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(deleteBtnWidth)
-                            .align(Alignment.CenterEnd)
-                            .background(Color(0xFFFF5A52))
-                            .clickable(enabled = swipeOffset > 0f) {
-                                swipeOffset = 0f
-                                onDeleteClick?.invoke()
-                            },
-                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
-                        Icon(
-                            imageVector = MiuixIcons.Delete,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.action_delete),
-                            style = MiuixTheme.textStyles.body2,
-                            color = Color.White,
-                            modifier = Modifier.padding(start = 4.dp),
-                        )
+                        // 右侧 84dp 红色按钮区
+                        Box(
+                            modifier = Modifier
+                                .width(deleteBtnWidth)
+                                .fillMaxHeight()
+                                .background(Color(0xFFFF5A52))
+                                .clickable(enabled = swipeOffset > 0f) {
+                                    swipeOffset = 0f
+                                    onDeleteClick?.invoke()
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                // v1.142.6m 删除按钮加图标（MiuixIcons.Delete）
+                                Icon(
+                                    imageVector = MiuixIcons.Delete,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.action_delete),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // v1.142.6l 内容层不透明卡片背景（与 Card 同色）→ 平时盖住红色按钮区，左滑移开才跟手露出（GitHub 同款）
-                .background(MiuixTheme.colorScheme.surfaceContainer)
+                // v1.142.6m 修复(5th,真正根因)：background 必须在 graphicsLayer 内层！
+                // 此前 background 在 graphicsLayer 之前(外层) → 背景色块不被 translationX 平移
+                // → fillMaxWidth 白块永远盖住右侧红色按钮区（内容左移了但背景没移）→ 用户实测"滑动都是白色的"
                 .let { rowModifier ->
                     if (sortMode) {
                         rowModifier
@@ -572,6 +576,9 @@ internal fun RuleCard(
                 .padding(16.dp)
                 // v1.142.6h 左滑露出删除按钮：内容左移 swipeOffset，手势与点击/长按/垂直滚动天然区分
                 .graphicsLayer { translationX = -swipeOffset }
+                // v1.142.6l 内容层不透明卡片背景：必须在 graphicsLayer 内层才能跟随平移（跟手变色核心）
+                // 平时完全盖住红色按钮区，左滑内容+背景一起左移 → 右侧红色逐渐露出（露多少红多少，GitHub 同款）
+                .background(MiuixTheme.colorScheme.surfaceContainer)
                 .then(
                     if (swipeEnabled) {
                         // v1.142.6h 修复：pointerInput key 不能含 swipeOffset（每次偏移变化会重启手势协程，拖拽被不断打断）
@@ -602,8 +609,6 @@ internal fun RuleCard(
                                     change.consume()
                                     // 手指左滑 dragAmount<0 → swipeOffset 增大（内容左移露出右侧删除）
                                     swipeOffset = (swipeOffset - dragAmount).coerceIn(0f, deleteBtnPx * 1.6f)
-                                    // v1.142.6m 日志：拖动过程打印 offset（定位"滑动白色"根因）
-                                    HyperLog.i("左滑调试", "drag rule=${rule.name} offset=${swipeOffset.toInt()} enabled=$swipeEnabled")
                                 },
                             )
                         }
