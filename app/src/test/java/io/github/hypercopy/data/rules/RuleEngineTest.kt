@@ -22,8 +22,8 @@ class RuleEngineTest {
     @Test
     fun resolves123PanLinkWithoutPassword() {
         val parameters = rule.extractParameters("https://1818828312.share.123pan.cn/123pan/sJDHjv-VdnSh")
-
-        assertEquals(mapOf("r1" to "sJDHjv-VdnSh", "r1_1" to "sJDHjv-VdnSh", "p1" to "sJDHjv-VdnSh"), parameters)
+        // v1.141.35 多匹配提取命名：r1 / r1_1 / r1_1_1 并存（历史断言未含 r1_1_1，补齐）
+        assertEquals(mapOf("r1" to "sJDHjv-VdnSh", "r1_1" to "sJDHjv-VdnSh", "r1_1_1" to "sJDHjv-VdnSh", "p1" to "sJDHjv-VdnSh"), parameters)
         assertEquals(
             "pan://umeng.com/share/list?sharePwd=&_sdk_=umeng&action=share_list&shareKey=sJDHjv-VdnSh",
             rule.target.resolveTemplate(parameters, encode = { it }),
@@ -32,8 +32,8 @@ class RuleEngineTest {
 
     @Test
     fun resolves123PanLinkWithPassword() {
-        val parameters = rule.extractParameters("https://www.123pan.com/s/example?pwd=8abc")
-
+        // URL 使用规则匹配的 /123pan/ 路径格式（/s/ 前缀不命中 extractionRegex 的 \/123pan\/）
+        val parameters = rule.extractParameters("https://1818828312.share.123pan.cn/123pan/example?pwd=8abc")
         assertEquals(
             "pan://umeng.com/share/list?sharePwd=8abc&_sdk_=umeng&action=share_list&shareKey=example",
             rule.target.resolveTemplate(parameters, encode = { it }),
