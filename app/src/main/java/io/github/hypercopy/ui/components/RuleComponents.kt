@@ -536,8 +536,8 @@ internal fun RuleCard(
                             containerColor = cloudColor.copy(alpha = 0.12f),
                         )
                     } else if (isCustom) {
-                        // v1.139.1 自定义规则：绿色徽标
-                        val customColor = Color(0xFF16A34A)
+                        // v1.139.1 自定义规则：绿色徽标（v1.142.6c 深色模式可读性优化 0xFF16A34A→0xFF22C55E）
+                        val customColor = Color(0xFF22C55E)
                         RuleBadge(
                             text = stringResource(R.string.rule_custom_badge),
                             contentColor = customColor,
@@ -557,10 +557,11 @@ internal fun RuleCard(
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
+                    // v1.142.6c 动作文字改 onSurfaceVariant（灰）：避免与内置徽章 primary 蓝同色混淆，弱化第三优先级信息
                     Text(
                         text = stringResource(ruleActionLabelRes(rule)),
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.primary,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
                 if (hitCount > 0) {
