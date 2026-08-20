@@ -162,6 +162,7 @@
     <string name="action_share_short">分享</string>
     <string name="action_duplicate_rule">复制</string>
     <string name="action_import_json">导入 JSON</string>
+    <string name="editor_more_menu">更多</string>
     <string name="action_pick_app">选择</string>
     <string name="rule_toast_rule_copied">已创建副本（名称+副本）</string>
     <string name="rule_toast_import_editor">已从剪贴板导入规则</string>

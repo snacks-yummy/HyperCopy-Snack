@@ -726,10 +726,11 @@ private fun runShellSetup(
         val batteryOk = runShellCommand("dumpsys deviceidle whitelist +$pkg") ||
             runShellCommand("cmd deviceidle whitelist +$pkg")
         update(1, if (batteryOk) 2 else 3)
-        // ④ 后台弹出页面：HyperOS/MIUI 私有 op 10024（实测名字 ALLOW_START_ACTIVITY_FROM_BACKGROUND 不识别，
-        //    数字 code 有效：appops set pkg 10024 allow → MIUIOP(10024): allow）
+        // ④ 后台弹出页面：标准 op 10021（ALLOW_BACKGROUND_ACTIVITY_STARTS，实测 MIUIOP(10021) 生效）
+        //    + HyperOS/MIUI 私有 10024 双保险（10024 注释实测亦有效）
         update(2, 1)
-        val backgroundOk = runShellCommand("appops set $pkg 10024 allow")
+        val backgroundOk = runShellCommand("appops set $pkg 10021 allow") ||
+            runShellCommand("appops set $pkg 10024 allow")
         update(2, if (backgroundOk) 2 else 3)
         // ⑤ 自启动：MIUI 私有 op 10050（OP_AUTO_START）+ 10051（关联启动兜底）
         update(3, 1)
@@ -745,13 +746,18 @@ private fun runShellSetup(
 /** Shizuku shell 执行：成功=命令 exit 0（v1.75 修复：原实现不检查 exit code，
  *  把 appops 报错 Unknown operation 等失败也当成功 → 后台弹出/自启动"假成功"） */
 private fun runShellCommand(command: String): Boolean {
-    if (!ShizukuPermission.isGranted()) return false
+    if (!ShizukuPermission.isGranted()) {
+        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置跳过: Shizuku 未授权: $command")
+        return false
+    }
     return runCatching {
+        io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置执行: $command")
         val process = ShizukuProcess.start(arrayOf("sh", "-c", command)) ?: return false
         process.inputStream.bufferedReader().use { it.readText() }
         process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
         val ok = process.exitValue() == 0
         process.destroyForcibly()
+        if (!ok) io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置失败 exit!=0: $command")
         ok
     }.getOrDefault(false)
 }

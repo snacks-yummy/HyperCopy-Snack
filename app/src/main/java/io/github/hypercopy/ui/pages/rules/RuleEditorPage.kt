@@ -165,6 +165,8 @@ fun RuleEditorPage(
     var showManualInput by remember { mutableStateOf(false) }
     // v1.141.87u 已装应用选择器（包名点选，避免手输错误）
     var showAppPicker by remember { mutableStateOf(false) }
+    // v1.142.1 编辑页操作菜单（导出/分享/复制/删除收进「更多」，标题完整显示）
+    var showMoreMenu by remember { mutableStateOf(false) }
     val isLinkDirectOpen = category == RuleCategory.Link && actionMode == RuleActionMode.DirectOpen
     val isCategoryDirectAppOpen = category != RuleCategory.Link && openMode == CategoryOpenMode.DirectApp
     val isCategoryUrlOpen = category != RuleCategory.Link && openMode == CategoryOpenMode.Url
@@ -209,69 +211,12 @@ fun RuleEditorPage(
                         if (editingRule == null) R.string.editor_title_add else R.string.editor_title_edit,
                         stringResource(category.labelRes()),
                     ),
-                    style = MiuixTheme.textStyles.title2,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    style = MiuixTheme.textStyles.title1,
                     modifier = Modifier.weight(1f),
                 )
                 if (editingRule != null) {
-                    // v1.68 顶栏导出/分享改文字按钮（原 Forward 图标无法表达"导出"）
-                    TextButton(text = stringResource(R.string.action_export_short), onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(
-                                context.getString(R.string.action_export_rule),
-                                editingRule.toJson().toString(2),
-                            ),
-                        )
-                        Toast.makeText(context, R.string.rule_toast_exported, Toast.LENGTH_SHORT).show()
-                    })
-                    TextButton(text = stringResource(R.string.action_share_short), onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, githubRuleSubmissionUri(editingRule)))
-                    })
-                    // v1.141.87u 规则复制：用当前字段创建副本（新 id + 名称加"副本"），不影响原规则
-                    TextButton(text = stringResource(R.string.action_duplicate_rule), onClick = {
-                        if (triggerRegexes.none { it.isNotBlank() }) {
-                            Toast.makeText(context, R.string.rule_toast_trigger_required, Toast.LENGTH_SHORT).show()
-                            return@TextButton
-                        }
-                        val copy = RuleConfig(
-                            id = UUID.randomUUID().toString(),
-                            name = (name.ifBlank { context.getString(R.string.rule_unnamed) }) + " 副本",
-                            category = category,
-                            actionMode = actionMode,
-                            matchRegex = triggerRegexes.firstNonBlankOr(""),
-                            parameterRegex = if (usesExtraction) extractionRegexes.firstOrNull { it.isNotBlank() }.orEmpty() else "",
-                            triggerRegexes = triggerRegexes.filter { it.isNotBlank() },
-                            extractionRegexes = if (usesExtraction) extractionRegexes.filter { it.isNotBlank() } else emptyList(),
-                            parseAfterRedirect = parseAfterRedirect,
-                            clearClipboardAfterJump = clearClipboardAfterJump,
-                            priority = priorityText.toIntOrNull() ?: 0,
-                            group = group.trim(),
-                            excludeRegex = excludeRegex.trim(),
-                            regexOptions = regexOptions.trim(),
-                            sourcePackages = sourcePackages.trim(),
-                            activeTimeStart = activeTimeStart.trim(),
-                            activeTimeEnd = activeTimeEnd.trim(),
-                            notificationMode = ruleNotificationMode.ifBlank { null },
-                            matchAllTriggers = matchAllTriggers,
-                            delayMillis = delayMillisText.toIntOrNull()?.coerceIn(0, 5000) ?: 0,
-                            target = RuleTarget(
-                                type = if (targetTemplate.startsWith("intent://", true)) RuleTargetType.Intent else RuleTargetType.Url,
-                                template = if (usesTemplate) targetTemplate else "",
-                                packageName = packageName,
-                            ),
-                        )
-                        repository.saveRule(copy)
-                        io.github.hypercopy.UiActionLogger.ruleChanged("复制", copy.name, "源=" + editingRule.name)
-                        Toast.makeText(context, R.string.rule_toast_rule_copied, Toast.LENGTH_SHORT).show()
-                    })
-                    // v1.77 编辑页删除入口（破坏性操作，弹确认）
-                    TextButton(
-                        text = stringResource(R.string.action_delete),
-                        onClick = { showDeleteConfirm = true },
-                        colors = ButtonDefaults.textButtonColors(textColor = Color(0xFFFF5A52)),
-                    )
+                    // v1.142.1 操作按钮收进「更多」菜单（标题完整显示不再被按钮挤压省略）
+                    TextButton(text = stringResource(R.string.editor_more_menu), onClick = { showMoreMenu = true })
                 } else {
                     // v1.141.87u 新建模式：从剪贴板导入规则 JSON（一键填充所有字段）
                     TextButton(text = stringResource(R.string.action_import_json), onClick = {
@@ -981,6 +926,87 @@ fun RuleEditorPage(
                         }
                         .padding(vertical = 8.dp),
                     maxLines = 1,
+                )
+            }
+        }
+    }
+    // v1.142.1 编辑页「更多」菜单：导出/分享/复制/删除
+    WindowDialog(
+        title = stringResource(R.string.editor_more_menu),
+        summary = "",
+        show = showMoreMenu,
+        onDismissRequest = { showMoreMenu = false },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            val menuItems = listOf(
+                R.string.action_export_short,
+                R.string.action_share_short,
+                R.string.action_duplicate_rule,
+                R.string.action_delete,
+            )
+            menuItems.forEach { itemRes ->
+                Text(
+                    text = stringResource(itemRes),
+                    style = MiuixTheme.textStyles.body1,
+                    color = if (itemRes == R.string.action_delete) Color(0xFFFF5A52) else MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showMoreMenu = false
+                            when (itemRes) {
+                                R.string.action_export_short -> {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText(
+                                            context.getString(R.string.action_export_rule),
+                                            editingRule!!.toJson().toString(2),
+                                        ),
+                                    )
+                                    Toast.makeText(context, R.string.rule_toast_exported, Toast.LENGTH_SHORT).show()
+                                }
+                                R.string.action_share_short -> {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, githubRuleSubmissionUri(editingRule!!)))
+                                }
+                                R.string.action_duplicate_rule -> {
+                                    if (triggerRegexes.none { it.isNotBlank() }) {
+                                        Toast.makeText(context, R.string.rule_toast_trigger_required, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                    val copy = RuleConfig(
+                                        id = UUID.randomUUID().toString(),
+                                        name = (name.ifBlank { context.getString(R.string.rule_unnamed) }) + " 副本",
+                                        category = category,
+                                        actionMode = actionMode,
+                                        matchRegex = triggerRegexes.firstNonBlankOr(""),
+                                        parameterRegex = if (usesExtraction) extractionRegexes.firstOrNull { it.isNotBlank() }.orEmpty() else "",
+                                        triggerRegexes = triggerRegexes.filter { it.isNotBlank() },
+                                        extractionRegexes = if (usesExtraction) extractionRegexes.filter { it.isNotBlank() } else emptyList(),
+                                        parseAfterRedirect = parseAfterRedirect,
+                                        clearClipboardAfterJump = clearClipboardAfterJump,
+                                        priority = priorityText.toIntOrNull() ?: 0,
+                                        group = group.trim(),
+                                        excludeRegex = excludeRegex.trim(),
+                                        regexOptions = regexOptions.trim(),
+                                        sourcePackages = sourcePackages.trim(),
+                                        activeTimeStart = activeTimeStart.trim(),
+                                        activeTimeEnd = activeTimeEnd.trim(),
+                                        notificationMode = ruleNotificationMode.ifBlank { null },
+                                        matchAllTriggers = matchAllTriggers,
+                                        delayMillis = delayMillisText.toIntOrNull()?.coerceIn(0, 5000) ?: 0,
+                                        target = RuleTarget(
+                                            type = if (targetTemplate.startsWith("intent://", true)) RuleTargetType.Intent else RuleTargetType.Url,
+                                            template = if (usesTemplate) targetTemplate else "",
+                                            packageName = packageName,
+                                        ),
+                                    )
+                                    repository.saveRule(copy)
+                                    io.github.hypercopy.UiActionLogger.ruleChanged("复制", copy.name, "源=" + editingRule!!.name)
+                                    Toast.makeText(context, R.string.rule_toast_rule_copied, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                R.string.action_delete -> showDeleteConfirm = true
+                            }
+                        }
+                        .padding(vertical = 10.dp),
                 )
             }
         }
