@@ -771,6 +771,8 @@ object ClipboardTextHandler {
         } else {
             title = when {
                 effectiveContent.isBlank() -> platform.takeIf { it.isNotBlank() } ?: rule.name
+                // v1.142.2 QQ邮箱类：template 已渲染完整「平台：码」（如 Zhipu：051164）→ 直接用，避免 label 前缀「验证码：」重复
+                effectiveContent.contains("：") -> effectiveContent
                 platform.isNotBlank() && label.isNotBlank() -> "$platform$label：$effectiveContent"
                 platform.isNotBlank() -> "$platform：$effectiveContent"
                 label.isNotBlank() -> "$label：$effectiveContent"
