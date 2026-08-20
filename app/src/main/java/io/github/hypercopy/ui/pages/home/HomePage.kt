@@ -103,6 +103,15 @@ fun HomePage(
     val settingsRepository = remember { SettingsRepository(context) }
     var onboardingDone by remember { mutableStateOf(settingsRepository.readOnboardingDone()) }
     var showSetupDialog by remember { mutableStateOf(false) }
+    // v1.144.5 权限完备感知：全部权限就绪时隐藏一键配置入口（已有权限不再显示可配置）
+    var setupComplete by remember { mutableStateOf(false) }
+    fun refreshSetupComplete() {
+        val h = Handler(Looper.getMainLooper())
+        thread(name = "HyperCopySetupCheck") {
+            val complete = isPermissionsComplete(context)
+            h.post { setupComplete = complete }
+        }
+    }
     // v1.142.1g/h 配置项动态化（按系统适配）：0=待执行 1=配置中 2=已完成 3=失败
     val systemProfile = remember { detectSystemProfile().also { io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置系统识别: ${it.family} | ${it.romLabel}") } }
     val setupItems = remember { buildSetupItems(systemProfile) }
@@ -114,6 +123,11 @@ fun HomePage(
         showSetupDialog = false
     }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    // v1.144.5 初始检查延迟 3s（避开启动自愈并发写入，避免误判），配置完成后立即刷新
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(3000)
+        refreshSetupComplete()
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -132,6 +146,8 @@ fun HomePage(
             setupRunning = false
             settingsRepository.writeOnboardingDone()
             onboardingDone = true
+            // v1.144.5 配置完成后刷新权限完备状态（全齐则隐藏入口）
+            refreshSetupComplete()
             Toast.makeText(context, R.string.setup_done_toast, Toast.LENGTH_SHORT).show()
         }
         // ① Shizuku 授权（未授权弹系统确认框，回调后继续）
@@ -193,7 +209,11 @@ fun HomePage(
 
     DisposableEffect(lifecycleOwner, clipboardMonitorMode) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) refreshPermissionStatus(requestCurrentModePermission = false)
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshPermissionStatus(requestCurrentModePermission = false)
+                // v1.144.5 返回主页时刷新权限完备状态（用户可能在系统设置里手动改了权限）
+                refreshSetupComplete()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -217,9 +237,12 @@ fun HomePage(
                 hitCount = totalHitCount,
             )
         }
-        // v1.74 新装一键配置卡片 —— v1.144.3 常驻化：一级菜单（主页）常驻入口，替代设置页 rerun 入口（权限被重置后可随时重跑）
-        item {
-            SetupCard(onSetupClick = { showSetupDialog = true })
+        // v1.74 新装一键配置卡片 —— v1.144.3 常驻化（一级菜单入口，替代设置页 rerun 入口）
+        // v1.144.5 权限完备感知：全部权限就绪时隐藏（已有权限不再显示可配置入口）
+        if (!setupComplete) {
+            item {
+                SetupCard(onSetupClick = { showSetupDialog = true })
+            }
         }
         item {
             MonitorModeCard(
@@ -695,6 +718,36 @@ private fun SetupStatusRow(title: String, state: Int) {
             },
         )
     }
+}
+
+/**
+ * v1.144.5 权限完备检查（主页一键配置入口显隐）：
+ * 通知 granted + Shizuku 授权 + 12 项 shell 状态（appops/白名单/miui 双写）全齐 → true。
+ * 后台线程调用（PrivilegedShell 阻塞）；任一查询失败即视为不完备。
+ */
+private fun isPermissionsComplete(context: Context): Boolean {
+    val pkg = context.packageName
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+    ) return false
+    if (!ShizukuPermission.isGranted()) return false
+    val settings = io.github.hypercopy.data.settings.SettingsRepository(context)
+    fun ok(query: String, contains: String? = null): Boolean {
+        val r = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(settings, query)
+        return r.exitCode == 0 && (contains == null || r.output.contains(contains))
+    }
+    return ok("dumpsys deviceidle whitelist | grep -q $pkg") &&
+        ok("appops get $pkg 10021", "allow") &&
+        ok("appops get $pkg 10050", "allow") &&
+        ok("appops get $pkg 10045", "allow") &&
+        ok("appops get $pkg 10004", "allow") &&
+        ok("appops get $pkg 10008", "allow") &&
+        ok("appops get $pkg 10017", "allow") &&
+        ok("appops get $pkg 10020", "allow") &&
+        ok("appops get $pkg 10053", "allow") &&
+        ok("appops get $pkg 10022", "foreground") &&
+        ok("settings get system miui_power_save_whitelist", pkg) &&
+        ok("settings get secure miui_power_save_whitelist", pkg)
 }
 
 /** ② 通知权限：Shizuku 已授权时静默授予（无系统弹窗）；否则弹系统授权框；已授予直接进入 shell 配置 */
