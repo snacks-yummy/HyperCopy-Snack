@@ -405,6 +405,8 @@ class RuleRepository(private val context: Context) {
         // v1.9-v1.44 的 assets 名为"淘口令(新旧格式)"，用户要求回到最初的"淘口令"（旧名+旧正则）；
         // 仅执行一次（prefs 标记），且仅当用户未手动改名（name 仍含"新旧格式"）时回滚
         migrateLegacyKouLing()
+        // v1.142.2 QQ邮箱仅通知规则升级迁移（本地旧版不自动覆盖，显式迁移到「平台：验证码」版）
+        migrateQqmailNotifyV1422()
         val builtin = BuiltinRules.loadAll(context)
         if (builtin.isEmpty()) return
         val current = readRules()
@@ -431,13 +433,20 @@ class RuleRepository(private val context: Context) {
 
         // 3) 组装：缺失普通内置 + 现有规则（移除浏览器） + 浏览器兜底（末尾）
         val newList = missingNormal + rest + listOfNotNull(browserFinal)
+        // v1.142.2 QQ邮箱验证码仅通知规则：二改自维护，本地内容与 assets 不一致时强制对齐
+        // （覆盖 v1.43「不覆盖已存在内置」——该规则为本次需求新增，无用户历史编辑）
+        val qqmailId = "${BuiltinRules.ID_PREFIX}cloud_text_QQ邮箱验证码仅通知"
+        val qqmailAsset = builtin.firstOrNull { it.id == qqmailId }
+        val alignedList = newList.map { rule ->
+            if (rule.id == qqmailId && qqmailAsset != null && !rule.sameContentAs(qqmailAsset)) qqmailAsset else rule
+        }
 
         // 无变化则不写盘（id 顺序一致 + 内容一致）
-        if (newList.map { it.id } == current.map { it.id }) {
-            val contentSame = newList.zip(current).all { (a, b) -> a.sameContentAs(b) }
+        if (alignedList.map { it.id } == current.map { it.id }) {
+            val contentSame = alignedList.zip(current).all { (a, b) -> a.sameContentAs(b) }
             if (contentSame) return
         }
-        persistRules(newList)
+        persistRules(alignedList)
     }
         /**
      * v1.141.81 幂等迁移：外卖取件通知规则正则完善（对齐 assets 权威版）。
@@ -473,6 +482,28 @@ class RuleRepository(private val context: Context) {
         if (changed) {
             persistRules(migrated)
             HyperLog.d(TAG, "v1.141.81 migrate waimai notify: cabinet/code variants applied")
+        }
+    }
+    /**
+     * v1.142.2 幂等迁移：QQ邮箱验证码仅通知规则升级（模板 QQ邮箱 ${r1} → ${r1}：${r2}，
+     * 平台提取加署名品牌分支 → 通知「智谱：051164」）。
+     * 背景：v1.43 内置不自动覆盖 → 本地旧版需显式迁移。
+     * 幂等：本地 extractionRegexes[0] 含「开放平台」特征（即已含署名品牌分支）则视为已更新，跳过。
+     */
+    private fun migrateQqmailNotifyV1422() {
+        val targetId = "${BuiltinRules.ID_PREFIX}cloud_text_QQ邮箱验证码仅通知"
+        // 用 BuiltinRules.loadAll 拿 assets 权威版（与 ensureBuiltinRules 同源，避免中文文件名 open 差异）
+        val asset = runCatching { BuiltinRules.loadAll(context).firstOrNull { it.id == targetId } }.getOrNull() ?: return
+        var changed = false
+        val migrated = readRules().map { rule ->
+            if (rule.id == targetId && !rule.sameContentAs(asset)) {
+                changed = true
+                asset
+            } else rule
+        }
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.142.2 migrate qqmail notify: platform:code template applied")
         }
     }
 
