@@ -147,7 +147,11 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppScreen(
                         colorMode = colorMode,
-                        onColorModeChange = { colorMode = it },
+                        // v1.142.6f 修复主题自动变暗：持久化 colorMode——此前只更新内存，ON_RESUME 用存储旧值覆盖（选浅色/跟随后被切回暗色）
+                        onColorModeChange = {
+                            colorMode = it
+                            settingsRepository.persistColorMode(it.value)
+                        },
                         onAppLanguageChange = { appLanguage = it },
                     )
                 }
