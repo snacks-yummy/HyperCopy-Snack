@@ -506,18 +506,19 @@ internal fun RuleCard(
                 modifier = Modifier.padding(end = 12.dp),
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // v1.142.6 名称满宽独占一行（徽章全部移至动作行，彻底解决徽章挤压名称截断）
+                Text(
+                    text = rule.name,
+                    style = MiuixTheme.textStyles.headline1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // v1.142.6 来源徽章 + 场景组徽章 + 动作标签合并一行（后续新增徽章自动落入此行，不挤压名称）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text(
-                        text = rule.name,
-                        style = MiuixTheme.textStyles.headline1,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        // v1.127b 名称占剩余空间收缩（防多徽标挤压名称溢出）
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
                     if (isBuiltin) {
                         Text(
                             text = stringResource(R.string.rule_builtin_badge),
@@ -559,21 +560,6 @@ internal fun RuleCard(
                                 .padding(horizontal = 4.dp, vertical = 1.dp),
                         )
                     }
-                    // v1.126 跳转方式徽标：⚡Scheme直达 / 🔗包名(首页) / 🌐网页
-                    val jumpBadge = jumpModeBadge(rule)
-                    if (jumpBadge != null) {
-                        Text(
-                            text = jumpBadge.first,
-                            style = MiuixTheme.textStyles.body2,
-                            color = jumpBadge.second,
-                            modifier = Modifier
-                                .background(
-                                    color = jumpBadge.second.copy(alpha = 0.10f),
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                        )
-                    }
                     if (rule.group.isNotBlank()) {
                         Text(
                             text = rule.group,
@@ -587,12 +573,12 @@ internal fun RuleCard(
                                 .padding(horizontal = 4.dp, vertical = 1.dp),
                         )
                     }
+                    Text(
+                        text = stringResource(ruleActionLabelRes(rule)),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.primary,
+                    )
                 }
-                Text(
-                    text = stringResource(ruleActionLabelRes(rule)),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.primary,
-                )
                 if (hitCount > 0) {
                     Text(
                         text = stringResource(R.string.rule_hit_count, hitCount),
