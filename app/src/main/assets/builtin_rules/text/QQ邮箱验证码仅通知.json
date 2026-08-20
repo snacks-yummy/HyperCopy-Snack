@@ -1,0 +1,22 @@
+{
+  "name": "QQ邮箱验证码仅通知",
+  "category": "text",
+  "enabled": true,
+  "actionMode": "notify_only",
+  "priority": 200,
+  "matchRegex": "(?:验证码|校验码|动态码|动态密码|认证码|确认码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|登录码|支付码|注册码|解锁码|应急码|邮件|邮箱|【QQ邮箱】)",
+  "parameterRegex": "",
+  "triggerRegexes": [],
+  "extractionRegexes": [
+    "(?:验证码|校验码|动态码|动态密码|认证码|确认码|激活码|授权码|绑定码|换绑码|设备码|一次性密码|安全码|登录码|支付码|注册码|解锁码|应急码)(?:是|为)?[:：]?\\s*(\\d{4,8})"
+  ],
+  "parseAfterRedirect": false,
+  "clearClipboardAfterJump": false,
+  "sourcePackages": "com.tencent.androidqqmail",
+  "target": {
+    "type": "url",
+    "template": "QQ邮箱 ${r1}",
+    "packageName": "",
+    "action": "android.intent.action.VIEW"
+  }
+}
