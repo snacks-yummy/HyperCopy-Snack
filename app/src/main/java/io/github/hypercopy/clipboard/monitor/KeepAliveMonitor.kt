@@ -140,7 +140,8 @@ object KeepAliveMonitor {
             "cmd appops set $pkg RUN_IN_BACKGROUND allow",
             "cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow",
             "cmd appops set $pkg START_FOREGROUND allow",
-            "cmd appops set $pkg POST_NOTIFICATION allow",
+            // v1.144.4 HyperOS3 实测 appops set POST_NOTIFICATION 被静默忽略（exit0 不生效）→ 改 pm grant（标准通道，立即生效）
+            "pm grant $pkg android.permission.POST_NOTIFICATIONS",
             "cmd appops set $pkg WAKE_LOCK allow",
             "am set-inactive $pkg false",
             "am set-standby-bucket $pkg active",

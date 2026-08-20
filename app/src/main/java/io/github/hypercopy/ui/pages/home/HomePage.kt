@@ -722,8 +722,11 @@ private fun requestNotificationSetup(
 
 /**
  * v1.144.3 通知权限静默授予（一键配置/模式切换/通知开关共用）：
- * Shizuku 已授权 → PrivilegedShell 静默 appops set POST_NOTIFICATION allow（无系统弹窗）；
- * 已授予或 < Android 13 直接成功；Shizuku 未授权或系统静默忽略（set 后仍未授予）→ false，调用方回退系统弹窗。
+ * Shizuku 已授权 → PrivilegedShell 静默授予（无系统弹窗）；
+ * 已授予或 < Android 13 直接成功；Shizuku 未授权或授予失败 → false，调用方回退系统弹窗。
+ *
+ * v1.144.4 通道修正：HyperOS 3 实测 `appops set POST_NOTIFICATION` 被系统静默忽略（exit 0 但权限不生效）
+ * → 改用 `pm grant`（runtime permission 标准通道，实测立即生效且 appop 联动，无弹窗）。
  */
 internal fun tryGrantNotificationSilently(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
@@ -731,7 +734,7 @@ internal fun tryGrantNotificationSilently(context: Context): Boolean {
     if (!ShizukuPermission.isGranted()) return false
     val result = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(
         io.github.hypercopy.data.settings.SettingsRepository(context),
-        "cmd appops set ${context.packageName} POST_NOTIFICATION allow",
+        "pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS",
     )
     if (result.exitCode != 0) {
         io.github.hypercopy.HyperLog.d("HyperCopy", "通知权限静默授予失败 exit=${result.exitCode}: ${result.output.take(120)}")
