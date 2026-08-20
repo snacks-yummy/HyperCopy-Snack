@@ -16,8 +16,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -31,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.hypercopy.R
 import io.github.hypercopy.Config
@@ -44,6 +49,8 @@ import io.github.hypercopy.data.rules.RuleRepository
 import io.github.hypercopy.data.rules.RulePatterns
 import io.github.hypercopy.data.rules.RuleTarget
 import io.github.hypercopy.data.rules.RuleTargetType
+import io.github.hypercopy.ui.components.HyperSearchBar
+import io.github.hypercopy.ui.components.PackageIcon
 import io.github.hypercopy.data.rules.cachedRegex
 import io.github.hypercopy.data.rules.extractionPatterns
 import io.github.hypercopy.data.rules.parseIntent
@@ -902,7 +909,7 @@ fun RuleEditorPage(
             }
         }
     }
-// v1.141.87u 已装应用选择器（Link 分类包名点选）
+    // v1.142.7a 已装应用选择器增强：搜索 + 图标 + 卡片列表 + 选中高亮（参考 AppListPage/LinkSheet 规格）
     WindowDialog(
         title = stringResource(R.string.editor_pick_app_title),
         summary = stringResource(R.string.editor_pick_app_title),
@@ -912,27 +919,105 @@ fun RuleEditorPage(
         val launchIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val apps = remember {
             context.packageManager.queryIntentActivities(launchIntent, 0)
-                .sortedBy { it.loadLabel(context.packageManager).toString() }
+                .map { info ->
+                    AppPickerEntry(
+                        label = info.loadLabel(context.packageManager).toString(),
+                        packageName = info.activityInfo.packageName,
+                    )
+                }
+                .distinctBy { it.packageName }
+                .sortedBy { it.label.lowercase() }
+        }
+        var searchQuery by remember { mutableStateOf("") }
+        val filteredApps = remember(apps, searchQuery) {
+            val query = searchQuery.trim()
+            if (query.isEmpty()) {
+                apps
+            } else {
+                apps.filter {
+                    it.label.contains(query, ignoreCase = true) ||
+                        it.packageName.contains(query, ignoreCase = true)
+                }
+            }
         }
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            apps.forEach { info ->
-                val label = info.loadLabel(context.packageManager).toString()
+            HyperSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                label = stringResource(R.string.app_list_search_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (filteredApps.isEmpty()) {
                 Text(
-                    text = "$label  ·  ${info.activityInfo.packageName}",
+                    text = stringResource(R.string.app_list_empty),
                     style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            packageName = info.activityInfo.packageName
-                            if (name.isBlank()) name = label
-                            showAppPicker = false
-                        }
-                        .padding(vertical = 8.dp),
-                    maxLines = 1,
+                        .padding(vertical = 16.dp),
                 )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    items(filteredApps, key = { it.packageName }) { entry ->
+                        val selected = entry.packageName == packageName
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    packageName = entry.packageName
+                                    if (name.isBlank()) name = entry.label
+                                    showAppPicker = false
+                                }
+                                .padding(horizontal = 4.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PackageIcon(
+                                packageName = entry.packageName,
+                                modifier = Modifier.size(36.dp),
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 12.dp),
+                            ) {
+                                Text(
+                                    text = entry.label,
+                                    style = MiuixTheme.textStyles.body1,
+                                    color = if (selected) {
+                                        MiuixTheme.colorScheme.primary
+                                    } else {
+                                        MiuixTheme.colorScheme.onSurface
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = entry.packageName,
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (selected) {
+                                Text(
+                                    text = "✓",
+                                    style = MiuixTheme.textStyles.body1,
+                                    color = MiuixTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1486,4 +1571,11 @@ private fun editorNotificationModeOptions(): List<Pair<Int, String>> = listOf(
     R.string.notif_live to io.github.hypercopy.Config.JUMP_NOTIFICATION_MODE_LIVE,
     R.string.notif_miui_island to io.github.hypercopy.Config.JUMP_NOTIFICATION_MODE_MIUI_ISLAND,
     R.string.notif_none_direct to io.github.hypercopy.Config.JUMP_NOTIFICATION_MODE_NONE,
+)
+/**
+ * v1.142.7a 应用选择器条目（label + 包名，供搜索/列表展示）
+ */
+private data class AppPickerEntry(
+    val label: String,
+    val packageName: String,
 )
