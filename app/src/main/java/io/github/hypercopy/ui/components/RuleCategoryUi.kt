@@ -43,8 +43,15 @@ internal val MY_BUILTIN_RULE_IDS: Set<String> = setOf(
     "builtin_cloud_text_短信验证码提取",
     // text: 用户需求深度修改（v1.85快递直达/v1.101单号校验/v1.125重构19家/v1.136圆通YT修复）
     "builtin_cloud_text_快递单号菜鸟查件_com.cainiao.wireless",
+    // text: v1.141.87 系列深度二改（外卖方案C/地址去城市名/柜位精简/岛内content分离）
+    "builtin_cloud_text_外卖取件通知",
     // link: v1.132 用户需求新增：微信视频号链接 → 便捷下载 App
     "builtin_cloud_link_微信视频号下载_com.lcw.easydownload",
+    // link: 二改项目自研/二改版（v1.141.87 确认归类）：美团小程序/淘宝口令/淘宝链接/闲鱼链接
+    "builtin_cloud_link_takeout_jump",
+    "builtin_cloud_link_淘宝口令",
+    "builtin_cloud_link_淘宝链接",
+    "builtin_cloud_link_闲鱼链接",
 )
 
 /**
