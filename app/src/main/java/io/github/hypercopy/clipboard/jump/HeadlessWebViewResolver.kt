@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -129,6 +130,13 @@ object HeadlessWebViewResolver {
                         // 页面加载完再执行"打开/跳转"JS 点击（peisong 页关键：页面自身也会自动 location.href 拉 scheme，此处双保险）
                         view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
                     }
+
+                    // v1.145.0 渲染进程崩溃兜底：默认行为是杀主进程（闪退→监听/无障碍全停→跳转中断）。
+                    // 覆写自行处理：僵尸实例销毁+清缓存（防复用再次崩溃），回退系统 Intent 打开原始 URL，跳转不中断。
+                    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                        handleRenderProcessGone(view)
+                        return true
+                    }
                 }
             }
             webView = view
@@ -154,6 +162,19 @@ object HeadlessWebViewResolver {
         private fun fallback() {
             if (finished) return
             finishWithLaunch(url, packageName)
+        }
+
+        // v1.145.0 渲染进程崩溃处理（Resolver 级方法，匿名 WebViewClient 内调用，与 fallback 同模式）
+        private fun handleRenderProcessGone(view: WebView) {
+            HyperLog.w(TAG, "webview render process gone: view=$view")
+            synchronized(this@HeadlessWebViewResolver) {
+                if (cachedWebView === view) {
+                    cachedWebView = null
+                    cachedWebViewBusy = false
+                }
+            }
+            finishWithLaunch(url, packageName)
+            view.destroy()
         }
 
         private fun finishWithLaunch(targetUrl: String, targetPackageName: String) {
