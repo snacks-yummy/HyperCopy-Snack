@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -498,25 +500,25 @@ internal fun RuleCard(
             .graphicsLayer { translationY = dragOffsetY },
     ) {
         Box {
-            // v1.142.6h 左滑删除背景层：内容左移后右侧露出，点击=弹删除确认
-            // v1.142.6j 修复：背景层必须 swipeOffset>0 才渲染——此前无条件显示 + matchParentSize 撑满整卡
-            // + 内容 Row 透明背景 → 所有卡片平时就全红（用户实测截图确认）
+            // v1.142.6j 修复：左滑删除按钮应为「右侧固定宽度红色按钮区」（iOS 风格），
+            // 不是整卡变红——此前 matchParentSize 整卡红 + 内容 Row 透明 → 左滑时整卡变红（用户截图确认）
             if (swipeEnabled && swipeOffset > 0f) {
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
+                        .fillMaxHeight()
+                        .width(deleteBtnWidth)
+                        .align(Alignment.CenterEnd)
                         .background(Color(0xFFFF5A52))
                         .clickable(enabled = swipeOffset > 0f) {
                             swipeOffset = 0f
                             onDeleteClick?.invoke()
                         },
-                    contentAlignment = Alignment.CenterEnd,
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = stringResource(R.string.action_delete),
                         style = MiuixTheme.textStyles.body2,
                         color = Color.White,
-                        modifier = Modifier.padding(end = 20.dp),
                     )
                 }
             }
