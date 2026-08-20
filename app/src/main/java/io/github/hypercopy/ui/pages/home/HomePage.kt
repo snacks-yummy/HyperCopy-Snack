@@ -217,17 +217,9 @@ fun HomePage(
                 hitCount = totalHitCount,
             )
         }
-        // v1.74 新装一键配置卡片（配置完成或稍后后消失）
-        if (!onboardingDone) {
-            item {
-                SetupCard(
-                    onSetupClick = { showSetupDialog = true },
-                    onLaterClick = {
-                        settingsRepository.writeOnboardingDone()
-                        onboardingDone = true
-                    },
-                )
-            }
+        // v1.74 新装一键配置卡片 —— v1.144.3 常驻化：一级菜单（主页）常驻入口，替代设置页 rerun 入口（权限被重置后可随时重跑）
+        item {
+            SetupCard(onSetupClick = { showSetupDialog = true })
         }
         item {
             MonitorModeCard(
@@ -653,9 +645,9 @@ private const val FORK_URL = "https://github.com/snacks-yummy/HyperCopy-snack"
 
 // ===== v1.74 新装一键配置 =====
 
-/** 一键配置卡片：新装首次显示（配置完成或稍后再见） */
+/** 一键配置卡片：v1.144.3 常驻（一级菜单入口，替代设置页 rerun；点击打开配置弹窗） */
 @Composable
-private fun SetupCard(onSetupClick: () -> Unit, onLaterClick: () -> Unit) {
+private fun SetupCard(onSetupClick: () -> Unit) {
     Card {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = stringResource(R.string.setup_card_title), style = MiuixTheme.textStyles.headline1)
@@ -665,11 +657,6 @@ private fun SetupCard(onSetupClick: () -> Unit, onLaterClick: () -> Unit) {
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                TextButton(
-                    text = stringResource(R.string.setup_card_later),
-                    onClick = onLaterClick,
-                    modifier = Modifier.weight(1f),
-                )
                 TextButton(
                     text = stringResource(R.string.setup_card_action),
                     onClick = onSetupClick,
@@ -710,7 +697,7 @@ private fun SetupStatusRow(title: String, state: Int) {
     }
 }
 
-/** ② 通知权限：Android 13+ 未授予时弹系统授权框；否则直接进入 shell 配置 */
+/** ② 通知权限：Shizuku 已授权时静默授予（无系统弹窗）；否则弹系统授权框；已授予直接进入 shell 配置 */
 private fun requestNotificationSetup(
     context: Context,
     launcher: androidx.activity.result.ActivityResultLauncher<String>,
@@ -720,9 +707,8 @@ private fun requestNotificationSetup(
 ) {
     val idx = items.indexOfFirst { it.kind == SetupKind.NOTIFICATION }
     states[idx] = 1
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    ) {
+    // v1.144.3 静默授予优先（Shizuku 已授权时 appops set，无系统弹窗；系统忽略则回退弹窗）
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || tryGrantNotificationSilently(context)) {
         states[idx] = 2
         runShellSetup(context, Handler(Looper.getMainLooper()), states, items, onDone)
         return
@@ -732,6 +718,26 @@ private fun requestNotificationSetup(
             states[idx] = 3
             runShellSetup(context, Handler(Looper.getMainLooper()), states, items, onDone)
         }
+}
+
+/**
+ * v1.144.3 通知权限静默授予（一键配置/模式切换/通知开关共用）：
+ * Shizuku 已授权 → PrivilegedShell 静默 appops set POST_NOTIFICATION allow（无系统弹窗）；
+ * 已授予或 < Android 13 直接成功；Shizuku 未授权或系统静默忽略（set 后仍未授予）→ false，调用方回退系统弹窗。
+ */
+internal fun tryGrantNotificationSilently(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) return true
+    if (!ShizukuPermission.isGranted()) return false
+    val result = io.github.hypercopy.clipboard.privileged.PrivilegedShell.run(
+        io.github.hypercopy.data.settings.SettingsRepository(context),
+        "cmd appops set ${context.packageName} POST_NOTIFICATION allow",
+    )
+    if (result.exitCode != 0) {
+        io.github.hypercopy.HyperLog.d("HyperCopy", "通知权限静默授予失败 exit=${result.exitCode}: ${result.output.take(120)}")
+        return false
+    }
+    return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
 }
 
 /** ③④⑤⑥ 省电无限制 + 后台弹出页面 + 自启动 + 获取应用列表：Shizuku shell 静默执行（后台线程），

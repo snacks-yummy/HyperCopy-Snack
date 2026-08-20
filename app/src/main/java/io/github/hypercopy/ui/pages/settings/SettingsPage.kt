@@ -246,20 +246,7 @@ fun SettingsPage(
                                             Toast.makeText(context, R.string.keep_alive_self_heal_done, Toast.LENGTH_SHORT).show()
                                         },
                                     )
-                                    SettingsActionWithArrow(
-                                        icon = MiuixIcons.Unpin,
-                                        title = stringResource(R.string.keep_alive_battery),
-                                        summary = stringResource(R.string.keep_alive_battery_summary),
-                                        onClick = {
-                                            runCatching {
-                                                val intent = android.content.Intent(
-                                                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                                    android.net.Uri.parse("package:${context.packageName}"),
-                                                )
-                                                context.startActivity(intent)
-                                            }
-                                        },
-                                    )
+                                    // v1.144.3 移除「电池优化白名单」手动项：一键配置/自愈已覆盖（deviceidle + miui_power_save_whitelist 双写），避免重复入口
                                     SettingsActionWithArrow(
                                         icon = MiuixIcons.AppRecording,
                                         title = stringResource(R.string.keep_alive_app_detail),
@@ -455,22 +442,6 @@ fun SettingsPage(
                                         title = stringResource(R.string.app_list),
                                         summary = stringResource(R.string.app_list_summary),
                                         onClick = onOpenAppList,
-                                    )
-                                    // v1.77 一键配置再次入口（权限被系统重置后可重跑）
-                                    SettingsActionWithArrow(
-                                        icon = MiuixIcons.Tune,
-                                        title = stringResource(R.string.settings_rerun_setup),
-                                        summary = stringResource(R.string.settings_rerun_setup_summary),
-                                        onClick = {
-                                            SettingsRepository(context).resetOnboardingDone()
-                                            Toast.makeText(context, R.string.settings_rerun_setup_done, Toast.LENGTH_SHORT).show()
-                                            runCatching {
-                                                context.startActivity(
-                                                    android.content.Intent(context, io.github.hypercopy.ui.framework.MainActivity::class.java)
-                                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                                                )
-                                            }
-                                        },
                                     )
                     }
                     }

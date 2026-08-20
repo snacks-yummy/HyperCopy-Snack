@@ -54,6 +54,8 @@ import io.github.hypercopy.ui.activities.AppListActivity
 import io.github.hypercopy.ui.activities.ThemeSettingsActivity
 import io.github.hypercopy.ui.pages.cloudrules.CloudRulesPage
 import io.github.hypercopy.ui.pages.home.HomePage
+// v1.144.3 通知权限静默授予（Shizuku 已授权时无系统弹窗）
+import io.github.hypercopy.ui.pages.home.tryGrantNotificationSilently
 import io.github.hypercopy.ui.pages.rules.RulesPage
 import io.github.hypercopy.ui.components.RulePageCategory
 import io.github.hypercopy.ui.pages.settings.SettingsPage
@@ -286,9 +288,10 @@ fun AppScreen(
                                 onClipboardMonitorModeChange = {
                                     clipboardMonitorMode = it
                                     settingsRepository.persistClipboardMonitorMode(it.value)
+                                    // v1.144.3 切换 Shizuku 模式时通知权限静默授予优先（无系统弹窗），Shizuku 未授权才回退系统弹窗
                                     if (it == ClipboardMonitorMode.Shizuku &&
                                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                                        !tryGrantNotificationSilently(context)
                                     ) {
                                         shizukuNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     } else {
@@ -552,7 +555,8 @@ fun AppScreen(
                                     jumpNotificationMode = it
                                     settingsRepository.persistJumpNotificationMode(it.value)
                                     io.github.hypercopy.UiActionLogger.option("跳转通知方式", it.toString())
-                                    if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    // v1.144.3 通知权限静默授予优先（无系统弹窗），Shizuku 未授权才回退系统弹窗
+                                    if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !tryGrantNotificationSilently(context)) {
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                 },
@@ -560,7 +564,8 @@ fun AppScreen(
                                     textNotificationMode = it
                                     settingsRepository.persistTextNotificationMode(it.value)
                                     io.github.hypercopy.UiActionLogger.option("文本通知方式", it.toString())
-                                    if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    // v1.144.3 通知权限静默授予优先（无系统弹窗），Shizuku 未授权才回退系统弹窗
+                                    if (it != JumpNotificationMode.None && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !tryGrantNotificationSilently(context)) {
                                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                 },
