@@ -31,7 +31,7 @@ object HyperLog {
     private val buffer = ArrayDeque<LogEntry>()
     // v1.141.9 落盘日志：镜像到 Via 文件夹/HyperCopy_logs/hypercopy.log，便于外部/工具直接读取运行日志（免前台抓取）
     // v1.141.56 从 Download/HyperCopy 迁移到 Via 绑定文件夹（工作区根目录）下，统一日志目录
-    private const val LOG_DIR = "HyperCopy_logs"
+    private const val LOG_DIR = "logs"
     private const val LOG_FILE = "hypercopy.log"
     private const val MAX_FILE_BYTES = 2 * 1024 * 1024 // 2MB 超限轮转归档（v1.141.38 前为直接清空）
     private const val MAX_LINE_CHARS = 2000             // v1.141.38 单行日志最大字符（防超长文本撑爆文件）
@@ -42,78 +42,28 @@ object HyperLog {
     }
     @Volatile
     private var logFile: java.io.File? = null
-
-    /** v1.141.57 双写兜底：Via 文件夹主写 + Download 镜像，保证日志永不丢失 */
+    /** v1.142.7b 单写外部私有目录：Android/data/io.github.hypercopy/files/logs/（无需任何授权，卸载自动清除） */
     @Volatile
     private var logFiles: List<java.io.File> = emptyList()
-
     fun init(context: Context) {
         this.context = context.applicationContext
         initLogFile(context.applicationContext)
     }
     private fun initLogFile(ctx: Context) {
         runCatching {
-            val targets = mutableListOf<java.io.File>()
-            // v1.141.56 主写 Via 绑定文件夹内 HyperCopy_logs（用户可直接读取，测试便利）
-            val viaDir = File(File("/storage/emulated/0/Via/复制直达项目二改"), LOG_DIR)
-            val viaWritable = runCatching {
-                viaDir.mkdirs()
-                val primary = File(viaDir, LOG_FILE)
-                resolveWritableLogFile(viaDir, primary)?.let { targets += it; true } ?: false
-            }.getOrDefault(false)
-            // v1.142.1e 降级提示：重装后 App uid 变化 → Via 目录（旧 uid 属主）无写权限
-            // （MANAGE_EXTERNAL_STORAGE 重装后丢失），日志会静默切到 Download——用户读旧 Via 日志误判。
-            // 把降级事实写进最终可写日志，任何日志文件都能看到提示。
-            if (!viaWritable) {
-                val hint = "\n[HyperLog] ⚠️ Via 日志目录不可写（重装后可能丢失\"所有文件访问\"权限，uid 变化）→ 日志已降级写入 Download/HyperCopy_logs/，请重新授权或以此为最新日志源\n"
-                runCatching {
-                    val dlDir0 = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), LOG_DIR)
-                    dlDir0.mkdirs()
-                    java.io.FileWriter(File(dlDir0, LOG_FILE), true).use { it.write(hint) }
-                }
-            }
-            // v1.141.57 镜像兜底：Download 公共目录（App 天然可写，不依赖"所有文件访问"授权）
-            val dlDir = File(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS
-                ),
-                LOG_DIR,
-            )
-            runCatching {
-                dlDir.mkdirs()
-                val primary = File(dlDir, LOG_FILE)
-                resolveWritableLogFile(dlDir, primary)?.let { targets += it }
-            }
-            logFiles = targets.distinct()
-            logFile = logFiles.firstOrNull()
+            // v1.142.7b 日志统一存放外部私有目录（替代 v1.141.56-57 Via/Download 双写 + 递增序号方案）：
+            // - getExternalFilesDir 获取，App 永远可写，不依赖 MANAGE_EXTERNAL_STORAGE（重装不丢权限）
+            // - 属主恒为本 uid，不存在旧 uid 残留文件不可写问题 → 固定文件名，无需递增序号
+            // - 卸载自动清除，覆盖安装保留；外部工具/ADB/Shizuku 可直接读取（实测 HyperOS shell 可读写）
+            val dir = ctx.getExternalFilesDir(LOG_DIR) ?: File(ctx.filesDir, LOG_DIR)
+            dir.mkdirs()
+            val primary = File(dir, LOG_FILE)
+            logFiles = listOf(primary)
+            logFile = primary
             // 启动时标注分隔
             val header = "\n========== app start ${java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())} ==========\n"
-            logFiles.forEach { f -> runCatching { java.io.FileWriter(f, true).use { it.write(header) } } }
+            runCatching { java.io.FileWriter(primary, true).use { it.write(header) } }
         }
-    }
-
-    /** v1.141.31 探测并解析一个可写的日志文件：优先主文件，不可写则递增序号选新文件 */
-    private fun resolveWritableLogFile(dir: File, primary: File): java.io.File? {
-        // 主文件不存在 → 新进程创建（属主即本 uid，可写）
-        if (!primary.exists()) return primary
-        // 主文件存在 → 探测是否可写（旧 uid 残留文件对本 uid 只读/无写权限）
-        if (probeWritable(primary)) return primary
-        // 主文件不可写 → 切到递增序号文件 hypercopy_N.log（N 从 2 开始，属主为本 uid，可写）
-        var idx = 2
-        while (true) {
-            val alt = File(dir, "hypercopy_$idx.log")
-            if (!alt.exists()) return alt            // 新文件，直接可写
-            if (probeWritable(alt)) return alt        // 旧序号文件可写则复用
-            idx++
-        }
-    }
-
-    /** 探测文件是否可写（尝试以 append 模式打开；失败=不可写） */
-    private fun probeWritable(f: java.io.File): Boolean {
-        return runCatching {
-            java.io.FileWriter(f, true).use { it.write("") }
-            true
-        }.getOrDefault(false)
     }
     /** v1.104 全局追踪上下文：handle 生成 tid，扫描/确认/到达各阶段日志自动携带，logcat grep tid 一条线 */
     object TraceContext {

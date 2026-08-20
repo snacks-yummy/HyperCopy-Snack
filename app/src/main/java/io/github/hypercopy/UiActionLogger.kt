@@ -14,19 +14,18 @@ import java.util.concurrent.Executors
  * 如点击 UI 选项、打开页面、测试正则、跳转、规则调整（含详情）等，
  * 全部使用**中文**描述。
  *
- * v1.141.57 双写兜底：主写 Via 绑定文件夹 + 镜像到 Download/HyperCopy_logs。
- * - Via 文件夹（工作区根）便于外部直读，但写权限依赖 MANAGE_EXTERNAL_STORAGE；
- * - 若 Via 权限丢失/不可写，Download 镜像保证日志永不丢失、可稳定查询。
+ * v1.142.7b 单写外部私有目录（替代 v1.141.57 双写方案）：
+ * - getExternalFilesDir 获取，App 永远可写，不依赖 MANAGE_EXTERNAL_STORAGE
+ * - 属主恒为本 uid，固定文件名，无递增序号问题；卸载自动清除
  *
  * 【日志位置】
- *   Via:   /storage/emulated/0/Via/复制直达项目二改/HyperCopy_logs/ui_actions.log
- *   镜像:  /storage/emulated/0/Download/HyperCopy_logs/ui_actions.log
+ *   /storage/emulated/0/Android/data/io.github.hypercopy/files/logs/ui_actions.log
  *
- * 线程安全：单线程串行写盘，避免乱序。两文件各自 runCatching，一个失败不影响另一个。
+ * 线程安全：单线程串行写盘，避免乱序。
  */
 object UiActionLogger {
     private const val TAG = "UiAction"
-    private val DIR_NAME = "HyperCopy_logs"
+    private val DIR_NAME = "logs"
     private val FILE_NAME = "ui_actions.log"
 
     // 单线程串行写盘（与 HyperLog 一致，防乱序）
@@ -43,51 +42,15 @@ object UiActionLogger {
     fun init(context: Context) {
         runCatching {
             val ctx = context.applicationContext
-            // v1.141.57 双写：主 Via 文件夹 + 镜像 Download
-            val targets = mutableListOf<File>()
-            // Via 绑定文件夹（工作区根，用户直读）
-            val viaDir = File("/storage/emulated/0/Via/复制直达项目二改", DIR_NAME)
-            runCatching {
-                viaDir.mkdirs()
-                val primary = File(viaDir, FILE_NAME)
-                resolveWritableLogFile(viaDir, primary)?.let { targets += it }
-            }
-            // 镜像兜底：Download 公共目录（App 天然可写，不依赖"所有文件访问"授权）
-            val dlDir = File(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS
-                ),
-                DIR_NAME,
-            )
-            runCatching {
-                dlDir.mkdirs()
-                val primary = File(dlDir, FILE_NAME)
-                resolveWritableLogFile(dlDir, primary)?.let { targets += it }
-            }
-            // 去重
-            logFiles = targets.distinct()
+            // v1.142.7b 单写外部私有目录：Android/data/io.github.hypercopy/files/logs/
+            val dir = ctx.getExternalFilesDir(DIR_NAME) ?: File(ctx.filesDir, DIR_NAME)
+            dir.mkdirs()
+            val primary = File(dir, FILE_NAME)
+            logFiles = listOf(primary)
             val header = "\n========== UI 操作日志 ${fmt()} ==========\n"
-            logFiles.forEach { f ->
-                runCatching { java.io.FileWriter(f, true).use { it.write(header) } }
-            }
+            runCatching { java.io.FileWriter(primary, true).use { it.write(header) } }
         }
     }
-
-    /** 探测可写日志文件：主文件不可写则递增序号，保证总能落盘 */
-    private fun resolveWritableLogFile(dir: File, primary: File): File? {
-        if (!primary.exists()) return primary
-        if (probeWritable(primary)) return primary
-        var idx = 2
-        while (true) {
-            val alt = File(dir, FILE_NAME.replace(".log", "_$idx.log"))
-            if (!alt.exists()) return alt
-            if (probeWritable(alt)) return alt
-            idx++
-        }
-    }
-
-    private fun probeWritable(f: File): Boolean =
-        runCatching { java.io.FileWriter(f, true).use { it.write("") }; true }.getOrDefault(false)
 
     /** 进入某个页面 */
     fun page(pageName: String) = log("页面", "进入「$pageName」")
