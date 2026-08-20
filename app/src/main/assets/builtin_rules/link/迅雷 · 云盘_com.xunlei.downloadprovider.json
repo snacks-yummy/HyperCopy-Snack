@@ -1,13 +1,12 @@
 {
-  "name": "京东链接",
+  "name": "迅雷 · 云盘",
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
   "priority": 0,
-  "matchRegex": ".*[/.]3\\.cn.*|.*[/.]jd\\.com.*",
+  "matchRegex": "pan\\.xunlei\\.com",
   "triggerRegexes": [
-    ".*[/.]3\\.cn.*",
-    ".*[/.]jd\\.com.*"
+    "pan\\.xunlei\\.com"
   ],
   "parameterRegex": "",
   "extractionRegexes": [],
@@ -15,8 +14,8 @@
   "clearClipboardAfterJump": true,
   "target": {
     "type": "url",
-    "template": "openapp.jdmobile://virtual?params={'category':'jump','des':'m','url':'${url:input}'}",
-    "packageName": "com.jingdong.app.mall",
+    "template": "${url:input}",
+    "packageName": "com.xunlei.downloadprovider",
     "action": "android.intent.action.VIEW"
   }
 }

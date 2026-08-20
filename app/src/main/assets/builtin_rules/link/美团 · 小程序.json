@@ -1,6 +1,6 @@
 {
   "id": "builtin_link_takeout_jump",
-  "name": "美团小程序",
+  "name": "美团 · 小程序",
   "category": "link",
   "enabled": true,
   "actionMode": "webview_resolve_and_open",

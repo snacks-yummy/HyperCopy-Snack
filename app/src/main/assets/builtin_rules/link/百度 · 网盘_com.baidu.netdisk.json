@@ -1,22 +1,22 @@
 {
-  "name": "阿里云盘",
+  "name": "百度 · 网盘",
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
   "priority": 0,
-  "matchRegex": "aliyundrive\\.com|alipan\\.com",
+  "matchRegex": "pan\\.baidu\\.com|yun\\.baidu\\.com",
   "triggerRegexes": [
-    "aliyundrive\\.com",
-    "alipan\\.com"
+    "pan\\.baidu\\.com",
+    "yun\\.baidu\\.com"
   ],
   "parameterRegex": "",
   "extractionRegexes": [],
   "parseAfterRedirect": false,
-  "clearClipboardAfterJump": false,
+  "clearClipboardAfterJump": true,
   "target": {
     "type": "url",
-    "template": "",
-    "packageName": "com.alicloud.databox",
+    "template": "${url:input}",
+    "packageName": "com.baidu.netdisk",
     "action": "android.intent.action.VIEW"
   }
 }

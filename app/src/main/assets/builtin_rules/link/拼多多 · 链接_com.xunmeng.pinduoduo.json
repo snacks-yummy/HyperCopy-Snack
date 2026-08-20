@@ -1,13 +1,13 @@
 {
-  "name": "百度网盘",
+  "name": "拼多多 · 链接",
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
   "priority": 0,
-  "matchRegex": "pan\\.baidu\\.com|yun\\.baidu\\.com",
+  "matchRegex": ".*(?:yangkeduo|pinduoduo)\\.com.*",
   "triggerRegexes": [
-    "pan\\.baidu\\.com",
-    "yun\\.baidu\\.com"
+    ".*yangkeduo\\.com.*",
+    ".*pinduoduo\\.com.*"
   ],
   "parameterRegex": "",
   "extractionRegexes": [],
@@ -16,7 +16,7 @@
   "target": {
     "type": "url",
     "template": "${url:input}",
-    "packageName": "com.baidu.netdisk",
+    "packageName": "com.xunmeng.pinduoduo",
     "action": "android.intent.action.VIEW"
   }
 }

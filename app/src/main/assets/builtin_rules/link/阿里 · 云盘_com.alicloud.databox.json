@@ -1,21 +1,22 @@
 {
-  "name": "迅雷云盘",
+  "name": "阿里 · 云盘",
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
   "priority": 0,
-  "matchRegex": "pan\\.xunlei\\.com",
+  "matchRegex": "aliyundrive\\.com|alipan\\.com",
   "triggerRegexes": [
-    "pan\\.xunlei\\.com"
+    "aliyundrive\\.com",
+    "alipan\\.com"
   ],
   "parameterRegex": "",
   "extractionRegexes": [],
   "parseAfterRedirect": false,
-  "clearClipboardAfterJump": true,
+  "clearClipboardAfterJump": false,
   "target": {
     "type": "url",
-    "template": "${url:input}",
-    "packageName": "com.xunlei.downloadprovider",
+    "template": "",
+    "packageName": "com.alicloud.databox",
     "action": "android.intent.action.VIEW"
   }
 }

@@ -1,13 +1,13 @@
 {
-  "name": "拼多多链接",
+  "name": "京东 · 链接",
   "category": "link",
   "enabled": true,
   "actionMode": "direct_open",
   "priority": 0,
-  "matchRegex": ".*(?:yangkeduo|pinduoduo)\\.com.*",
+  "matchRegex": ".*[/.]3\\.cn.*|.*[/.]jd\\.com.*",
   "triggerRegexes": [
-    ".*yangkeduo\\.com.*",
-    ".*pinduoduo\\.com.*"
+    ".*[/.]3\\.cn.*",
+    ".*[/.]jd\\.com.*"
   ],
   "parameterRegex": "",
   "extractionRegexes": [],
@@ -15,8 +15,8 @@
   "clearClipboardAfterJump": true,
   "target": {
     "type": "url",
-    "template": "${url:input}",
-    "packageName": "com.xunmeng.pinduoduo",
+    "template": "openapp.jdmobile://virtual?params={'category':'jump','des':'m','url':'${url:input}'}",
+    "packageName": "com.jingdong.app.mall",
     "action": "android.intent.action.VIEW"
   }
 }

@@ -46,14 +46,14 @@ internal val MY_BUILTIN_RULE_IDS: Set<String> = setOf(
     // text: v1.141.87 系列深度二改（外卖方案C/地址去城市名/柜位精简/岛内content分离）
     "builtin_cloud_text_外卖取件通知",
     // link: v1.132 用户需求新增：微信视频号链接 → 便捷下载 App
-    "builtin_cloud_link_微信视频号下载_com.lcw.easydownload",
+    "builtin_cloud_link_便捷下载_com.lcw.easydownload",
     // link: 二改项目自研/二改版（v1.141.87 确认归类）：美团小程序/淘宝口令/淘宝链接/闲鱼链接
-    "builtin_cloud_link_takeout_jump",
+    "builtin_cloud_link_美团 · 小程序",
     "builtin_cloud_link_淘宝 · 口令",
     "builtin_cloud_link_淘宝 · 链接",
     "builtin_cloud_link_闲鱼 · 链接",
     // link: v1.141.87s 二改修复（template 空+保留剪贴板，实测跳转正常）后归入内置
-    "builtin_cloud_link_阿里云盘_com.alicloud.databox",
+    "builtin_cloud_link_阿里 · 云盘_com.alicloud.databox",
 )
 
 /**
