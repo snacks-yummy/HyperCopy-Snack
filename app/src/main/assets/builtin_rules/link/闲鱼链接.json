@@ -4,7 +4,7 @@
   "rules": [
     {
       "id": "builtin_cloud_link_闲鱼链接",
-      "name": "闲鱼链接",
+      "name": "闲鱼 · 链接",
       "category": "link",
       "enabled": true,
       "actionMode": "parse_and_open",

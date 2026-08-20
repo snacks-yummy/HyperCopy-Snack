@@ -4,7 +4,7 @@
   "rules": [
     {
       "id": "builtin_cloud_link_淘宝链接",
-      "name": "淘宝链接",
+      "name": "淘宝 · 链接",
       "category": "link",
       "enabled": true,
       "actionMode": "direct_open",

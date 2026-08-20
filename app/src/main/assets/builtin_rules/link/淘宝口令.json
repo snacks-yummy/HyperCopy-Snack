@@ -4,7 +4,7 @@
   "rules": [
     {
       "id": "builtin_cloud_link_淘宝口令",
-      "name": "淘宝口令",
+      "name": "淘宝 · 口令",
       "category": "link",
       "enabled": true,
       "actionMode": "direct_open",
