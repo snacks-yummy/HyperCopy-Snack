@@ -102,8 +102,9 @@ fun HomePage(
     val settingsRepository = remember { SettingsRepository(context) }
     var onboardingDone by remember { mutableStateOf(settingsRepository.readOnboardingDone()) }
     var showSetupDialog by remember { mutableStateOf(false) }
-    // v1.142.1g 配置项动态化（按系统适配）：0=待执行 1=配置中 2=已完成 3=失败
-    val setupItems = remember { buildSetupItems() }
+    // v1.142.1g/h 配置项动态化（按系统适配）：0=待执行 1=配置中 2=已完成 3=失败
+    val systemProfile = remember { detectSystemProfile().also { io.github.hypercopy.HyperLog.d("HyperCopy", "一键配置系统识别: ${it.family} | ${it.romLabel}") } }
+    val setupItems = remember { buildSetupItems(systemProfile) }
     val setupStates = remember { mutableStateListOf<Int>().apply { repeat(setupItems.size) { add(0) } } }
     fun setupIndex(kind: SetupKind) = setupItems.indexOfFirst { it.kind == kind }
     var setupRunning by remember { mutableStateOf(false) }
@@ -262,6 +263,12 @@ fun HomePage(
         onDismissRequest = { if (!setupRunning) showSetupDialog = false },
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // v1.142.1h 显示识别到的系统（用户可确认识别是否正确）
+            Text(
+                text = stringResource(R.string.setup_system_label, systemProfile.romLabel),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary,
+            )
             setupItems.forEachIndexed { i, item ->
                 SetupStatusRow(stringResource(item.labelRes), setupStates[i])
             }
@@ -787,20 +794,40 @@ enum class SetupKind { SHIZUKU, NOTIFICATION, BATTERY, BACKGROUND, AUTOSTART, AP
 
 data class SetupItem(val labelRes: Int, val kind: SetupKind)
 
-/** MIUI/HyperOS 检测（小米/红米/Poco 系） */
-private fun isMiuiDevice(): Boolean {
-    val brand = "${android.os.Build.MANUFACTURER} ${android.os.Build.BRAND} ${android.os.Build.DEVICE}".lowercase()
-    return brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")
+/** v1.142.1h ROM 家族识别：HyperOS（小米新）/ MIUI（小米旧）/ 其他（原生或非小米 ROM） */
+enum class RomFamily { HYPEROS, MIUI, AOSP_OTHER }
+
+data class SystemProfile(
+    val family: RomFamily,
+    val romLabel: String,   // 展示：HyperOS 3.0 · Android 16
+    val androidSdk: Int,
+)
+
+/** 识别当前系统：优先 fingerprint 的 OSx.y（HyperOS），其次 Vxx（旧 MIUI），厂商非小米则其他 */
+private fun detectSystemProfile(): SystemProfile {
+    val manufacturer = "${android.os.Build.MANUFACTURER} ${android.os.Build.BRAND}".lowercase()
+    val isXiaomi = manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")
+    if (!isXiaomi) {
+        return SystemProfile(RomFamily.AOSP_OTHER, "Android ${android.os.Build.VERSION.RELEASE}", android.os.Build.VERSION.SDK_INT)
+    }
+    val fp = android.os.Build.FINGERPRINT.lowercase()
+    val hyperVer = Regex("os(\\d+\\.\\d+)").find(fp)?.groupValues?.get(1)
+    val miuiVer = Regex("v(\\d{1,2}(\\.\\d+){0,3})").find(fp)?.groupValues?.get(1)
+    return if (hyperVer != null) {
+        SystemProfile(RomFamily.HYPEROS, "HyperOS $hyperVer · Android ${android.os.Build.VERSION.RELEASE}", android.os.Build.VERSION.SDK_INT)
+    } else {
+        SystemProfile(RomFamily.MIUI, "MIUI ${miuiVer.orEmpty()} · Android ${android.os.Build.VERSION.RELEASE}", android.os.Build.VERSION.SDK_INT)
+    }
 }
 
-/** 按系统构建一键配置项：通用 3 项（Shizuku/通知/省电） + MIUI 私有 5 项 */
-private fun buildSetupItems(): List<SetupItem> {
+/** 按识别到的系统构建一键配置项（v1.142.1h）：HyperOS/MIUI 全量 8 项；其他 ROM 仅通用 3 项 */
+private fun buildSetupItems(profile: SystemProfile): List<SetupItem> {
     val items = mutableListOf(
         SetupItem(R.string.setup_item_shizuku, SetupKind.SHIZUKU),
         SetupItem(R.string.setup_item_notification, SetupKind.NOTIFICATION),
         SetupItem(R.string.setup_item_battery, SetupKind.BATTERY),
     )
-    if (isMiuiDevice()) {
+    if (profile.family == RomFamily.HYPEROS || profile.family == RomFamily.MIUI) {
         items += SetupItem(R.string.setup_item_background, SetupKind.BACKGROUND)
         items += SetupItem(R.string.setup_item_autostart, SetupKind.AUTOSTART)
         items += SetupItem(R.string.setup_item_applist, SetupKind.APPLIST)
