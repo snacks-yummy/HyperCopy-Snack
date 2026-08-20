@@ -70,6 +70,11 @@ class SettingsRepository(private val context: Context) {
     fun persistSwipeDeleteHintShown() {
         preferences().edit(commit = true) { putBoolean(Config.KEY_SWIPE_DELETE_HINT_SHOWN, true) }
     }
+    // v1.144.7 权限完备状态（主页一键配置入口显隐）——持久化防重组/重启闪显
+    fun readSetupComplete(): Boolean = preferences().getBoolean(Config.KEY_SETUP_COMPLETE, false)
+    fun persistSetupComplete(value: Boolean) {
+        preferences().edit(commit = true) { putBoolean(Config.KEY_SETUP_COMPLETE, value) }
+    }
 
     fun readClipboardMonitorMode(): String {
         return preferences().getString(

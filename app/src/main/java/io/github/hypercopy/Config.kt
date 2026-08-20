@@ -58,6 +58,8 @@ object Config {
     // v1.38 启动自动激活（Shizuku 授权 + 无障碍开启）
     const val KEY_AUTO_ACTIVATE = "auto_activate"
     const val DEFAULT_AUTO_ACTIVATE = true
+    // v1.144.7 权限完备状态持久化（主页一键配置入口显隐，跨重组/重启恢复，防 Tab 切回闪现）
+    const val KEY_SETUP_COMPLETE = "setup_complete"
     // v1.33 场景规则集
     const val KEY_SCENE_GROUP = "scene_group" // 当前激活的场景分组（空=未激活）
     const val KEY_SCENE_BACKUP = "scene_backup" // 激活前的规则启用状态备份（JSON）

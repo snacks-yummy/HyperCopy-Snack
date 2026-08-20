@@ -284,14 +284,7 @@ fun RulesPage(
     BackHandler(enabled = showTrash) {
         showTrash = false
     }
-
-    // v1.142.6h 左滑删除首次引导（一次性 Toast）
-    LaunchedEffect(Unit) {
-        if (!settingsRepository.readSwipeDeleteHintShown()) {
-            settingsRepository.persistSwipeDeleteHintShown()
-            Toast.makeText(context, context.getString(R.string.rule_swipe_delete_hint), Toast.LENGTH_SHORT).show()
-        }
-    }
+    // v1.144.7 移除 v1.142.6h 左滑删除一次性引导 Toast（用户反馈未点删除也会弹出提示，引导价值已过时）
 
     // v1.142.6q 移除 D3 复制即测（v1.142.6o 曾自动读剪贴板填入测试框并自动执行跳转）
     // 用户实测反馈：测试页不应自动复制粘贴+自动打开，回归手动——点「从剪贴板粘贴」填入、点「测试」才执行

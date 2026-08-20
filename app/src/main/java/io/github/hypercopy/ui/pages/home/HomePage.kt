@@ -37,7 +37,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,12 +104,13 @@ fun HomePage(
     var onboardingDone by remember { mutableStateOf(settingsRepository.readOnboardingDone()) }
     var showSetupDialog by remember { mutableStateOf(false) }
     // v1.144.5 权限完备感知：全部权限就绪时隐藏一键配置入口（已有权限不再显示可配置）
-    // v1.144.6 rememberSaveable：Tab 切回/重组时保留上次检查结果，避免入口闪现后消失
-    var setupComplete by rememberSaveable { mutableStateOf(false) }
+    // v1.144.7 持久化读取（Preferences）——跨 Tab 重组/进程重启恢复，根治闪现
+    var setupComplete by remember { mutableStateOf(settingsRepository.readSetupComplete()) }
     fun refreshSetupComplete() {
         val h = Handler(Looper.getMainLooper())
         thread(name = "HyperCopySetupCheck") {
             val complete = isPermissionsComplete(context)
+            settingsRepository.persistSetupComplete(complete)
             h.post { setupComplete = complete }
         }
     }
