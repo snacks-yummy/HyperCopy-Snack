@@ -102,22 +102,23 @@ fun HomePage(
     val settingsRepository = remember { SettingsRepository(context) }
     var onboardingDone by remember { mutableStateOf(settingsRepository.readOnboardingDone()) }
     var showSetupDialog by remember { mutableStateOf(false) }
-    // 配置项状态：0=待执行 1=配置中 2=已完成 3=失败（顺序：通知/电池/后台弹出/自启动/应用列表/Shizuku）
-    val setupStates = remember { mutableStateListOf(0, 0, 0, 0, 0, 0) }
+    // v1.142.1g 配置项动态化（按系统适配）：0=待执行 1=配置中 2=已完成 3=失败
+    val setupItems = remember { buildSetupItems() }
+    val setupStates = remember { mutableStateListOf<Int>().apply { repeat(setupItems.size) { add(0) } } }
+    fun setupIndex(kind: SetupKind) = setupItems.indexOfFirst { it.kind == kind }
     var setupRunning by remember { mutableStateOf(false) }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        setupStates[0] = if (granted) 2 else 3
-        runShellSetup(context, mainHandler, setupStates) {
+        setupStates[setupIndex(SetupKind.NOTIFICATION)] = if (granted) 2 else 3
+        runShellSetup(context, mainHandler, setupStates, setupItems) {
             setupRunning = false
             settingsRepository.writeOnboardingDone()
             onboardingDone = true
             Toast.makeText(context, R.string.setup_done_toast, Toast.LENGTH_SHORT).show()
         }
     }
-
     fun startSetup() {
         if (setupRunning) return
         setupRunning = true
@@ -128,18 +129,18 @@ fun HomePage(
             Toast.makeText(context, R.string.setup_done_toast, Toast.LENGTH_SHORT).show()
         }
         // ① Shizuku 授权（未授权弹系统确认框，回调后继续）
-        setupStates[5] = 1
+        setupStates[setupIndex(SetupKind.SHIZUKU)] = 1
         if (ShizukuPermission.isGranted()) {
-            setupStates[5] = 2
-            requestNotificationSetup(context, notificationPermissionLauncher, setupStates, onSetupFinished)
+            setupStates[setupIndex(SetupKind.SHIZUKU)] = 2
+            requestNotificationSetup(context, notificationPermissionLauncher, setupStates, setupItems, onSetupFinished)
         } else if (ShizukuPermission.isAvailable()) {
             ShizukuPermission.requestIfNeeded { granted ->
-                setupStates[5] = if (granted) 2 else 3
-                requestNotificationSetup(context, notificationPermissionLauncher, setupStates, onSetupFinished)
+                setupStates[setupIndex(SetupKind.SHIZUKU)] = if (granted) 2 else 3
+                requestNotificationSetup(context, notificationPermissionLauncher, setupStates, setupItems, onSetupFinished)
             }
         } else {
-            setupStates[5] = 3
-            requestNotificationSetup(context, notificationPermissionLauncher, setupStates, onSetupFinished)
+            setupStates[setupIndex(SetupKind.SHIZUKU)] = 3
+            requestNotificationSetup(context, notificationPermissionLauncher, setupStates, setupItems, onSetupFinished)
         }
     }
     // 修复：规则数量实时刷新（监听规则变更事件，新增/删除/启停后自动更新）
@@ -261,12 +262,9 @@ fun HomePage(
         onDismissRequest = { if (!setupRunning) showSetupDialog = false },
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SetupStatusRow(stringResource(R.string.setup_item_notification), setupStates[0])
-            SetupStatusRow(stringResource(R.string.setup_item_battery), setupStates[1])
-            SetupStatusRow(stringResource(R.string.setup_item_background), setupStates[2])
-            SetupStatusRow(stringResource(R.string.setup_item_autostart), setupStates[3])
-            SetupStatusRow(stringResource(R.string.setup_item_applist), setupStates[4])
-            SetupStatusRow(stringResource(R.string.setup_item_shizuku), setupStates[5])
+            setupItems.forEachIndexed { i, item ->
+                SetupStatusRow(stringResource(item.labelRes), setupStates[i])
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                 TextButton(
                     text = stringResource(R.string.setup_close),
@@ -694,35 +692,42 @@ private fun requestNotificationSetup(
     context: Context,
     launcher: androidx.activity.result.ActivityResultLauncher<String>,
     states: androidx.compose.runtime.snapshots.SnapshotStateList<Int>,
+    items: List<SetupItem>,
     onDone: () -> Unit,
 ) {
-    states[0] = 1
+    val idx = items.indexOfFirst { it.kind == SetupKind.NOTIFICATION }
+    states[idx] = 1
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
     ) {
-        states[0] = 2
-        runShellSetup(context, Handler(Looper.getMainLooper()), states, onDone)
+        states[idx] = 2
+        runShellSetup(context, Handler(Looper.getMainLooper()), states, items, onDone)
         return
     }
     runCatching { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
         .onFailure {
-            states[0] = 3
-            runShellSetup(context, Handler(Looper.getMainLooper()), states, onDone)
+            states[idx] = 3
+            runShellSetup(context, Handler(Looper.getMainLooper()), states, items, onDone)
         }
 }
 
-/** ③④⑤ 省电无限制 + 后台弹出页面 + 自启动：Shizuku shell 静默执行（后台线程），完成后回调主线程 */
+/** ③④⑤⑥ 省电无限制 + 后台弹出页面 + 自启动 + 获取应用列表：Shizuku shell 静默执行（后台线程），
+ *  按 items 动态执行（v1.142.1g 按系统适配），完成后回调主线程 */
 private fun runShellSetup(
     context: Context,
     mainHandler: Handler,
     states: androidx.compose.runtime.snapshots.SnapshotStateList<Int>,
+    items: List<SetupItem>,
     onDone: () -> Unit,
 ) {
     thread(name = "HyperCopyOneTapSetup") {
         val pkg = context.packageName
         val shell = io.github.hypercopy.clipboard.privileged.PrivilegedShell
         val settingsRepo = io.github.hypercopy.data.settings.SettingsRepository(context)
-        fun update(index: Int, value: Int) = mainHandler.post { states[index] = value }
+        fun update(kind: SetupKind, value: Int) {
+            val idx = items.indexOfFirst { it.kind == kind }
+            if (idx >= 0) mainHandler.post { states[idx] = value }
+        }
         // 查询命令：exit 0 且（可选）输出含关键字 → 已授权
         fun granted(query: String, outputContains: String? = null): Boolean {
             val r = shell.run(settingsRepo, query)
@@ -731,39 +736,77 @@ private fun runShellSetup(
         fun grant(set: String, fallback: String? = null): Boolean {
             return runShellCommand(context, set) || (fallback != null && runShellCommand(context, fallback))
         }
-        // ③ 省电无限制（电池优化白名单）——已授权自动跳过
-        update(1, 1)
-        val batteryOk = granted("dumpsys deviceidle whitelist | grep -q $pkg") ||
-            granted("cmd deviceidle whitelist | grep -q $pkg") ||
-            grant("dumpsys deviceidle whitelist +$pkg", "cmd deviceidle whitelist +$pkg")
-        // v1.142.1f HyperOS3 省电策略界面数据源：miui_power_save_whitelist（system/secure 双写追加，保留原值幂等）
-        val miuiPowerOk = grantMiuiPowerWhitelist(context, pkg)
-        update(1, if (batteryOk && miuiPowerOk) 2 else 3)
-        // ④ 后台弹出页面：标准 op 10021（实测 MIUIOP(10021) 生效）+ MIUI 私有 10024 双保险——已授权自动跳过
-        update(2, 1)
-        val backgroundOk = granted("appops get $pkg 10021", "allow") ||
-            granted("appops get $pkg 10024", "allow") ||
-            grant("appops set $pkg 10021 allow", "appops set $pkg 10024 allow")
-        update(2, if (backgroundOk) 2 else 3)
-        // ⑤ 自启动：MIUI 私有 op 10050（OP_AUTO_START）+ 10051（关联启动兜底）——已授权自动跳过
-        //    + HyperOS3「设置相关」UI 权限（用户实测手动全开后的 appops 状态复刻）：
-        //    10004/10008/10017/10020/10053=allow（桌面快捷方式/锁屏显示/动态壁纸等），10022=foreground
-        update(3, 1)
-        val autostartOk = granted("appops get $pkg 10050", "allow") ||
-            granted("appops get $pkg 10051", "allow") ||
-            grant("appops set $pkg 10050 allow", "appops set $pkg 10051 allow")
-        val extraUiOk = listOf("10004", "10008", "10017", "10020", "10053").all {
-            granted("appops get $pkg $it", "allow") || runShellCommand(context, "appops set $pkg $it allow")
-        } && (granted("appops get $pkg 10022", "foreground") ||
-            runShellCommand(context, "appops set $pkg 10022 foreground"))
-        update(3, if (autostartOk && extraUiOk) 2 else 3)
-        // ⑥ 获取应用列表：MIUIOP(10045)（实测手动开启后 ignore→allow）
-        update(4, 1)
-        val appListOk = granted("appops get $pkg 10045", "allow") ||
-            runShellCommand(context, "appops set $pkg 10045 allow")
-        update(4, if (appListOk) 2 else 3)
+        // 省电无限制（电池优化白名单）——已授权自动跳过
+        if (items.any { it.kind == SetupKind.BATTERY }) {
+            update(SetupKind.BATTERY, 1)
+            val batteryOk = granted("dumpsys deviceidle whitelist | grep -q $pkg") ||
+                granted("cmd deviceidle whitelist | grep -q $pkg") ||
+                grant("dumpsys deviceidle whitelist +$pkg", "cmd deviceidle whitelist +$pkg")
+            // v1.142.1f HyperOS3 省电策略界面数据源：miui_power_save_whitelist（system/secure 双写追加）
+            val miuiPowerOk = grantMiuiPowerWhitelist(context, pkg)
+            update(SetupKind.BATTERY, if (batteryOk && miuiPowerOk) 2 else 3)
+        }
+        // 后台弹出页面：标准 op 10021 + MIUI 私有 10024 双保险——已授权自动跳过
+        if (items.any { it.kind == SetupKind.BACKGROUND }) {
+            update(SetupKind.BACKGROUND, 1)
+            val backgroundOk = granted("appops get $pkg 10021", "allow") ||
+                granted("appops get $pkg 10024", "allow") ||
+                grant("appops set $pkg 10021 allow", "appops set $pkg 10024 allow")
+            update(SetupKind.BACKGROUND, if (backgroundOk) 2 else 3)
+        }
+        // 自启动：MIUI 私有 op 10050 + 10051 兜底——已授权自动跳过
+        if (items.any { it.kind == SetupKind.AUTOSTART }) {
+            update(SetupKind.AUTOSTART, 1)
+            val autostartOk = granted("appops get $pkg 10050", "allow") ||
+                granted("appops get $pkg 10051", "allow") ||
+                grant("appops set $pkg 10050 allow", "appops set $pkg 10051 allow")
+            update(SetupKind.AUTOSTART, if (autostartOk) 2 else 3)
+        }
+        // 获取应用列表：MIUIOP(10045)（实测手动开启后 ignore→allow）
+        if (items.any { it.kind == SetupKind.APPLIST }) {
+            update(SetupKind.APPLIST, 1)
+            val appListOk = granted("appops get $pkg 10045", "allow") ||
+                runShellCommand(context, "appops set $pkg 10045 allow")
+            update(SetupKind.APPLIST, if (appListOk) 2 else 3)
+        }
+        // HyperOS3「设置相关」UI 权限（用户实测手动全开后的 appops 状态复刻）：
+        // 10004/10008/10017/10020/10053=allow（桌面快捷方式/锁屏显示/动态壁纸等），10022=foreground
+        if (items.any { it.kind == SetupKind.MIUI_EXTRA }) {
+            update(SetupKind.MIUI_EXTRA, 1)
+            val extraUiOk = listOf("10004", "10008", "10017", "10020", "10053").all {
+                granted("appops get $pkg $it", "allow") || runShellCommand(context, "appops set $pkg $it allow")
+            } && (granted("appops get $pkg 10022", "foreground") ||
+                runShellCommand(context, "appops set $pkg 10022 foreground"))
+            update(SetupKind.MIUI_EXTRA, if (extraUiOk) 2 else 3)
+        }
         mainHandler.post(onDone)
     }
+}
+/** v1.142.1g 一键配置权限项（按系统动态适配） */
+enum class SetupKind { SHIZUKU, NOTIFICATION, BATTERY, BACKGROUND, AUTOSTART, APPLIST, MIUI_EXTRA }
+
+data class SetupItem(val labelRes: Int, val kind: SetupKind)
+
+/** MIUI/HyperOS 检测（小米/红米/Poco 系） */
+private fun isMiuiDevice(): Boolean {
+    val brand = "${android.os.Build.MANUFACTURER} ${android.os.Build.BRAND} ${android.os.Build.DEVICE}".lowercase()
+    return brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")
+}
+
+/** 按系统构建一键配置项：通用 3 项（Shizuku/通知/省电） + MIUI 私有 5 项 */
+private fun buildSetupItems(): List<SetupItem> {
+    val items = mutableListOf(
+        SetupItem(R.string.setup_item_shizuku, SetupKind.SHIZUKU),
+        SetupItem(R.string.setup_item_notification, SetupKind.NOTIFICATION),
+        SetupItem(R.string.setup_item_battery, SetupKind.BATTERY),
+    )
+    if (isMiuiDevice()) {
+        items += SetupItem(R.string.setup_item_background, SetupKind.BACKGROUND)
+        items += SetupItem(R.string.setup_item_autostart, SetupKind.AUTOSTART)
+        items += SetupItem(R.string.setup_item_applist, SetupKind.APPLIST)
+        items += SetupItem(R.string.setup_item_miui_extra, SetupKind.MIUI_EXTRA)
+    }
+    return items
 }
 /** v1.142.1f HyperOS3 省电策略界面数据源双写：settings system/secure 的 miui_power_save_whitelist 追加包名
  *  （保留原值、幂等——已含则跳过，避免重复逗号） */

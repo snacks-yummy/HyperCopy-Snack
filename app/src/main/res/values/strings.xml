@@ -212,6 +212,7 @@
     <string name="setup_item_autostart">自启动（MIUI 权限）</string>
     <string name="setup_item_applist">应用列表（黑名单模式已启用）</string>
     <string name="setup_item_shizuku">Shizuku 权限</string>
+    <string name="setup_item_miui_extra">桌面快捷方式/锁屏显示/动态壁纸/链式启动等</string>
     <string name="setup_item_pending">待执行</string>
     <string name="setup_item_running">配置中…</string>
     <string name="setup_item_ok">已完成</string>
