@@ -258,6 +258,17 @@ fun RulesPage(
     val categoryRuleIds = categoryRules.map { it.id }.toSet()
     val selectionMode = selectedRuleIds.isNotEmpty() || editMode
 
+    // v1.142.8 返回栈修复：分类/搜索为浅层视图状态，先于 MainActivity 兜底回退
+    // 注册顺序在 sort/edit/trash 之前 → 优先级最低，仅在无更深状态时生效（避免直接跳首页/退出）
+    BackHandler(enabled = searchText.isNotEmpty() && !editMode && !sortMode && !showTrash && selectedRuleIds.isEmpty()) {
+        searchText = ""
+    }
+    BackHandler(enabled = selectedCategory != RulePageCategory.Link && !editMode && !sortMode && !showTrash && selectedRuleIds.isEmpty()) {
+        selectedCategory = RulePageCategory.Link
+        resultText = ruleResultWaiting
+        selectedRuleIds = emptySet()
+        onCategoryChange(RulePageCategory.Link.name)
+    }
     BackHandler(enabled = sortMode && selectedCategory != RulePageCategory.System) {
         onSortModeChange(false)
     }

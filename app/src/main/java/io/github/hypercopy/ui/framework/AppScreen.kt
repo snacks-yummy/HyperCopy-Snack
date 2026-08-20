@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -165,6 +166,10 @@ fun AppScreen(
     var autoActivate by remember { mutableStateOf(settingsRepository.readAutoActivate()) }
     var updateDialog by remember { mutableStateOf<UpdateDialogState?>(null) }
     var checkingUpdate by remember { mutableStateOf(false) }
+    // v1.142.8 返回栈修复：更新弹窗打开时返回键先关弹窗（不直接退出 App）
+    BackHandler(enabled = updateDialog != null) {
+        updateDialog = null
+    }
 
     DisposableEffect(Unit) {
         val listener: (XposedService?) -> Unit = { service -> xposedService = service }

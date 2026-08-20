@@ -1,5 +1,6 @@
 package io.github.hypercopy.ui.pages.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -157,6 +158,10 @@ fun SettingsPage(
     // v1.139.1 云端规则源管理（设置页入口）
     val settingsRepository = remember { SettingsRepository(context.applicationContext) }
     var showCloudSourceDialog by remember { mutableStateOf(false) }
+    // v1.142.8 返回栈修复：云规则源弹窗打开时返回键先关弹窗（不直接退出 App）
+    BackHandler(enabled = showCloudSourceDialog) {
+        showCloudSourceDialog = false
+    }
     // v1.140.18 子页滚动位置记忆：返回后再次进入恢复上次位置
     val subListState = rememberLazyListState()
     // v1.140.18 一级列表滚动位置记忆：子页返回后恢复原位置

@@ -1,5 +1,6 @@
 package io.github.hypercopy.ui.pages.cloudrules
 
+import androidx.activity.compose.BackHandler
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -138,6 +139,13 @@ fun CloudRulesPage(
     var error by remember { mutableStateOf<String?>(null) }
     var downloadedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var installedPackageNames by remember { mutableStateOf<Set<String>>(emptySet()) }
+    // v1.142.8 返回栈修复：搜索/分类为浅层视图状态，返回时先回退而非跳首页
+    BackHandler(enabled = searchQuery.isNotBlank()) {
+        searchQuery = ""
+    }
+    BackHandler(enabled = selectedCategory != RulePageCategory.Link) {
+        selectedCategory = RulePageCategory.Link
+    }
     val rulesCache = remember { mutableStateMapOf<RulePageCategory, List<CloudRule>>() }
     val downloadingIds = remember { mutableStateMapOf<String, Boolean>() }
 

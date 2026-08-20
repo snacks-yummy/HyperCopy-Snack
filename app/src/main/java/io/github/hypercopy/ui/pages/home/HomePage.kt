@@ -11,6 +11,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -108,6 +109,10 @@ fun HomePage(
     val setupStates = remember { mutableStateListOf<Int>().apply { repeat(setupItems.size) { add(0) } } }
     fun setupIndex(kind: SetupKind) = setupItems.indexOfFirst { it.kind == kind }
     var setupRunning by remember { mutableStateOf(false) }
+    // v1.142.8 返回栈修复：一键配置弹窗打开时返回键先关弹窗（不直接退出 App）
+    BackHandler(enabled = showSetupDialog && !setupRunning) {
+        showSetupDialog = false
+    }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),

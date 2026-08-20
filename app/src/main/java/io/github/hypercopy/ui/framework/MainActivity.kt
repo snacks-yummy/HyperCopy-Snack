@@ -75,15 +75,13 @@ class MainActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // v1.140.18 兜底返回：Android 16 predictive back 手势返回统一处理（设置子页→一级→主页→退出）
+        // v1.140.18 兜底返回：Android 16 predictive back 手势返回统一处理
+        // v1.142.8 修复：去掉「非 Home tab → 跳首页」——页面内部层级由各页面 BackHandler 自行回退，
+        // 兜底只处理 设置子页 → 退出，符合 Android 标准返回行为
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (AppNav.subPageFlow.value != null) {
                     AppNav.subPageFlow.value = null
-                    return
-                }
-                if (AppNav.tabFlow.value != Tab.Home) {
-                    AppNav.tabFlow.value = Tab.Home
                     return
                 }
                 finish()
