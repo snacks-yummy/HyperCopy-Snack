@@ -52,9 +52,9 @@ object Config {
     // v1.88 小米复制直达委托（默认开）
     const val KEY_EXPRESS_DELEGATE_AI_ENGINE = "express_delegate_ai_engine"
     const val DEFAULT_EXPRESS_DELEGATE_AI_ENGINE = false
-    // v1.33 去重窗口可配置（毫秒，默认 1.5s）
+    // v1.33 去重窗口可配置（毫秒，默认 0.5s——v1.144.6 由 1.5s 下调）
     const val KEY_DUPLICATE_WINDOW_MILLIS = "duplicate_window_millis"
-    const val DEFAULT_DUPLICATE_WINDOW_MILLIS = 1_500L
+    const val DEFAULT_DUPLICATE_WINDOW_MILLIS = 500L
     // v1.38 启动自动激活（Shizuku 授权 + 无障碍开启）
     const val KEY_AUTO_ACTIVATE = "auto_activate"
     const val DEFAULT_AUTO_ACTIVATE = true

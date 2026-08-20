@@ -85,8 +85,8 @@ object ClipboardTextHandler {
         if (rule.group.isNotBlank()) append(" group=${rule.group}")
         if (rule.delayMillis > 0) append(" delay=${rule.delayMillis}ms")
     }
-    // v1.33 去重窗口改为可配置（SettingsRepository.readDuplicateWindowMillis），默认 1.5s
-    private const val DEFAULT_DUPLICATE_WINDOW_MILLIS = 1_500L
+    // v1.33 去重窗口改为可配置（SettingsRepository.readDuplicateWindowMillis），默认 0.5s（v1.144.6 由 1.5s 下调）
+    private const val DEFAULT_DUPLICATE_WINDOW_MILLIS = 500L
     private const val UNMATCHED_NOTIFY_MIN_INTERVAL_MILLIS = 30_000L
 
     private var lastText: String = ""
