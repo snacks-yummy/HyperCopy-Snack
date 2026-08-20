@@ -394,6 +394,14 @@ object ClipboardTextHandler {
                 }
                 RuleActionMode.WebViewResolveAndOpen -> {
                     if (shouldIgnoreJump(appContext, source, rule.target.packageName, ignoreJumpApp)) return
+                    // v1.145.2 补防循环：走链分支此前缺失 shouldBlockJumpLoop/recordJump（防循环只覆盖
+                    // matchRule 命中 + DirectOpen），美团 mt.cn 走链重复触发 → 2 次跳转仍现（07:49 实测
+                    // [3214]+[F6E1] 间隔 3.4s 同内容两次跳转）。与其余分支统一：pkg 空按内容指纹，8s 窗口拦截
+                    if (shouldBlockJumpLoop(rule.target.packageName, input)) {
+                        HyperLog.d(TAG, "同目标同内容30s内已跳转, 忽略(防循环): target=${rule.target.packageName}")
+                        return
+                    }
+                    recordJump(rule.target.packageName, input)
                     stats.increment(rule.id)
                     startWebViewResolve(appContext, rule, input)
                     return
