@@ -108,6 +108,8 @@ object PendingJumpCoordinator {
             is PendingJump.WebViewJump -> entry.preload?.continueLaunch(appContext, selectedUserId)
                 ?: HeadlessWebViewResolver.resolveAndLaunch(appContext, jump.url, jump.packageName, entry.clearClipboardAfterJump, selectedUserId)
             is PendingJump.SystemLinkJump -> launchAfterClipboardClear(appContext, entry.clearClipboardAfterJump) {
+                // v1.145.15 系统链接跳转入历史（统计页最近记录可见，频率排序数据源）
+                io.github.hypercopy.data.rules.JumpHistoryRepository(appContext).record(jump.title, jump.packageName)
                 SystemLinkRepository(appContext).openLink(selectedUserId ?: jump.userId, jump.url)
             }
         }
@@ -192,6 +194,8 @@ object PendingJumpCoordinator {
                 val repository = SystemLinkRepository(context)
                 val userId = configuredUserId ?: jump.userId
                 if (jump.packageName.isBlank() || repository.isPackageInstalledForUser(userId, jump.packageName)) {
+                    // v1.145.15 系统链接跳转入历史（统计页最近记录可见，频率排序数据源）
+                    io.github.hypercopy.data.rules.JumpHistoryRepository(context).record(jump.title, jump.packageName)
                     repository.openLink(userId, jump.url)
                 }
             }

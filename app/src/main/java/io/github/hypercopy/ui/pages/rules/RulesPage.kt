@@ -253,8 +253,16 @@ fun RulesPage(
     }
     val filteredSystemLinkApps = systemLinkApps.filter { app ->
         searchText.isBlank() || app.label.contains(searchText, ignoreCase = true) ||
-            app.packageName.contains(searchText, ignoreCase = true)
+            app.packageName.contains(searchText, ignoreCase = true) ||
+            // v1.145.15 域名搜索：支持按域名 host 过滤
+            app.domains.any { it.host.contains(searchText, ignoreCase = true) }
     }
+    // v1.145.15 系统链接频率排序：按跳转历史包名计数（sortByFrequency 对系统分类同样生效）
+    val displayedSystemLinkApps = if (sortByFrequency) {
+        val counts = remember { io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext) }
+            .countByPackage()
+        filteredSystemLinkApps.sortedByDescending { counts[it.packageName] ?: 0 }
+    } else filteredSystemLinkApps
     val categoryRuleIds = categoryRules.map { it.id }.toSet()
     val selectionMode = selectedRuleIds.isNotEmpty() || editMode
 
@@ -711,8 +719,8 @@ if (sceneGroup.isNotEmpty()) {
             if (selectedCategory == RulePageCategory.System) {
                 when {
                     systemLinkLoading -> item { EmptyRulesCard(RulePageCategory.System) }
-                    filteredSystemLinkApps.isEmpty() -> item { EmptyRulesCard(RulePageCategory.System) }
-                    else -> items(filteredSystemLinkApps, key = { it.packageName }) { app ->
+                    displayedSystemLinkApps.isEmpty() -> item { EmptyRulesCard(RulePageCategory.System) }
+                    else -> items(displayedSystemLinkApps, key = { it.packageName }) { app ->
                         SystemLinkAppListCard(
                             app = app,
                             onClick = {

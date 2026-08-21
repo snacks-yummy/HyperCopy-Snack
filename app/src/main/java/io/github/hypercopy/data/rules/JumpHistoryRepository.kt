@@ -24,6 +24,9 @@ class JumpHistoryRepository(private val context: Context) {
         persist(entries.takeLast(maxEntries))
     }
 
+    /** v1.145.15 按包名统计跳转次数（系统链接 App 频率排序用），零存储成本（读 50 条内存统计） */
+    fun countByPackage(): Map<String, Int> = read().groupingBy { it.packageName }.eachCount()
+
     fun read(): List<JumpHistoryEntry> = runCatching {
         val json = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_JUMP_HISTORY, null) ?: return emptyList()

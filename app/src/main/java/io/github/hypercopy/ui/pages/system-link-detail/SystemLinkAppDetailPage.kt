@@ -19,14 +19,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import io.github.hypercopy.HyperLog
 import io.github.hypercopy.R
+import io.github.hypercopy.data.rules.RuleActionMode
+import io.github.hypercopy.data.rules.RuleCategory
+import io.github.hypercopy.data.rules.RuleConfig
+import io.github.hypercopy.data.rules.RuleRepository
+import io.github.hypercopy.data.rules.RuleTarget
+import io.github.hypercopy.data.rules.RuleTargetType
 import io.github.hypercopy.data.systemlink.SystemLinkApp
 import io.github.hypercopy.data.systemlink.SystemLinkDomain
 import io.github.hypercopy.data.systemlink.SystemLinkRepository
 import io.github.hypercopy.ui.components.PackageIcon
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -34,6 +43,7 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -146,6 +156,14 @@ fun SystemLinkAppDetailPage(
                                             },
                                         )
                                     }
+                                    // v1.145.15 系统链接升级：测试入口 + 一键生成链接规则
+                                    item {
+                                        SystemLinkActionsCard(
+                                            app = app,
+                                            userId = userId,
+                                            repository = systemLinkRepository,
+                                        )
+                                    }
                                     if (app.domains.isNotEmpty()) {
                                         item {
                                             Text(
@@ -188,7 +206,18 @@ private fun AppInfoCard(app: SystemLinkApp) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(text = app.label, style = MiuixTheme.textStyles.headline1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = app.label, style = MiuixTheme.textStyles.headline1)
+                    // v1.145.15 已验证徽章：存在已验证域名 → 系统自动接管（无弹窗直达）
+                    if (app.domains.any { it.state.equals("verified", ignoreCase = true) }) {
+                        Text(
+                            text = stringResource(R.string.app_verified_badge),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
                 Text(
                     text = app.packageName,
                     style = MiuixTheme.textStyles.body2,
@@ -198,6 +227,100 @@ private fun AppInfoCard(app: SystemLinkApp) {
             }
         }
     }
+}
+
+/**
+ * v1.145.15 系统链接操作卡：测试入口 + 一键生成链接规则。
+ * 测试复用 repository.openLink（am start）；生成规则复用 saveRuleMerged 去重，
+ * 与内置「淘宝 · 链接」格式同构（direct_open + \Q\E 域名正则）。
+ */
+@Composable
+private fun SystemLinkActionsCard(
+    app: SystemLinkApp,
+    userId: Int,
+    repository: SystemLinkRepository,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    var testUrl by remember { mutableStateOf("") }
+    var testing by remember { mutableStateOf(false) }
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(text = stringResource(R.string.rule_system_actions_title), style = MiuixTheme.textStyles.headline1)
+            TextField(
+                value = testUrl,
+                onValueChange = { testUrl = it },
+                label = stringResource(R.string.rule_system_test_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(
+                text = stringResource(R.string.rule_system_test_button),
+                enabled = testUrl.isNotBlank() && !testing,
+                onClick = {
+                    testing = true
+                    thread(name = "HyperCopySystemLinkTest") {
+                        val ok = runCatching { repository.openLink(userId, testUrl) }.getOrDefault(false)
+                        mainHandler.post {
+                            testing = false
+                            Toast.makeText(
+                                context,
+                                context.getString(
+                                    if (ok) R.string.rule_system_test_started else R.string.rule_system_test_failed,
+                                    userId.toString(),
+                                ),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                },
+            )
+            TextButton(
+                text = stringResource(R.string.rule_system_create_rule),
+                enabled = app.domains.any { it.host.isNotBlank() },
+                onClick = {
+                    thread(name = "HyperCopySystemLinkCreateRule") {
+                        val rule = buildRuleFromSystemApp(app)
+                        val result = RuleRepository(context.applicationContext).saveRuleMerged(rule)
+                        val message = when (result) {
+                            io.github.hypercopy.data.rules.RuleSaveResult.Duplicate ->
+                                context.getString(R.string.rule_system_create_rule_duplicate, rule.name)
+                            io.github.hypercopy.data.rules.RuleSaveResult.Rejected ->
+                                context.getString(R.string.rule_system_create_rule_empty)
+                            else -> context.getString(R.string.rule_system_create_rule_ok, rule.name)
+                        }
+                        mainHandler.post {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+            )
+        }
+    }
+}
+
+/** v1.145.15 由系统链接 App 生成链接规则：域名 \Q\E 字面量转义（同内置淘宝·链接），direct_open 直开原链接 */
+private fun buildRuleFromSystemApp(app: SystemLinkApp): RuleConfig {
+    val hosts = app.domains.map { it.host }.filter { it.isNotBlank() }.distinct()
+    val matchRegex = if (hosts.isEmpty()) "" else ".*(?:" + hosts.joinToString("|") { Regex.escape(it) } + ").*"
+    return RuleConfig(
+        name = "${app.label} · 链接",
+        category = RuleCategory.Link,
+        actionMode = RuleActionMode.DirectOpen,
+        matchRegex = matchRegex,
+        parameterRegex = "",
+        target = RuleTarget(
+            type = RuleTargetType.Url,
+            template = "",
+            packageName = app.packageName,
+            action = Intent.ACTION_VIEW,
+        ),
+        clearClipboardAfterJump = true,
+    )
 }
 
 @Composable

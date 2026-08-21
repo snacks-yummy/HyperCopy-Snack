@@ -211,7 +211,18 @@ internal fun SystemLinkAppListCard(
         ) {
             PackageIcon(packageName = app.packageName, modifier = Modifier.padding(end = 12.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = app.label, style = MiuixTheme.textStyles.headline1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = app.label, style = MiuixTheme.textStyles.headline1)
+                    // v1.145.15 已验证徽章：存在已验证域名 → 系统自动接管（无弹窗直达）
+                    if (app.domains.any { it.state.equals("verified", ignoreCase = true) }) {
+                        Text(
+                            text = stringResource(R.string.app_verified_badge),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
                 Text(
                     text = app.packageName,
                     style = MiuixTheme.textStyles.body2,

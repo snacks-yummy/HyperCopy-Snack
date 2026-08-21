@@ -173,6 +173,16 @@
     <string name="rule_system_load_failed">Failed to load system links: %1$s</string>
     <string name="rule_system_app_link_allowed">Open in app</string>
     <string name="rule_system_app_link_allowed_summary">Control whether this app is allowed to handle supported links</string>
+    <!-- v1.145.15 System link upgrade: actions card (test + create rule) -->
+    <string name="app_verified_badge">Verified</string>
+    <string name="rule_system_actions_title">Actions</string>
+    <string name="rule_system_test_hint">Enter a link to test system opening</string>
+    <string name="rule_system_test_button">Test open</string>
+    <string name="rule_system_test_failed">Failed to open (user %1$s)</string>
+    <string name="rule_system_create_rule">Create link rule</string>
+    <string name="rule_system_create_rule_ok">Rule created: %1$s</string>
+    <string name="rule_system_create_rule_duplicate">Rule already exists: %1$s</string>
+    <string name="rule_system_create_rule_empty">No domains available, cannot create</string>
     <!-- unused: 原版遗留占位，未在代码/XML/manifest 引用 -->
     <string name="rule_system_user_menu">System link user</string>
     <string name="rule_sort_tip">Long-press the handle on the right to reorder; rules match from top to bottom</string>
