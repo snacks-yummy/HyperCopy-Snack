@@ -129,7 +129,12 @@ fun LogViewerPage(onBack: () -> Unit) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                 // v1.39 修复：不用 timestamp 拼 key——同毫秒多条日志 key 冲突导致闪退
                 itemsIndexed(logs) { _, entry ->
-                    LogRow(entry)
+                    LogRow(entry) { e ->
+                        // 单条复制：复用 formatted()（时间+级别+标签+消息），微秒级无性能压力
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("HyperCopyLog", e.formatted()))
+                        Toast.makeText(context, R.string.log_copied, Toast.LENGTH_SHORT).show()
+                    }
                 }
                 if (logs.isEmpty()) {
                     item {
@@ -147,12 +152,13 @@ fun LogViewerPage(onBack: () -> Unit) {
 }
 
 @Composable
-private fun LogRow(entry: LogEntry) {
+private fun LogRow(entry: LogEntry, onCopy: (LogEntry) -> Unit) {
     val badge = levelColors()[entry.level] ?: (MiuixTheme.colorScheme.onSurfaceVariantSummary to MiuixTheme.colorScheme.onSurface)
     val badgeColor = badge.first
     val badgeTextColor = badge.second
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        // v1.145.14 单条复制：单击复制本条日志（Compose clickable 与滚动互斥，不误触）
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp).clickable { onCopy(entry) },
         verticalAlignment = Alignment.Top,
     ) {
         Box(
