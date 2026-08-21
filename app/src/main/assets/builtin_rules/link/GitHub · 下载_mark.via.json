@@ -1,0 +1,23 @@
+{
+  "name": "GitHub · 下载",
+  "category": "link",
+  "enabled": true,
+  "actionMode": "direct_open",
+  "priority": 10,
+  "matchRegex": ".*(?:github\\.com/[^/\\s]+/[^/\\s]+/(?:releases/download/|archive/refs/).*|release-assets\\.githubusercontent\\.com.*|codeload\\.github\\.com.*|objects\\.githubusercontent\\.com.*|raw\\.githubusercontent\\.com.*)",
+  "parameterRegex": "(https?:\\/\\/[^\\s]+)",
+  "triggerRegexes": [
+    ".*(?:github\\.com/[^/\\s]+/[^/\\s]+/(?:releases/download/|archive/refs/).*|release-assets\\.githubusercontent\\.com.*|codeload\\.github\\.com.*|objects\\.githubusercontent\\.com.*|raw\\.githubusercontent\\.com.*)"
+  ],
+  "extractionRegexes": [
+    "(https?:\\/\\/[^\\s]+)"
+  ],
+  "parseAfterRedirect": false,
+  "clearClipboardAfterJump": true,
+  "target": {
+    "type": "url",
+    "template": "${url:input}",
+    "packageName": "mark.via",
+    "action": "android.intent.action.VIEW"
+  }
+}
