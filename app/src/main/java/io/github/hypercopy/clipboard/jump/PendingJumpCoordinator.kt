@@ -155,11 +155,22 @@ object PendingJumpCoordinator {
                     }
                     if (!canResolve) {
                         if (jumpSettings.readJumpFallbackWeb()) {
-                            val searchText = io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
-                            val query = searchText.takeIf { !it.isNullOrBlank() } ?: jump.title
-                            intentToLaunch = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.baidu.com/s?wd=${Uri.encode(query)}"))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            HyperLog.d(TAG, "v1.126 预检: 目标App未安装, 网页兜底搜索 query=${query.take(40)}")
+                            // v1.145.x 兜底优化：目标App未装时 URL 直开原链接（一次直达），非 URL 文本保持搜索兜底。
+                            // 优先取本次命中 intent 的 URL（template 规则自带 data，无竞态）；
+                            // 无 data（launchIntent 类规则）再回退最近处理文本。
+                            val intentUrl = jump.intent.data?.toString()?.trim()
+                            val fallbackText = io.github.hypercopy.clipboard.handling.ClipboardTextHandler.lastProcessedText
+                                ?.takeIf { !it.isNullOrBlank() } ?: jump.title
+                            val url = intentUrl?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+                                ?: fallbackText.takeIf { it.trim().startsWith("http://") || it.trim().startsWith("https://") }
+                            intentToLaunch = if (url != null) {
+                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            } else {
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://www.baidu.com/s?wd=${Uri.encode(fallbackText)}"))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            HyperLog.d(TAG, "v1.126 预检: 目标App未安装, 网页兜底${if (url != null) "直开原链接" else "搜索"} ${if (url != null) "url=${url.take(60)}" else "query=${fallbackText.take(40)}"}")
                         } else {
                             HyperLog.d(TAG, "v1.126 预检: 目标App未安装 pkg=${jump.packageName}, 已放弃(网页兜底关闭)")
                             return@launchAfterClipboardClear
