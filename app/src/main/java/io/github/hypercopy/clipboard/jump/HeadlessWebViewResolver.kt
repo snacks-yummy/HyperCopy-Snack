@@ -36,6 +36,12 @@ object HeadlessWebViewResolver {
     fun warmUp(context: Context) {
         synchronized(this) {
             if (cachedWebView != null) return
+            // v1.145.5 低内存自适应：HyperOS 内存压力大（MemFree 常 170MB）时预创建 WebView 会多一个
+            // 常驻渲染进程 → LMK 杀宿主风险。MemAvailable < 1.5GB 时跳过预热（走链时现建，仅首个跳转变慢）
+            if (lowMemory()) {
+                HyperLog.d(TAG, "webview warmUp skipped: low memory")
+                return
+            }
             runCatching {
                 cachedWebView = WebView(context.applicationContext).apply {
                     settings.javaScriptEnabled = true
@@ -143,8 +149,15 @@ object HeadlessWebViewResolver {
                     override fun onPageFinished(view: WebView, url: String) {
                         // v1.141.44 页面加载完成耗时（peisong 页 JS 执行点）
                         HyperLog.d(TAG, "webview page finished: $url (t=+${System.currentTimeMillis() - startMs}ms)")
-                        // 页面加载完再执行"打开/跳转"JS 点击（peisong 页关键：页面自身也会自动 location.href 拉 scheme，此处双保险）
-                        view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
+                        // v1.145.5 JS 点击延迟 1.5s 执行：低内存（HyperOS MemFree 常 170MB）下 page finished 后立即
+                        // evaluateJavascript 大脚本 → 渲染进程崩溃（crashpad 实证：08:04:53/08:09:19 两次
+                        // page finished 后 1~1.3s 崩溃，且 HyperOS 渲染崩溃不回调 onRenderProcessGone → 宿主被杀）。
+                        // scheme 捕获走 shouldOverrideUrlLoading 实时拦截（页面自动 location.href，07:56 实证
+                        // scheme captured +1390ms 早于 page finished +1509ms），JS 仅为点击兜底 → 延迟执行无副作用
+                        handler.postDelayed({
+                            if (finished) return@postDelayed
+                            view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
+                        }, 1_500L)
                         // v1.145.1 快速兜底：页面加载完成 4s 内无 scheme 捕获 → 提前 fallback（原等满 8s 超时）。
                         // 安全边界：mt.cn 快链路 <600ms 已捕获；peisong 慢链路历史实测 3.4s < 4s；dpurl 静态壳等 4s 即兜底。
                         handler.postDelayed({
@@ -274,6 +287,16 @@ object HeadlessWebViewResolver {
 }
 
 private fun isWebUrl(url: String): Boolean = url.startsWith("http://", true) || url.startsWith("https://", true)
+
+// v1.145.5 低内存检测：读 /proc/meminfo MemAvailable，< 1.5GB 视为低内存（HyperOS 激进 LMK 场景跳过预热）
+private fun lowMemory(): Boolean = runCatching {
+    val memAvailableKb = java.io.File("/proc/meminfo").readText()
+        .lineSequence()
+        .firstOrNull { it.startsWith("MemAvailable:") }
+        ?.substringAfter(':')?.trim()?.substringBefore(" kB")?.trim()?.toLongOrNull()
+        ?: return@runCatching false
+    memAvailableKb < 1_500_000L
+}.getOrDefault(false)
 
 // v1.145.1 dpurl.cn UA 特判常量：移动 Chrome 标准 UA（与系统浏览器一致，触发美团服务端 302 分流）
 private const val MOBILE_CHROME_UA =
