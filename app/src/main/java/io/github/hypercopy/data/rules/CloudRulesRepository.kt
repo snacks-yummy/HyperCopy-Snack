@@ -78,9 +78,11 @@ class CloudRulesRepository(
             return@withContext (accelCall?.invoke() ?: throw CloudRuleException(CloudRuleError.NetworkError))
         }
         val githubCall = githubCallIfAvailable { downloadRuleFromGithub(cloudRule) }
-        // v1.140.18 三通道自动切换：GitHub 直连 + ghfast/gh-proxy 代理 + 加速站，并行先成功者胜
+        // v1.145.11 六通道自动切换：GitHub 直连 + 4 个实测可用代理 + 加速站，并行先成功者胜
         val ghfastCall = { downloadRuleFromProxy(cloudRule, GHFAST_BASE) }
         val ghproxyCall = { downloadRuleFromProxy(cloudRule, GHPROXY_BASE) }
+        val ghfast2Call = { downloadRuleFromProxy(cloudRule, GHFAST_BASE_2) }
+        val ghproxy2Call = { downloadRuleFromProxy(cloudRule, GHPROXY_BASE_2) }
         // v1.140.18 通道记忆：优先走探测确认的最快通道（首次确认后不再每次全并行），失败才回退多通道并行
         val preferred = preferredChannel
         if (preferred != null) {
@@ -89,6 +91,8 @@ class CloudRulesRepository(
                 "accel" -> accelCall
                 "ghfast" -> ghfastCall
                 "ghproxy" -> ghproxyCall
+                "ghfast2" -> ghfast2Call
+                "ghproxy2" -> ghproxy2Call
                 else -> null
             }
             if (preferredCall != null) {
@@ -107,6 +111,8 @@ class CloudRulesRepository(
             "accel" to accelCall,
             "ghfast" to ghfastCall,
             "ghproxy" to ghproxyCall,
+            "ghfast2" to ghfast2Call,
+            "ghproxy2" to ghproxy2Call,
         )
         // 成功后把记忆更新为实际成功的通道
         lastSuccessChannel.get()?.let { preferredChannel = it }
@@ -262,6 +268,8 @@ class CloudRulesRepository(
             add("github" to { probeChannel(rawProbe) })
             add("ghfast" to { probeChannel("$GHFAST_BASE/$rawProbe") })
             add("ghproxy" to { probeChannel("$GHPROXY_BASE/$rawProbe") })
+            add("ghfast2" to { probeChannel("$GHFAST_BASE_2/$rawProbe") })
+            add("ghproxy2" to { probeChannel("$GHPROXY_BASE_2/$rawProbe") })
             config.acceleratedBase?.let { base -> add("accel" to { probeChannel("$base/index.json") }) }
         }
         val best = AtomicReference<Pair<String, Long>?>(null)
@@ -399,8 +407,13 @@ class CloudRulesRepository(
         private const val TAG = "HyperCopy-CloudRules"
         private const val GITHUB_API_BASE = "https://api.github.com"
         // v1.140.18 三通道：GitHub 文件代理前缀（raw.githubusercontent 前缀转发）
-        private const val GHFAST_BASE = "https://ghfast.top"
-        private const val GHPROXY_BASE = "https://gh-proxy.com"
+        // v1.145.11 全网调研+实测更新（2026-08-21）：旧 ghfast.top/gh-proxy.com 已失效(000/404)，
+        // 以下 4 个为实测可用（返回完整规则 JSON）：gh.sixyin.com 2.5s / ghproxy.net 1.05s /
+        // github.tbap.top 0.75s(最快) / github.mxw.qzz.io 1.1s；失效自动被探测机制淘汰
+        private const val GHFAST_BASE = "https://gh.sixyin.com"
+        private const val GHPROXY_BASE = "https://ghproxy.net"
+        private const val GHFAST_BASE_2 = "https://github.tbap.top"
+        private const val GHPROXY_BASE_2 = "https://github.mxw.qzz.io"
 
         private const val FOLDER_LINK = "link"
         private const val FOLDER_TEXT = "text"
