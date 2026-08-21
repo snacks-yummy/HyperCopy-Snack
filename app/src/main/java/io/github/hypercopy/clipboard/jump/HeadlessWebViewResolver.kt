@@ -144,6 +144,8 @@ object HeadlessWebViewResolver {
         private var finished = false
         private var webView: WebView? = null
         private val timeoutRunnable = Runnable { fallback() }
+        // v1.145.8 冷启动超时自适应标记：首次 redirect 到达 >2s 时超时放宽（渲染进程冷启动窗口）
+        private var timeoutExtended = false
         // v1.141.44 分段计时基准：load 起始时间，后续每跳 URL 输出相对耗时（t=+XXms），定位 mt.cn 链路耗时分布
         private val startMs = System.currentTimeMillis()
 
@@ -202,6 +204,16 @@ object HeadlessWebViewResolver {
             val elapsed = System.currentTimeMillis() - startMs
             if (isWebUrl(nextUrl)) {
                 HyperLog.d(TAG, "webview redirect: ${nextUrl.take(90)} (t=+${elapsed}ms)")
+                // v1.145.8 冷启动超时自适应：首次 redirect 到达 >2s = 渲染进程冷启动（预热实例被 LMK 回收
+                // 或内核重建，08:33 实测首次 redirect +3155ms），固定 8s 超时会抢跑 fallback（竞态错过晚到
+                // 的 scheme → 误开浏览器）。检测到冷启动 → 超时放宽 15s，让慢渲染完成。
+                // 安全边界：热渲染首次 redirect <2s（正常 90~600ms）不扩展；dpurl 静态壳无 redirect 不触发
+                if (!timeoutExtended && elapsed > 2_000L) {
+                    timeoutExtended = true
+                    handler.removeCallbacks(timeoutRunnable)
+                    handler.postDelayed(timeoutRunnable, 15_000L)
+                    HyperLog.d(TAG, "webview cold-start detected (first redirect +${elapsed}ms), timeout extended to 15s")
+                }
                 return false
             }
             HyperLog.d(TAG, "webview scheme captured: ${nextUrl.take(90)} (t=+${elapsed}ms)")
