@@ -6,7 +6,7 @@ object Config {
     const val KEY_LOG_LEVEL = "log_level"
     // v1.141.39 日志缓冲条数：内存环形缓冲上限（日志 UI 展示窗口），档位 1000~50000
     const val KEY_LOG_BUFFER_MAX = "log_buffer_max"
-    const val DEFAULT_LOG_BUFFER_MAX = 10_000
+    const val DEFAULT_LOG_BUFFER_MAX = 20_000
     const val MIN_LOG_BUFFER_MAX = 1_000
     const val MAX_LOG_BUFFER_MAX = 50_000
     const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
