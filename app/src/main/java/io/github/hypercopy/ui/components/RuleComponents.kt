@@ -198,6 +198,7 @@ internal fun SystemLinkHandlingCard(
 @Composable
 internal fun SystemLinkAppListCard(
     app: SystemLinkApp,
+    hitCount: Int = 0,
     onClick: () -> Unit,
     onAppEnabledChange: (Boolean) -> Unit,
 ) {
@@ -230,6 +231,14 @@ internal fun SystemLinkAppListCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // v1.145.15 跳转命中次数（与排序同源：JumpHistoryRepository 50 条环形统计）
+                if (hitCount > 0) {
+                    Text(
+                        text = stringResource(R.string.rule_hit_count, hitCount),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
             }
             Switch(
                 checked = app.linkHandlingAllowed,

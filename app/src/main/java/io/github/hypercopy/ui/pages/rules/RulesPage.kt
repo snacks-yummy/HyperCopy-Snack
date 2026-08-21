@@ -260,11 +260,14 @@ fun RulesPage(
     // v1.145.15 系统链接自动按跳转命中频率排序（有命中在前，同次数按字母；无需手动开关）
     // 注意：repository 必须在无条件位置 remember（Compose 规范），不可放进 if 分支
     val systemLinkHistoryRepository = remember { io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext) }
+    // v1.145.15 命中次数（排序与卡片显示同源；仅 System 分类计算）
+    val systemLinkHitCounts = remember(filteredSystemLinkApps, selectedCategory) {
+        if (selectedCategory == RulePageCategory.System) systemLinkHistoryRepository.countByPackage() else emptyMap()
+    }
     val displayedSystemLinkApps = remember(filteredSystemLinkApps, selectedCategory) {
         if (selectedCategory == RulePageCategory.System) {
-            val counts = systemLinkHistoryRepository.countByPackage()
             filteredSystemLinkApps.sortedWith(
-                compareByDescending<SystemLinkApp> { counts[it.packageName] ?: 0 }.thenBy { it.label },
+                compareByDescending<SystemLinkApp> { systemLinkHitCounts[it.packageName] ?: 0 }.thenBy { it.label },
             )
         } else filteredSystemLinkApps
     }
@@ -729,6 +732,7 @@ if (sceneGroup.isNotEmpty()) {
                     else -> items(displayedSystemLinkApps, key = { it.packageName }) { app ->
                         SystemLinkAppListCard(
                             app = app,
+                            hitCount = systemLinkHitCounts[app.packageName] ?: 0,
                             onClick = {
                                 context.startActivity(
                                     Intent(context, SystemLinkAppDetailActivity::class.java)
