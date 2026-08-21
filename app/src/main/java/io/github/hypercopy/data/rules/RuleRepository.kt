@@ -377,7 +377,9 @@ class RuleRepository(private val context: Context) {
         ruleChanges.tryEmit(Unit)
     }
 
-    /** v1.145.16 规则库自动备份：写库前保留当前文件，轮转保留最近 3 份（.bak → .bak.1 → .bak.2） */
+    /** v1.145.16 规则库自动备份：写库前保留当前文件
+     *  ① 内部轮转 3 份（.bak/.bak.1/.bak.2）——防半截/误写
+     *  ② 外部备份到工作区 _archive/rules_backup/（App 数据被清除/卸载也不丢，可手动恢复） */
     private fun backupRulesFile() {
         val file = rulesFile()
         if (!file.exists()) return
@@ -388,6 +390,18 @@ class RuleRepository(private val context: Context) {
             if (bak1.exists()) bak1.copyTo(bak2, overwrite = true)
             if (bak.exists()) bak.copyTo(bak1, overwrite = true)
             file.copyTo(bak, overwrite = true)
+        }
+        // v1.145.16 外部备份（公共存储，App 数据清除/卸载不受影响）
+        runCatching {
+            val extDir = java.io.File(
+                android.os.Environment.getExternalStorageDirectory(),
+                "Via/复制直达项目二改/_archive/rules_backup"
+            )
+            extDir.mkdirs()
+            val extPrev = java.io.File(extDir, "rules.prev.json")
+            val extCur = java.io.File(extDir, "rules.json")
+            if (extCur.exists()) extCur.copyTo(extPrev, overwrite = true)
+            file.copyTo(extCur, overwrite = true)
         }
     }
 
