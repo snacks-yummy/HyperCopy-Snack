@@ -18,6 +18,8 @@ class App : Application(), XposedServiceHelper.OnServiceListener {
         UiActionLogger.init(this)
         // 内置云规则：开箱即用，无需手动下载
         runCatching { RuleRepository(this).ensureBuiltinRules() }
+        // v1.145.16 外部备份补写：授权后重启即备份（防清除数据/卸载丢失）
+        runCatching { RuleRepository(this).ensureExternalBackup() }
         XposedServiceHelper.registerListener(this)
         ClipboardMonitorController.startForCurrentMode(this)
     }

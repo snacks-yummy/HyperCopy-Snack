@@ -402,7 +402,19 @@ class RuleRepository(private val context: Context) {
             val extCur = java.io.File(extDir, "rules.json")
             if (extCur.exists()) extCur.copyTo(extPrev, overwrite = true)
             file.copyTo(extCur, overwrite = true)
+        }.onFailure { e ->
+            HyperLog.d(TAG, "rules external backup FAILED: ${e.message} (需授予所有文件访问权限)")
         }
+    }
+
+    /** v1.145.16 启动补备份：外部备份缺失且内部库存在时立即备份一次（授权后重启即生效） */
+    fun ensureExternalBackup() {
+        val extCur = java.io.File(
+            android.os.Environment.getExternalStorageDirectory(),
+            "Via/复制直达项目二改/_archive/rules_backup/rules.json"
+        )
+        if (extCur.exists()) return
+        backupRulesFile()
     }
 
     /** 功能⑫：一键合并遗留重复规则——内容相同（sameContentAs）的规则合并为一条（保留第一个，其余删除） */
