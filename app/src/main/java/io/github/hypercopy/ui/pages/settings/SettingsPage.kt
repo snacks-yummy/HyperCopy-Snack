@@ -78,6 +78,7 @@ import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /** v1.140.18 设置页二级子页（避免一级开关过多） */
 enum class SettingsSubPage { KEEP_ALIVE, NOTIFY, JUMP, EXPRESS, MONITOR }
@@ -172,10 +173,13 @@ fun SettingsPage(
     var showCloudSourceDialog by remember { mutableStateOf(false) }
     // v1.145.16 规则备份对话框状态
     var showRulesBackupDialog by remember { mutableStateOf(false) }
+    // v1.145.17 隐藏桌面图标确认对话框（防误触后找不到入口）
+    var showHideIconConfirm by remember { mutableStateOf(false) }
     // v1.142.8 返回栈修复：云规则源弹窗打开时返回键先关弹窗（不直接退出 App）
-    BackHandler(enabled = showCloudSourceDialog || showRulesBackupDialog) {
+    BackHandler(enabled = showCloudSourceDialog || showRulesBackupDialog || showHideIconConfirm) {
         showCloudSourceDialog = false
         showRulesBackupDialog = false
+        showHideIconConfirm = false
     }
     // v1.140.18 子页滚动位置记忆：返回后再次进入恢复上次位置
     val subListState = rememberLazyListState()
@@ -654,7 +658,14 @@ fun SettingsPage(
                         title = stringResource(R.string.hide_desktop_icon),
                         summary = stringResource(R.string.hide_desktop_icon_summary),
                         checked = desktopIconHidden,
-                        onCheckedChange = { onDesktopIconHiddenChange(!desktopIconHidden) },
+                        // v1.145.17 防"隐藏后找不到入口"：开启前弹确认对话框告知恢复方式
+                        onCheckedChange = {
+                            if (!desktopIconHidden) {
+                                showHideIconConfirm = true
+                            } else {
+                                onDesktopIconHiddenChange(false)
+                            }
+                        },
                     )
                 }
             }
@@ -729,6 +740,44 @@ fun SettingsPage(
             show = showRulesBackupDialog,
             onDismiss = { showRulesBackupDialog = false },
         )
+        // v1.145.17 隐藏桌面图标确认对话框：告知恢复方式，防误触后找不到入口
+        if (showHideIconConfirm) {
+            WindowDialog(
+                title = stringResource(R.string.hide_desktop_icon),
+                show = showHideIconConfirm,
+                onDismissRequest = { showHideIconConfirm = false },
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.hide_desktop_icon_confirm_message),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(
+                            text = stringResource(R.string.hide_desktop_icon_confirm_cancel),
+                            onClick = { showHideIconConfirm = false },
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.hide_desktop_icon_confirm_ok),
+                            onClick = {
+                                showHideIconConfirm = false
+                                onDesktopIconHiddenChange(true)
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
 }
 
 private data class LogLevelOption(val label: String, val value: Int)

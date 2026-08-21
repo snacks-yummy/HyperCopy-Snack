@@ -77,6 +77,23 @@ class SettingsRepository(private val context: Context) {
         preferences().edit(commit = true) { putInt(Config.KEY_CLOUD_RULES_TTL_HOURS, value) }
     }
 
+    // v1.145.17 默认值一次性迁移（用户要求）：老设备旧默认（launch/true/24）→ 新默认（off/false/168）
+    // 仅迁移一次（KEY_DEFAULTS_MIGRATED_V117 标志），之后用户手动选择不再被覆盖
+    fun migrateDefaultsV117() {
+        val sp = preferences()
+        if (sp.getBoolean(Config.KEY_DEFAULTS_MIGRATED_V117, false)) return
+        if (readUpdateCheckFrequency() == Config.UPDATE_CHECK_FREQUENCY_LAUNCH) {
+            persistUpdateCheckFrequency(Config.UPDATE_CHECK_FREQUENCY_OFF)
+        }
+        if (readCloudRulesAutoCheck()) {
+            persistCloudRulesAutoCheck(false)
+        }
+        if (readCloudRulesTtlHours() == 24) {
+            persistCloudRulesTtlHours(168)
+        }
+        sp.edit(commit = true) { putBoolean(Config.KEY_DEFAULTS_MIGRATED_V117, true) }
+    }
+
     fun readHideFromRecents(): Boolean {
         return preferences().getBoolean(Config.KEY_HIDE_FROM_RECENTS, Config.DEFAULT_HIDE_FROM_RECENTS)
     }

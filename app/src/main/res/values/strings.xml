@@ -116,6 +116,10 @@
     <string name="hide_from_recents_summary">开启后应用不会显示在系统最近任务列表中</string>
     <string name="hide_desktop_icon">隐藏桌面图标</string>
     <string name="hide_desktop_icon_summary">开启后启动器中不显示应用图标，仍可从 LSPosed 模块设置打开</string>
+    <!-- v1.145.17 隐藏图标确认对话框（防"隐藏后找不到入口"） -->
+    <string name="hide_desktop_icon_confirm_message">开启后桌面图标消失，App 将无法从桌面打开。\n\n恢复方式：\n① 系统设置 → 应用 → HyperCopy → 打开（App 内可随时关闭隐藏）\n② 通知栏常驻通知点击打开\n③ LSPosed 模块设置\n\n确认隐藏？</string>
+    <string name="hide_desktop_icon_confirm_ok">确认隐藏</string>
+    <string name="hide_desktop_icon_confirm_cancel">取消</string>
 
     <!-- 应用名单 -->
     <string name="app_list">应用名单</string>

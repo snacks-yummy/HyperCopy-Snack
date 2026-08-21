@@ -108,6 +108,10 @@
     <string name="hide_from_recents_summary">When enabled, the app is hidden from the system recent tasks list</string>
     <string name="hide_desktop_icon">Hide launcher icon</string>
     <string name="hide_desktop_icon_summary">When enabled, the app icon is hidden from the launcher but can still be opened from LSPosed module settings</string>
+    <!-- v1.145.17 Hide icon confirmation dialog (prevent "no entry after hiding") -->
+    <string name="hide_desktop_icon_confirm_message">The launcher icon will disappear and the app cannot be opened from the home screen.\n\nHow to restore:\n① Settings → Apps → HyperCopy → Open (you can disable hiding inside the app)\n② Tap the persistent notification\n③ LSPosed module settings\n\nHide the icon?</string>
+    <string name="hide_desktop_icon_confirm_ok">Hide</string>
+    <string name="hide_desktop_icon_confirm_cancel">Cancel</string>
 
     <string name="app_list">App list</string>
     <string name="app_list_summary">Manage whitelist and blacklist apps</string>
