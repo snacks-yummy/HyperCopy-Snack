@@ -295,12 +295,16 @@ private fun SystemLinkActionsCard(
                 onClick = {
                     thread(name = "HyperCopySystemLinkCreateRule") {
                         val rule = buildRuleFromSystemApp(app)
-                        val result = RuleRepository(context.applicationContext).saveRuleMerged(rule)
+                        val repository = RuleRepository(context.applicationContext)
+                        val result = repository.saveRuleMerged(rule)
                         // v1.145.15 诊断日志：生成规则结果（空域名/去重/成功定位）
+                        // 增强：输出库中同内容规则详情（id/enabled/createdAt）+ 规则总数（区分"在库不显示"与"已丢失"）
+                        val existing = repository.readRules().firstOrNull { it.sameContentAs(rule) }
                         HyperLog.d(
                             "HyperCopy",
                             "system link create rule: pkg=${app.packageName} label=${app.label} " +
-                                "hosts=${app.domains.map { it.host }} result=$result name=${rule.name} regex=${rule.matchRegex.take(80)}",
+                                "hosts=${app.domains.map { it.host }} result=$result name=${rule.name} regex=${rule.matchRegex.take(80)} " +
+                                "totalRules=${repository.readRules().size} existingId=${existing?.id ?: "-"} existingEnabled=${existing?.enabled}",
                         )
                         val message = when (result) {
                             io.github.hypercopy.data.rules.RuleSaveResult.Duplicate ->
