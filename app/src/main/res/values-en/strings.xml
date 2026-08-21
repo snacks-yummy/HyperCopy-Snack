@@ -74,6 +74,22 @@
     <string name="check_update_summary">Check the latest version from GitHub Releases</string>
     <string name="auto_check_update">Check updates automatically</string>
     <string name="auto_check_update_summary">Check GitHub Releases for new versions on startup</string>
+    <!-- v1.145.12 update check frequency + cloud rules auto check -->
+    <string name="update_check_frequency">Auto check update frequency</string>
+    <string name="update_check_frequency_summary">Controls how often the app checks GitHub Releases on startup; manual "Check update" always works</string>
+    <string name="update_check_frequency_off">Never</string>
+    <string name="update_check_frequency_launch">Every launch</string>
+    <string name="update_check_frequency_daily">Once a day</string>
+    <string name="update_check_frequency_weekly">Once a week</string>
+    <string name="cloud_rules_auto_check">Cloud rules auto check</string>
+    <string name="cloud_rules_auto_check_summary">When off, opening the cloud rules page only shows cached list without network requests</string>
+    <string name="cloud_rules_ttl">Check frequency</string>
+    <string name="cloud_rules_ttl_summary">Cache is shown directly within this time without re-fetching</string>
+    <string name="cloud_rules_ttl_1h">1 hour</string>
+    <string name="cloud_rules_ttl_6h">6 hours</string>
+    <string name="cloud_rules_ttl_24h">24 hours</string>
+    <string name="cloud_rules_ttl_7d">7 days</string>
+    <string name="cloud_toast_refresh_failed">Refresh failed: %1$s</string>
     <string name="hide_from_recents">Hide from recents</string>
     <string name="hide_from_recents_summary">When enabled, the app is hidden from the system recent tasks list</string>
     <string name="hide_desktop_icon">Hide launcher icon</string>

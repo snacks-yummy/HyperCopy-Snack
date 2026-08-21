@@ -41,6 +41,41 @@ class SettingsRepository(private val context: Context) {
     fun persistAutoCheckUpdate(value: Boolean) {
         preferences().edit(commit = true) { putBoolean(Config.KEY_AUTO_CHECK_UPDATE, value) }
     }
+    // v1.145.12 更新检测频率（off/launch/daily/weekly）：迁移旧布尔开关（true→launch, false→off）
+    fun readUpdateCheckFrequency(): String {
+        val sp = preferences()
+        if (!sp.contains(Config.KEY_UPDATE_CHECK_FREQUENCY) && sp.contains(Config.KEY_AUTO_CHECK_UPDATE)) {
+            val migrated = if (sp.getBoolean(Config.KEY_AUTO_CHECK_UPDATE, true)) {
+                Config.UPDATE_CHECK_FREQUENCY_LAUNCH
+            } else {
+                Config.UPDATE_CHECK_FREQUENCY_OFF
+            }
+            sp.edit(commit = true) { putString(Config.KEY_UPDATE_CHECK_FREQUENCY, migrated) }
+            return migrated
+        }
+        return sp.getString(Config.KEY_UPDATE_CHECK_FREQUENCY, Config.DEFAULT_UPDATE_CHECK_FREQUENCY)
+            ?: Config.DEFAULT_UPDATE_CHECK_FREQUENCY
+    }
+    fun persistUpdateCheckFrequency(value: String) {
+        preferences().edit(commit = true) { putString(Config.KEY_UPDATE_CHECK_FREQUENCY, value) }
+    }
+    fun readLastUpdateCheckTs(): Long = preferences().getLong(Config.KEY_LAST_UPDATE_CHECK_TS, 0L)
+    fun persistLastUpdateCheckTs(value: Long) {
+        preferences().edit(commit = true) { putLong(Config.KEY_LAST_UPDATE_CHECK_TS, value) }
+    }
+    // v1.145.12 云规则自动检测开关 + TTL 小时数
+    fun readCloudRulesAutoCheck(): Boolean {
+        return preferences().getBoolean(Config.KEY_CLOUD_RULES_AUTO_CHECK, Config.DEFAULT_CLOUD_RULES_AUTO_CHECK)
+    }
+    fun persistCloudRulesAutoCheck(value: Boolean) {
+        preferences().edit(commit = true) { putBoolean(Config.KEY_CLOUD_RULES_AUTO_CHECK, value) }
+    }
+    fun readCloudRulesTtlHours(): Int {
+        return preferences().getInt(Config.KEY_CLOUD_RULES_TTL_HOURS, Config.DEFAULT_CLOUD_RULES_TTL_HOURS)
+    }
+    fun persistCloudRulesTtlHours(value: Int) {
+        preferences().edit(commit = true) { putInt(Config.KEY_CLOUD_RULES_TTL_HOURS, value) }
+    }
 
     fun readHideFromRecents(): Boolean {
         return preferences().getBoolean(Config.KEY_HIDE_FROM_RECENTS, Config.DEFAULT_HIDE_FROM_RECENTS)

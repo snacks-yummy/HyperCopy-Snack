@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
@@ -67,6 +68,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -133,7 +135,12 @@ fun AppScreen(
     var logLevel by remember { mutableIntStateOf(settingsRepository.readLogLevel()) }
     // v1.141.39 日志缓冲条数（内存环形缓冲上限，日志 UI 展示窗口）
     var logBufferMax by remember { mutableIntStateOf(settingsRepository.readLogBufferMax()) }
-    var autoCheckUpdate by remember { mutableStateOf(settingsRepository.readAutoCheckUpdate()) }
+    // v1.145.12 更新检测频率（off/launch/daily/weekly，含旧布尔开关迁移）
+    var updateCheckFrequency by remember { mutableStateOf(settingsRepository.readUpdateCheckFrequency()) }
+    // v1.145.12 云规则自动检测开关 + TTL 小时数 + 顶栏刷新中状态
+    var cloudRulesAutoCheck by remember { mutableStateOf(settingsRepository.readCloudRulesAutoCheck()) }
+    var cloudRulesTtlHours by remember { mutableStateOf(settingsRepository.readCloudRulesTtlHours()) }
+    var cloudRulesRefreshing by remember { mutableStateOf(false) }
     var hideFromRecents by remember { mutableStateOf(settingsRepository.readHideFromRecents()) }
     var desktopIconHidden by remember { mutableStateOf(settingsRepository.readDesktopIconHidden()) }
     var detectClonedApp by remember { mutableStateOf(settingsRepository.readDetectClonedApp()) }
@@ -184,21 +191,33 @@ fun AppScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (autoCheckUpdate) {
-            checkingUpdate = true
-            val result = withContext(Dispatchers.IO) { updateRepository.checkLatestRelease() }
-            checkingUpdate = false
-            if (result is UpdateCheckResult.HasUpdate) {
-                updateDialog = UpdateDialogState(
-                    title = context.getString(R.string.update_new_version),
-                    message = context.getString(
-                        R.string.update_current_latest_version,
-                        result.currentVersion,
-                        result.release.version,
-                    ),
-                    url = result.release.url,
-                    showOpenButton = true,
-                )
+        // v1.145.12 按频率门控：不更新 / 间隔内跳过（上次检测时间戳持久化，跨重启有效）
+        val freq = updateCheckFrequency
+        if (freq != Config.UPDATE_CHECK_FREQUENCY_OFF) {
+            val lastTs = settingsRepository.readLastUpdateCheckTs()
+            val intervalMs = when (freq) {
+                Config.UPDATE_CHECK_FREQUENCY_DAILY -> 24 * 60 * 60 * 1000L
+                Config.UPDATE_CHECK_FREQUENCY_WEEKLY -> 7 * 24 * 60 * 60 * 1000L
+                else -> 0L // launch：每次启动
+            }
+            if (System.currentTimeMillis() - lastTs >= intervalMs) {
+                checkingUpdate = true
+                val result = withContext(Dispatchers.IO) { updateRepository.checkLatestRelease() }
+                checkingUpdate = false
+                // 无论结果如何都记录检测时间（失败也记，避免网络差时每次启动重复请求）
+                settingsRepository.persistLastUpdateCheckTs(System.currentTimeMillis())
+                if (result is UpdateCheckResult.HasUpdate) {
+                    updateDialog = UpdateDialogState(
+                        title = context.getString(R.string.update_new_version),
+                        message = context.getString(
+                            R.string.update_current_latest_version,
+                            result.currentVersion,
+                            result.release.version,
+                        ),
+                        url = result.release.url,
+                        showOpenButton = true,
+                    )
+                }
             }
         }
     }
@@ -319,11 +338,19 @@ fun AppScreen(
                                     largeTitle = stringResource(R.string.tab_cloud_rules),
                                     scrollBehavior = scrollBehavior,
                                     actions = {
-                                        IconButton(onClick = { refreshTrigger++ }) {
-                                            Icon(
-                                                imageVector = MiuixIcons.Refresh,
-                                                contentDescription = stringResource(R.string.action_refresh),
-                                            )
+                                        // v1.145.12 刷新中：按钮禁用 + 转圈反馈（此前无任何视觉指示）
+                                        IconButton(onClick = { refreshTrigger++ }, enabled = !cloudRulesRefreshing) {
+                                            if (cloudRulesRefreshing) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = MiuixIcons.Refresh,
+                                                    contentDescription = stringResource(R.string.action_refresh),
+                                                )
+                                            }
                                         }
                                         Box {
                                             // v1.67 云规则菜单按钮改文字（ListView 图标语义不明）
@@ -372,6 +399,7 @@ fun AppScreen(
                                     settingsRepository.persistCloudSource(key)
                                     cloudSource = key
                                 },
+                                onRefreshingChange = { cloudRulesRefreshing = it },
                             )
                         }
                     }
@@ -479,7 +507,9 @@ fun AppScreen(
                                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                                 logLevel = logLevel,
                                 logBufferMax = logBufferMax,
-                                autoCheckUpdate = autoCheckUpdate,
+                                updateCheckFrequency = updateCheckFrequency,
+                                cloudRulesAutoCheck = cloudRulesAutoCheck,
+                                cloudRulesTtlHours = cloudRulesTtlHours,
                                 hideFromRecents = hideFromRecents,
                                 desktopIconHidden = desktopIconHidden,
                                 detectClonedApp = detectClonedApp,
@@ -515,10 +545,20 @@ fun AppScreen(
                                     settingsRepository.persistLogBufferMax(it)
                                     io.github.hypercopy.UiActionLogger.option("日志缓冲条数", it.toString())
                                 },
-                                onAutoCheckUpdateChange = {
-                                    autoCheckUpdate = it
-                                    settingsRepository.persistAutoCheckUpdate(it)
-                                    io.github.hypercopy.UiActionLogger.switch("自动检查更新", it)
+                                onUpdateCheckFrequencyChange = {
+                                    updateCheckFrequency = it
+                                    settingsRepository.persistUpdateCheckFrequency(it)
+                                    io.github.hypercopy.UiActionLogger.option("自动检查更新频率", it)
+                                },
+                                onCloudRulesAutoCheckChange = {
+                                    cloudRulesAutoCheck = it
+                                    settingsRepository.persistCloudRulesAutoCheck(it)
+                                    io.github.hypercopy.UiActionLogger.switch("云规则自动检测", it)
+                                },
+                                onCloudRulesTtlHoursChange = {
+                                    cloudRulesTtlHours = it
+                                    settingsRepository.persistCloudRulesTtlHours(it)
+                                    io.github.hypercopy.UiActionLogger.option("云规则检测频率", "${it}h")
                                 },
                                 onHideFromRecentsChange = {
                                     hideFromRecents = it

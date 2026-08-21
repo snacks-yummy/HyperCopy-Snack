@@ -82,6 +82,22 @@
     <string name="check_update_summary">通过 GitHub Release 检查最新版本</string>
     <string name="auto_check_update">自动检查更新</string>
     <string name="auto_check_update_summary">启动时检查 GitHub Release 是否有新版本</string>
+    <!-- v1.145.12 更新检测频率 + 云规则自动检测 -->
+    <string name="update_check_frequency">自动检查更新频率</string>
+    <string name="update_check_frequency_summary">控制启动时自动检查 GitHub Release 的频率，手动「检查更新」始终可用</string>
+    <string name="update_check_frequency_off">不更新</string>
+    <string name="update_check_frequency_launch">每次启动</string>
+    <string name="update_check_frequency_daily">每天一次</string>
+    <string name="update_check_frequency_weekly">每周一次</string>
+    <string name="cloud_rules_auto_check">云规则自动检测</string>
+    <string name="cloud_rules_auto_check_summary">关闭后打开云规则页仅显示缓存，不发起网络请求</string>
+    <string name="cloud_rules_ttl">检测频率</string>
+    <string name="cloud_rules_ttl_summary">缓存在此时间内直接显示，不重新拉取</string>
+    <string name="cloud_rules_ttl_1h">1 小时</string>
+    <string name="cloud_rules_ttl_6h">6 小时</string>
+    <string name="cloud_rules_ttl_24h">24 小时</string>
+    <string name="cloud_rules_ttl_7d">7 天</string>
+    <string name="cloud_toast_refresh_failed">刷新失败：%1$s</string>
     <string name="hide_from_recents">从最近任务隐藏</string>
     <string name="hide_from_recents_summary">开启后应用不会显示在系统最近任务列表中</string>
     <string name="hide_desktop_icon">隐藏桌面图标</string>

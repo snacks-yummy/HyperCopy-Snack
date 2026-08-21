@@ -10,6 +10,16 @@ object Config {
     const val MIN_LOG_BUFFER_MAX = 1_000
     const val MAX_LOG_BUFFER_MAX = 50_000
     const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
+    // v1.145.12 更新检测频率（off/launch/daily/weekly）+ 上次检测时间戳
+    const val KEY_UPDATE_CHECK_FREQUENCY = "update_check_frequency"
+    const val KEY_LAST_UPDATE_CHECK_TS = "last_update_check_ts"
+    const val UPDATE_CHECK_FREQUENCY_OFF = "off"
+    const val UPDATE_CHECK_FREQUENCY_LAUNCH = "launch"
+    const val UPDATE_CHECK_FREQUENCY_DAILY = "daily"
+    const val UPDATE_CHECK_FREQUENCY_WEEKLY = "weekly"
+    // v1.145.12 云规则自动检测开关 + TTL 小时数（1/6/24/168）
+    const val KEY_CLOUD_RULES_AUTO_CHECK = "cloud_rules_auto_check"
+    const val KEY_CLOUD_RULES_TTL_HOURS = "cloud_rules_ttl_hours"
     const val KEY_HIDE_FROM_RECENTS = "hide_from_recents"
     const val KEY_APP_LANGUAGE = "app_language"
     const val KEY_COLOR_MODE = "color_mode"
@@ -130,6 +140,10 @@ object Config {
     // v1.144.8 默认日志级别改调试（便于排查命中/跳转细节；App 内日志本就全量，此值影响 logcat 输出）
     const val DEFAULT_LOG_LEVEL = LOG_LEVEL_DEBUG
     const val DEFAULT_AUTO_CHECK_UPDATE = true
+    // v1.145.12 默认每次启动检测（兼容旧 auto_check_update=true 行为）；TTL 默认 24h；云规则默认自动检测
+    const val DEFAULT_UPDATE_CHECK_FREQUENCY = UPDATE_CHECK_FREQUENCY_LAUNCH
+    const val DEFAULT_CLOUD_RULES_AUTO_CHECK = true
+    const val DEFAULT_CLOUD_RULES_TTL_HOURS = 24
     const val DEFAULT_HIDE_FROM_RECENTS = false
     const val DEFAULT_APP_LANGUAGE = APP_LANGUAGE_SYSTEM
     const val DEFAULT_COLOR_MODE = COLOR_MODE_SYSTEM

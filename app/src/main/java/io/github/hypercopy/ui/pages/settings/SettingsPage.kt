@@ -61,12 +61,14 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.AppRecording
+import top.yukonga.miuix.kmp.icon.extended.CloudFill
 import top.yukonga.miuix.kmp.icon.extended.Community
 import top.yukonga.miuix.kmp.icon.extended.Copy
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.ListView
 import top.yukonga.miuix.kmp.icon.extended.Theme
+import top.yukonga.miuix.kmp.icon.extended.Timer
 import top.yukonga.miuix.kmp.icon.extended.Translate
 import top.yukonga.miuix.kmp.icon.extended.Tune
 import top.yukonga.miuix.kmp.icon.extended.Unpin
@@ -83,7 +85,10 @@ enum class SettingsSubPage { KEEP_ALIVE, NOTIFY, JUMP, EXPRESS, MONITOR }
 fun SettingsPage(
     modifier: Modifier = Modifier,
     logLevel: Int,
-    autoCheckUpdate: Boolean,
+    updateCheckFrequency: String,
+    // v1.145.12 云规则自动检测开关 + TTL 小时数
+    cloudRulesAutoCheck: Boolean,
+    cloudRulesTtlHours: Int,
     hideFromRecents: Boolean,
     desktopIconHidden: Boolean,
     detectClonedApp: Boolean,
@@ -114,7 +119,10 @@ fun SettingsPage(
     logBufferMax: Int = Config.DEFAULT_LOG_BUFFER_MAX,
     onLogLevelChange: (Int) -> Unit,
     onLogBufferMaxChange: (Int) -> Unit = {},
-    onAutoCheckUpdateChange: (Boolean) -> Unit,
+    // v1.145.12 更新频率与云规则设置回调（原 onAutoCheckUpdateChange 已升级为频率选择）
+    onUpdateCheckFrequencyChange: (String) -> Unit = {},
+    onCloudRulesAutoCheckChange: (Boolean) -> Unit = {},
+    onCloudRulesTtlHoursChange: (Int) -> Unit = {},
     onHideFromRecentsChange: (Boolean) -> Unit,
     onDesktopIconHiddenChange: (Boolean) -> Unit,
     onDetectClonedAppChange: (Boolean) -> Unit,
@@ -154,6 +162,9 @@ fun SettingsPage(
     val languageOptions = languageOptions()
     val jumpNotificationModeOptions = jumpNotificationModeOptions()
     val clonedAppUserOptions = clonedAppUserOptions(clonedAppUsers)
+    // v1.145.12 云规则 TTL / 更新检测频率选项
+    val cloudRulesTtlOptions = cloudRulesTtlOptions()
+    val updateCheckFrequencyOptions = updateCheckFrequencyOptions()
     val context = LocalContext.current
     // v1.139.1 云端规则源管理（设置页入口）
     val settingsRepository = remember { SettingsRepository(context.applicationContext) }
@@ -538,6 +549,29 @@ fun SettingsPage(
                 }
             }
         }
+        // v1.145.12 云规则自动检测开关 + 检测频率（TTL 可配置，关闭=打开页面纯缓存零网络）
+        item {
+            Card {
+                SwitchAction(
+                    icon = MiuixIcons.CloudFill,
+                    title = stringResource(R.string.cloud_rules_auto_check),
+                    summary = stringResource(R.string.cloud_rules_auto_check_summary),
+                    checked = cloudRulesAutoCheck,
+                    onCheckedChange = { onCloudRulesAutoCheckChange(!cloudRulesAutoCheck) },
+                )
+                if (cloudRulesAutoCheck) {
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.cloud_rules_ttl),
+                        summary = stringResource(R.string.cloud_rules_ttl_summary),
+                        items = cloudRulesTtlOptions.map { it.label },
+                        selectedIndex = cloudRulesTtlOptions.indexOfFirst { it.value == cloudRulesTtlHours }.coerceAtLeast(0),
+                        startAction = { SettingsIcon(imageVector = MiuixIcons.Timer) },
+                        insideMargin = SettingsItemMargin,
+                        onSelectedIndexChange = { onCloudRulesTtlHoursChange(cloudRulesTtlOptions[it].value) },
+                    )
+                }
+            }
+        }
         // v1.68 软件设置拆 4 个子分组（原 18 项塞一个 Card 找设置困难）
             item { SmallTitle(text = stringResource(R.string.settings_group_notification)) }
             item {
@@ -583,12 +617,15 @@ fun SettingsPage(
                         summary = stringResource(R.string.check_update_summary),
                         onClick = onCheckUpdate,
                     )
-                    SwitchAction(
-                        icon = MiuixIcons.Update,
-                        title = stringResource(R.string.auto_check_update),
-                        summary = stringResource(R.string.auto_check_update_summary),
-                        checked = autoCheckUpdate,
-                        onCheckedChange = { onAutoCheckUpdateChange(!autoCheckUpdate) },
+                                        // v1.145.12 布尔开关升级为频率选择（不更新/每次启动/每天/每周），手动按钮保留
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.update_check_frequency),
+                        summary = stringResource(R.string.update_check_frequency_summary),
+                        items = updateCheckFrequencyOptions.map { it.label },
+                        selectedIndex = updateCheckFrequencyOptions.indexOfFirst { it.value == updateCheckFrequency }.coerceAtLeast(0),
+                        startAction = { SettingsIcon(imageVector = MiuixIcons.Update) },
+                        insideMargin = SettingsItemMargin,
+                        onSelectedIndexChange = { onUpdateCheckFrequencyChange(updateCheckFrequencyOptions[it].value) },
                     )
                     SwitchAction(
                         icon = MiuixIcons.Unpin,
@@ -679,8 +716,24 @@ private data class LogLevelOption(val label: String, val value: Int)
 private data class LanguageOption(val label: String, val value: AppLanguage)
 
 private data class JumpNotificationModeOption(val label: String, val value: JumpNotificationMode)
-
 private data class ClonedAppUserOption(val label: String, val userId: Int)
+// v1.145.12 云规则 TTL 档位 + App 更新检测频率档位
+private data class CloudRulesTtlOption(val label: String, val value: Int)
+private data class UpdateCheckFrequencyOption(val label: String, val value: String)
+@Composable
+private fun cloudRulesTtlOptions() = listOf(
+    CloudRulesTtlOption(stringResource(R.string.cloud_rules_ttl_1h), 1),
+    CloudRulesTtlOption(stringResource(R.string.cloud_rules_ttl_6h), 6),
+    CloudRulesTtlOption(stringResource(R.string.cloud_rules_ttl_24h), 24),
+    CloudRulesTtlOption(stringResource(R.string.cloud_rules_ttl_7d), 168),
+)
+@Composable
+private fun updateCheckFrequencyOptions() = listOf(
+    UpdateCheckFrequencyOption(stringResource(R.string.update_check_frequency_off), Config.UPDATE_CHECK_FREQUENCY_OFF),
+    UpdateCheckFrequencyOption(stringResource(R.string.update_check_frequency_launch), Config.UPDATE_CHECK_FREQUENCY_LAUNCH),
+    UpdateCheckFrequencyOption(stringResource(R.string.update_check_frequency_daily), Config.UPDATE_CHECK_FREQUENCY_DAILY),
+    UpdateCheckFrequencyOption(stringResource(R.string.update_check_frequency_weekly), Config.UPDATE_CHECK_FREQUENCY_WEEKLY),
+)
 
 @Composable
 private fun logLevelOptions() = listOf(

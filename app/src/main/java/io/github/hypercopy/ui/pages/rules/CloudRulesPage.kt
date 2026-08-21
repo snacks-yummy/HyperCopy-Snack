@@ -65,6 +65,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
 import top.yukonga.miuix.kmp.basic.Text
@@ -110,10 +111,10 @@ private object CloudRulesCacheStore {
             }
         }
     }.getOrNull()
-    /** v1.145.10: 缓存是否在 TTL 内（24h），命中则打开页面零网络 */
-    fun isFresh(context: Context, sourceKey: String, folder: String): Boolean = runCatching {
+    /** v1.145.10: 缓存是否在 TTL 内（默认 24h），命中则打开页面零网络；v1.145.12 TTL 可配置 */
+    fun isFresh(context: Context, sourceKey: String, folder: String, ttlMs: Long = TTL_MS): Boolean = runCatching {
         val ts = tsFile(context, sourceKey, folder).readText().toLong()
-        System.currentTimeMillis() - ts < TTL_MS
+        System.currentTimeMillis() - ts < ttlMs
     }.getOrDefault(false)
 }
 
@@ -127,6 +128,8 @@ fun CloudRulesPage(
     refreshTrigger: Int = 0,
     downloadInstalledTrigger: Int = 0,
     onSourceChange: (String) -> Unit = {},
+    // v1.145.12 刷新状态上报（顶栏按钮 loading 反馈）
+    onRefreshingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -144,6 +147,12 @@ fun CloudRulesPage(
     var searchQuery by remember { mutableStateOf("") }
     var cloudRules by remember { mutableStateOf<List<CloudRule>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    // v1.145.12 下拉刷新/按钮刷新指示态（与 loading 分离：loading=首次全屏，refreshing=已有内容刷新）
+    var refreshing by remember { mutableStateOf(false) }
+    // v1.145.12 刷新状态上报顶栏（按钮转圈/禁用防抖）
+    LaunchedEffect(refreshing, loading) {
+        onRefreshingChange(refreshing || (loading && cloudRules.isNotEmpty()))
+    }
     var error by remember { mutableStateOf<String?>(null) }
     var downloadedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var installedPackageNames by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -186,6 +195,9 @@ fun CloudRulesPage(
     }
 
     fun loadRules(category: RulePageCategory, forceRefresh: Boolean = false, showSuccessToast: Boolean = false) {
+        // v1.145.12 实时读取开关与 TTL（设置变更立即生效，不做状态缓存）
+        val autoCheck = settingsRepository.readCloudRulesAutoCheck()
+        val ttlMs = settingsRepository.readCloudRulesTtlHours() * 3600_000L
         if (!forceRefresh) {
             // ① 内存缓存
             rulesCache[category]?.let {
@@ -200,9 +212,14 @@ fun CloudRulesPage(
                 cloudRules = cached
                 error = null
                 refreshDownloadedIds()
-                // v1.145.10 低频检查：缓存 24h 内直接返回零网络（不需要频繁更新检查）
-                if (CloudRulesCacheStore.isFresh(context, sourceConfig.key, category.folderName())) {
-                    HyperLog.d("HyperCopy-CloudRules", "cloud cache fresh (TTL 24h), skip network")
+                // v1.145.10 低频检查 + v1.145.12 可配置：关闭自动检测 或 缓存 TTL 内 → 零网络
+                val skipNetwork = !autoCheck ||
+                    CloudRulesCacheStore.isFresh(context, sourceConfig.key, category.folderName(), ttlMs)
+                if (skipNetwork) {
+                    HyperLog.d(
+                        "HyperCopy-CloudRules",
+                        if (!autoCheck) "cloud auto check disabled, use cache only" else "cloud cache fresh (TTL ${ttlMs / 3600_000L}h), skip network",
+                    )
                     return
                 }
             }
@@ -234,8 +251,19 @@ fun CloudRulesPage(
                     if (cloudRules.isEmpty()) {
                         error = (it as? CloudRuleException)?.message ?: context.getString(R.string.cloud_error_load)
                     }
+                    // v1.145.12 手动刷新失败必须可见反馈（此前静默，交互缺陷）
+                    if (forceRefresh) {
+                        val msg = (it as? CloudRuleException)?.message ?: it.message
+                            ?: context.getString(R.string.cloud_error_load)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.cloud_toast_refresh_failed, msg),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                 }
             loading = false
+            refreshing = false
             refreshDownloadedIds()
         }
     }
@@ -388,7 +416,14 @@ fun CloudRulesPage(
                     bottomContentPadding = bottomContentPadding,
                 )
 
-                else -> LazyColumn(
+                else -> PullToRefresh(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        refreshing = true
+                        loadRules(selectedCategory, forceRefresh = true)
+                    },
+                ) {
+                    LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = 12.dp,
@@ -450,6 +485,7 @@ fun CloudRulesPage(
                                 onDownload = { handleDownload(rule) },
                             )
                         }
+                    }
                     }
                 }
             }
