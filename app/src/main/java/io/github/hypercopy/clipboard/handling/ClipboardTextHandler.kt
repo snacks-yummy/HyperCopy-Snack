@@ -510,6 +510,10 @@ object ClipboardTextHandler {
                 return
             }
         }
+        // v1.145.17 通用口令兜底（%[App名]% 结构：滴滴/淘宝/闲鱼/饿了么等口令通用格式）
+        // 规则与系统链接均未命中时最后尝试：提取 App 名 → 匹配已安装应用 → 直接打开
+        // 只读剪贴板文本，不写规则库/命中统计/跳转历史，不影响其他口令规则
+        if (tryGenericKouLing(appContext, input)) return
 
         // ③ 规则与系统链接均未命中 → 未命中提醒
         // v1.103 未命中诊断：输出可读原因（如"圆通需 13 位数字"），日志直接可定位
@@ -657,6 +661,47 @@ object ClipboardTextHandler {
         io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext)
             .record(jump.title, jump.packageName)
         PendingJumpCoordinator.submit(context, jump, clearClipboardAfterJump, notificationModeOverride)
+    }
+
+    // ===== v1.145.17 通用口令兜底：%[App名]% 结构（滴滴/淘宝/闲鱼/饿了么等口令通用格式）=====
+    // 规则与系统链接均未命中时最后尝试：提取 App 名 → 匹配已安装应用 label → 直接打开
+    // 只读剪贴板文本，不写规则库/命中统计/跳转历史，不影响其他口令规则
+    private val GENERIC_KOULING_REGEX = Regex("%\\[([^%\\]]{1,8})\\]%")
+    @Volatile
+    private var launcherAppsByName: Map<String, String>? = null
+    private fun tryGenericKouLing(context: Context, input: String): Boolean {
+        val m = GENERIC_KOULING_REGEX.find(input) ?: return false
+        val appName = m.groupValues[1].trim()
+        if (appName.isBlank() || appName.length > 8) return false
+        val apps = launcherAppsByName ?: runCatching {
+            val pm = context.packageManager
+            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            pm.queryIntentActivities(launcherIntent, 0)
+                .mapNotNull { it.activityInfo?.let { ai -> ai.loadLabel(pm).toString() to ai.packageName } }
+                .toMap()
+        }.getOrDefault(emptyMap()).also { launcherAppsByName = it }
+        val pkg = apps.entries.firstOrNull { (label, _) ->
+            label == appName || label.contains(appName, ignoreCase = true) || appName.contains(label, ignoreCase = true)
+        }?.value
+        if (pkg == null || pkg == context.packageName) return false
+        val intent = context.packageManager.getLaunchIntentForPackage(pkg)
+            ?: Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER); setPackage(pkg) }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val launched = runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
+        if (launched) {
+            HyperLog.d(TAG, "通用口令兜底: app=$appName pkg=$pkg")
+            if (SettingsRepository(context.applicationContext).readShowHitToast()) {
+                android.widget.Toast.makeText(
+                    context.applicationContext,
+                    context.getString(io.github.hypercopy.R.string.kouling_hit_toast, appName),
+                    android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+        return launched
     }
 
     private fun shouldIgnoreJump(context: Context, source: String, targetPackageName: String, ignoreJumpApp: Boolean): Boolean {

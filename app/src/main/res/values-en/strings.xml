@@ -687,6 +687,7 @@
     <string name="tile_monitor_off">Monitoring paused</string>
     <string name="tile_monitor_on">Monitoring enabled</string>
     <string name="toast_hit_rule">Hit: %1$s → %2$s</string>
+    <string name="kouling_hit_toast">Kouling detected: %1$s</string>
     <string name="trash_empty_confirm_summary">%1$d rules in the recycle bin will be permanently deleted and cannot be restored. Continue?</string>
     <string name="trash_empty_confirm_title">Empty Recycle Bin?</string>
     <string name="trash_purge_confirm_summary">This rule will be permanently deleted and cannot be restored. Continue?</string>

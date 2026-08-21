@@ -645,6 +645,7 @@
 
 
     <string name="toast_hit_rule">命中：%1$s → %2$s</string>
+    <string name="kouling_hit_toast">口令识别：%1$s</string>
     <string name="rule_sort_frequency">常用优先</string>
     <string name="stats_clear">清零</string>
     <!-- v1.33 分享面板直达 -->
