@@ -10,3 +10,4 @@ release.keystore
 *.sh
 /scripts/
 *.py
+hypercopy-release.keystore
