@@ -103,6 +103,19 @@ object ClipboardTextHandler {
         }.getOrDefault("?")
         return cachedAppVersion!!
     }
+    // v1.145.x Toast 目标应用名缓存（包名→应用名）：命中 Toast 右侧显示用户可读的应用名
+    // 而非包名（如 com.github.android → GitHub）。首次命中查 PackageManager（几 ms），
+    // 之后全走内存缓存；App 重启后自然重建，无需监听包变化。
+    private val appLabelCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private fun appLabel(context: Context, packageName: String): String {
+        if (packageName.isBlank()) return ""
+        return appLabelCache.getOrPut(packageName) {
+            runCatching {
+                val pm = context.packageManager
+                pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))?.toString()
+            }.getOrNull() ?: packageName   // 未安装/查询失败 → 回退包名
+        }
+    }
     // 并发保护：LSPosed 广播（主线程）与无障碍回调（后台线程）可能并发进入 handle，
     // 去重字段的"检查+写入"必须是原子的，否则双通道可能各自通过去重检查导致重复跳转
     private val dedupeLock = Any()
@@ -628,7 +641,7 @@ object ClipboardTextHandler {
         // v1.30 命中即时反馈（可开关）：Toast 提示命中的规则与目标 App
         val settingsRepository = SettingsRepository(context.applicationContext)
         if (settingsRepository.readShowHitToast()) {
-            val label = jump.packageName.ifBlank { "" }
+            val label = appLabel(context, jump.packageName)
             val toastText = context.getString(io.github.hypercopy.R.string.toast_hit_rule, jump.title, label)
             // v1.55 修复：后台线程（无障碍回调）直接 Toast 崩溃（Can't toast on a thread...）
             // → 切主线程显示
