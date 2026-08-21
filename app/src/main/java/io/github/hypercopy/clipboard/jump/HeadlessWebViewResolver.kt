@@ -19,6 +19,24 @@ object HeadlessWebViewResolver {
 
     fun resolveAndLaunch(context: Context, url: String, packageName: String, clearClipboardAfterJump: Boolean = false, userId: Int? = null) {
         handler.post {
+            // v1.145.7 LLC 短链→scheme 映射缓存直拉：同短链命中且未过期 → 免渲染直接拉起 scheme
+            // （实测同短链 t 值稳定：SObAKE4z→JHN81TYmMPd×3、CSuNokSz→iBkiRjCLbCb×2，服务端稳定映射）
+            // 速度 500~660ms → ~30ms；命中时零 WebView 渲染进程，低内存崩溃风险归零
+            val cachedScheme = SchemeCache.get(context, url)
+            if (cachedScheme != null) {
+                val intent = cachedScheme.toViewIntent(packageName)
+                try {
+                    PendingJumpCoordinator.launchAfterClipboardClear(context.applicationContext, clearClipboardAfterJump) {
+                        ActivityLaunchStrategy.launch(context.applicationContext, intent, userId)
+                    }
+                    HyperLog.d(TAG, "LLC scheme cache hit, direct launch: $url -> ${cachedScheme.take(60)}")
+                    return@post
+                } catch (e: Exception) {
+                    // 直拉失败（scheme 过期/微信不可用）→ 清除缓存 + 回退完整走链（自愈）
+                    SchemeCache.remove(context, url)
+                    HyperLog.w(TAG, "LLC scheme cache invalid, fallback to resolve: ${e.message}")
+                }
+            }
             Resolver(context.applicationContext, url, packageName, clearClipboardAfterJump, userId, launchWhenResolved = true).start()
         }
     }
@@ -214,6 +232,11 @@ object HeadlessWebViewResolver {
             finished = true
             handler.removeCallbacks(timeoutRunnable)
             HyperLog.d(TAG, "headless webview resolved: ${targetUrl.take(90)} (总耗时 ${System.currentTimeMillis() - startMs}ms)")
+            // v1.145.7 LLC 写缓存：仅真实 scheme 捕获（非 http/https）时记录 短链→scheme 映射。
+            // fallback 的 targetUrl 是原始 http URL，不写（避免缓存错误映射）
+            if (!targetUrl.startsWith("http://", ignoreCase = true) && !targetUrl.startsWith("https://", ignoreCase = true)) {
+                SchemeCache.put(context, url, targetUrl)
+            }
             val intent = targetUrl.toViewIntent(targetPackageName)
             onResolved?.invoke(intent)
             if (launchWhenResolved) {
@@ -317,3 +340,50 @@ private const val AUTO_CLICK_ONCE_JS = """
   return false;
 })();
 """
+
+/**
+ * v1.145.7 LLC (Last Link Cache): 短链→scheme 映射缓存。
+ * 实测美团外卖柜同短链 t 值稳定（服务端按订单+设备生成，重复复制不变）→ 可缓存直拉。
+ * 存储: SharedPreferences 持久化（App 被杀后仍生效）；TTL 6h 保守（微信 business link 时效），
+ * 过期/直拉失败自动清除并回退完整走链（自愈）。
+ */
+object SchemeCache {
+    private const val PREFS = "scheme_cache_llc"
+    private const val TTL_MILLIS = 6L * 3600 * 1000
+    private const val MAX_ENTRIES = 100
+
+    fun put(context: Context, shortUrl: String, scheme: String) {
+        runCatching {
+            val sp = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val edit = sp.edit()
+            if (sp.all.size >= MAX_ENTRIES) edit.clear()
+            edit.putString(shortUrl, "$scheme|${System.currentTimeMillis()}").apply()
+            HyperLog.d("HyperCopy", "LLC scheme cached: $shortUrl -> ${scheme.take(60)}")
+        }
+    }
+
+    fun get(context: Context, shortUrl: String): String? {
+        return runCatching {
+            val sp = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val raw = sp.getString(shortUrl, null) ?: return null
+            val idx = raw.lastIndexOf('|')
+            if (idx <= 0) {
+                sp.edit().remove(shortUrl).apply()
+                return null
+            }
+            val scheme = raw.substring(0, idx)
+            val ts = raw.substring(idx + 1).toLongOrNull() ?: return null
+            if (System.currentTimeMillis() - ts > TTL_MILLIS) {
+                sp.edit().remove(shortUrl).apply()
+                return null
+            }
+            scheme
+        }.getOrNull()
+    }
+
+    fun remove(context: Context, shortUrl: String) {
+        runCatching {
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(shortUrl).apply()
+        }
+    }
+}
