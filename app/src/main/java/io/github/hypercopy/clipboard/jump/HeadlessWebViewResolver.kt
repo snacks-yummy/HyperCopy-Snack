@@ -41,6 +41,22 @@ object HeadlessWebViewResolver {
                     settings.javaScriptEnabled = true
                     settings.javaScriptCanOpenWindowsAutomatically = true
                     settings.domStorageEnabled = true
+                    // v1.145.4 预热实例兜底：空闲期渲染进程崩溃（低内存 LMK 回收渲染进程，08:04:53 crashpad 实证）
+                    // 无 WebViewClient → 默认杀主进程（App 重启、跳转中断）。覆写 return true + 清缓存 + destroy，
+                    // 下次 acquire 自动重建（自愈）；与 Resolver 走链实例兜底一致
+                    webViewClient = object : WebViewClient() {
+                        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                            HyperLog.w(TAG, "webview warmUp instance render process gone: crashed=${detail.didCrash()}")
+                            synchronized(this@HeadlessWebViewResolver) {
+                                if (cachedWebView === view) {
+                                    cachedWebView = null
+                                    cachedWebViewBusy = false
+                                }
+                            }
+                            view.destroy()
+                            return true
+                        }
+                    }
                 }
             }.onFailure {
                 cachedWebView = null
