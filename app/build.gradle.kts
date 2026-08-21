@@ -13,6 +13,15 @@ val localProperties = Properties().apply {
 fun localProperty(name: String): String? =
     (localProperties.getProperty(name) ?: System.getenv(name))?.takeIf { it.isNotBlank() }
 
+// v1.145.16 构建时注入 git 短 commit（BuildConfig.GIT_COMMIT），设备侧可核对构建来源
+val gitCommit: String = try {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+    }.standardOutput.asText.get().trim()
+} catch (e: Exception) {
+    "unknown"
+}
+
 android {
     namespace = "io.github.hypercopy"
 compileSdk = 37
@@ -21,9 +30,9 @@ compileSdk = 37
         applicationId = "io.github.hypercopy"
         minSdk = 33
         targetSdk = 36
-        versionCode = 355
-        versionName = "1.145.13"
-
+        versionCode = 356
+        versionName = "1.145.16"
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -64,6 +73,7 @@ compileSdk = 37
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {

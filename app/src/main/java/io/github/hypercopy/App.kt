@@ -12,6 +12,8 @@ class App : Application(), XposedServiceHelper.OnServiceListener {
     override fun onCreate() {
         super.onCreate()
         HyperLog.init(this)
+        // v1.145.16 启动版本自校验：版本号+git commit，设备侧直接核对构建来源（防"装旧版无感知"）
+        HyperLog.i("HyperCopy", "启动 v${BuildConfig.VERSION_NAME} commit=${BuildConfig.GIT_COMMIT}")
         // v1.142.7b 中文 UI 操作日志初始化（外部私有目录 Android/data/io.github.hypercopy/files/logs/）
         UiActionLogger.init(this)
         // 内置云规则：开箱即用，无需手动下载
