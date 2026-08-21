@@ -362,6 +362,8 @@ class RuleRepository(private val context: Context) {
             "HyperCopy",
             "persistRules: total=${rules.size} names=${rules.joinToString("|") { it.name }.take(300)} caller=${Thread.currentThread().stackTrace.getOrNull(3)?.let { "${it.className.substringAfterLast('.')}.${it.methodName}" }}",
         )
+        // v1.145.16 写库前自动备份旧文件（轮转保留 .bak/.bak.1/.bak.2 共 3 份，规则丢失可对比恢复）
+        backupRulesFile()
         // Bug①修复：原子写（先写临时文件再 renameTo，避免多进程并发读写产生半截文件）
         val file = rulesFile()
         runCatching {
@@ -373,6 +375,20 @@ class RuleRepository(private val context: Context) {
             runCatching { file.writeText(rulesToJson(rules)) }
         }
         ruleChanges.tryEmit(Unit)
+    }
+
+    /** v1.145.16 规则库自动备份：写库前保留当前文件，轮转保留最近 3 份（.bak → .bak.1 → .bak.2） */
+    private fun backupRulesFile() {
+        val file = rulesFile()
+        if (!file.exists()) return
+        runCatching {
+            val bak2 = java.io.File(file.parentFile, file.name + ".bak.2")
+            val bak1 = java.io.File(file.parentFile, file.name + ".bak.1")
+            val bak = java.io.File(file.parentFile, file.name + ".bak")
+            if (bak1.exists()) bak1.copyTo(bak2, overwrite = true)
+            if (bak.exists()) bak.copyTo(bak1, overwrite = true)
+            file.copyTo(bak, overwrite = true)
+        }
     }
 
     /** 功能⑫：一键合并遗留重复规则——内容相同（sameContentAs）的规则合并为一条（保留第一个，其余删除） */
