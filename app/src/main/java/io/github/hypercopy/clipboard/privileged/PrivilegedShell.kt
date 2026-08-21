@@ -5,6 +5,7 @@ import io.github.hypercopy.HyperLog
 import io.github.hypercopy.clipboard.monitor.ShizukuPermission
 import io.github.hypercopy.clipboard.monitor.ShizukuProcess
 import io.github.hypercopy.data.settings.SettingsRepository
+import kotlin.concurrent.thread
 
 data class ShellResult(val exitCode: Int, val output: String)
 
@@ -21,19 +22,32 @@ object PrivilegedShell {
             } else {
                 ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
             } ?: return ShellResult(-1, "no privileged shell")
-
+            // v1.145.15 fix: 大输出命令（pm get-app-links 全量 86KB > 管道缓冲 64KB）写满管道后
+            // 子进程阻塞在 write() 永不退出 → 先等退出再读输出必超时（系统分类无卡片根因）。
+            // 改为独立读线程边消费边等退出；超时 destroy 后 join 兜底。
+            val outputBuilder = StringBuilder()
+            val readerThread = thread(name = "HyperCopyPrivShellRead") {
+                runCatching {
+                    process.inputStream.bufferedReader().use { reader ->
+                        val buffer = CharArray(8192)
+                        while (true) {
+                            val n = reader.read(buffer)
+                            if (n <= 0) break
+                            outputBuilder.append(buffer, 0, n)
+                        }
+                    }
+                }.onFailure {
+                    HyperLog.d(TAG, "privileged shell read failed: ${command.redactedShellCommand()}", it)
+                }
+            }
             val finished = waitForExit(process, timeoutSeconds)
             if (!finished) {
                 runCatching { process.destroyForcibly() }
                 HyperLog.d(TAG, "privileged shell timeout: ${command.redactedShellCommand()}")
                 return ShellResult(-1, "timeout")
             }
-
-            val output = runCatching { process.inputStream.bufferedReader().use { it.readText() } }
-                .getOrElse { throwable ->
-                    HyperLog.d(TAG, "privileged shell read stdout failed", throwable)
-                    ""
-                }
+            readerThread.join(2_000L)
+            val output = outputBuilder.toString()
             val exitCode = runCatching { process.exitValue() }
                 .getOrElse { throwable ->
                     HyperLog.d(TAG, "privileged shell exitValue failed", throwable)
