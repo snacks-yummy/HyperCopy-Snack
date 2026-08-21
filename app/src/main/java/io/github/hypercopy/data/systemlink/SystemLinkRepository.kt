@@ -7,6 +7,8 @@ import io.github.hypercopy.clipboard.privileged.PrivilegedShell
 import io.github.hypercopy.clipboard.privileged.ShellResult
 import io.github.hypercopy.data.rules.normalizeInputUrl
 import io.github.hypercopy.data.settings.SettingsRepository
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
 data class SystemLinkApp(
@@ -30,16 +32,23 @@ data class AndroidUser(
 class SystemLinkRepository(private val context: Context) {
     private val tag = "HyperCopy"
     private val settingsRepository = SettingsRepository(context.applicationContext)
-
     fun readApps(userId: Int): List<SystemLinkApp> {
         // v1.140.13 修复：HyperOS/Android16 上 pm get-app-links 耗时 3s+，原 3s 超时导致 count=0；
         // 放宽至 10s + 60s 内存缓存（成功才缓存，失败/超时下次重试）
+        // v1.145.15 缓存链升级：内存 60s → 文件 24h → pm（成功双写；pm 失败降级文件旧数据，不限时效）
         val cacheKey = userId
         val now = System.currentTimeMillis()
         appLinksCache[cacheKey]?.takeIf { now - it.checkedAt < APP_LINKS_CACHE_MILLIS }?.let { return it.apps }
+        readCachedFromFile(userId)?.let { return it }
         val result = runFirstSuccessfulResult("pm get-app-links --user $userId", timeoutSeconds = 10L)
         val output = result.output
         if (result.exitCode != 0) {
+            // v1.145.15 降级链：pm 失败 → 文件旧数据（哪怕超 24h，有数据 > 白屏）→ 空列表
+            val stale = readCachedFromFile(userId, ignoreFreshness = true)
+            if (stale != null) {
+                HyperLog.w(tag, "pm get-app-links 失败/超时(降级为文件缓存): code=${result.exitCode} count=${stale.size}")
+                return stale
+            }
             HyperLog.w(tag, "pm get-app-links 失败/超时(降级为空列表): code=${result.exitCode} output=${output.take(200)}")
             return emptyList()
         }
@@ -48,7 +57,92 @@ class SystemLinkRepository(private val context: Context) {
             .sortedWith(compareBy<SystemLinkApp> { it.label }.thenBy { it.packageName })
         HyperLog.d(tag, "system link apps parsed user=$userId count=${apps.size}")
         appLinksCache[cacheKey] = AppLinksCacheEntry(apps, now)
+        persistToFile(userId, apps)
         return apps
+    }
+
+    /** v1.145.15 文件缓存读取：24h 内有效；ignoreFreshness=true 时不限时效（pm 失败降级用） */
+    private fun readCachedFromFile(userId: Int, ignoreFreshness: Boolean = false): List<SystemLinkApp>? {
+        return runCatching {
+            val file = cacheFile(userId)
+            if (!file.exists()) return null
+            val json = JSONObject(file.readText())
+            if (!ignoreFreshness && System.currentTimeMillis() - json.optLong("checkedAt", 0L) > FILE_CACHE_MILLIS) return null
+            parseCachedApps(json.optJSONArray("apps") ?: return null)
+        }.onFailure {
+            HyperLog.d(tag, "read system link file cache failed: user=$userId", it)
+        }.getOrNull()
+    }
+
+    /** v1.145.15 文件缓存写入：原子写（tmp+renameTo，对齐 persistRules）+ 锁防并发写坏 tmp */
+    private fun persistToFile(userId: Int, apps: List<SystemLinkApp>) {
+        synchronized(fileCacheLock) {
+            runCatching {
+                val file = cacheFile(userId)
+                val tmp = java.io.File(file.parentFile, file.name + ".tmp")
+                tmp.writeText(
+                    JSONObject()
+                        .put("checkedAt", System.currentTimeMillis())
+                        .put("apps", JSONArray().also { arr ->
+                            apps.forEach { app ->
+                                arr.put(
+                                    JSONObject()
+                                        .put("packageName", app.packageName)
+                                        .put("label", app.label)
+                                        .put("linkHandlingAllowed", app.linkHandlingAllowed)
+                                        .put("domains", JSONArray().also { ds ->
+                                            app.domains.forEach { d ->
+                                                ds.put(
+                                                    JSONObject()
+                                                        .put("host", d.host)
+                                                        .put("enabled", d.enabled)
+                                                        .put("state", d.state),
+                                                )
+                                            }
+                                        }),
+                                )
+                            }
+                        }).toString(),
+                )
+                if (!tmp.renameTo(file)) {
+                    runCatching { file.writeText(tmp.readText()) } // rename 失败回退直接写
+                    runCatching { tmp.delete() }
+                }
+            }.onFailure {
+                HyperLog.d(tag, "persist system link file cache failed: user=$userId", it)
+            }
+        }
+    }
+
+    private fun parseCachedApps(array: JSONArray): List<SystemLinkApp> = buildList {
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val domains = buildList {
+                val ds = obj.optJSONArray("domains") ?: return@buildList
+                for (j in 0 until ds.length()) {
+                    val d = ds.optJSONObject(j) ?: continue
+                    add(SystemLinkDomain(host = d.optString("host"), enabled = d.optBoolean("enabled"), state = d.optString("state")))
+                }
+            }
+            add(
+                SystemLinkApp(
+                    packageName = obj.optString("packageName"),
+                    label = obj.optString("label"),
+                    linkHandlingAllowed = obj.optBoolean("linkHandlingAllowed"),
+                    domains = domains,
+                ),
+            )
+        }
+    }
+
+    private fun cacheFile(userId: Int): java.io.File =
+        context.filesDir.resolve("system_links_u$userId.json")
+
+    /** v1.145.15 set 成功后失效缓存（内存+文件），强制下次 pm 拉新态（防 toggle 后开关回弹） */
+    private fun invalidateCache(userId: Int) {
+        appLinksCache.remove(userId)
+        runCatching { cacheFile(userId).delete() }
+            .onFailure { HyperLog.d(tag, "delete system link file cache failed: user=$userId", it) }
     }
 
     fun readUsers(): List<AndroidUser> {
@@ -86,6 +180,7 @@ class SystemLinkRepository(private val context: Context) {
             "pm set-app-links-user-selection --user $userId --package ${IntentAmStartCommand.shellQuote(packageName)} $value ${IntentAmStartCommand.shellQuote(host)}",
         )
         HyperLog.d(tag, "set domain link user=$userId package=$packageName host=$host enabled=$enabled code=${result.exitCode}")
+        if (result.exitCode == 0) invalidateCache(userId) // v1.145.15 set 成功失效缓存，防 toggle 后回弹
         return result.exitCode == 0
     }
 
@@ -94,6 +189,7 @@ class SystemLinkRepository(private val context: Context) {
             "pm set-app-links-allowed --user $userId --package ${IntentAmStartCommand.shellQuote(packageName)} $enabled",
         )
         HyperLog.d(tag, "set app link allowed user=$userId package=$packageName enabled=$enabled code=${result.exitCode}")
+        if (result.exitCode == 0) invalidateCache(userId) // v1.145.15 set 成功失效缓存，防 toggle 后回弹
         return result.exitCode == 0
     }
 
@@ -277,6 +373,9 @@ class SystemLinkRepository(private val context: Context) {
         // v1.140.13 系统链接列表缓存（60s）：HyperOS 上 pm get-app-links 全量查询需 3s+，避免频繁触发
         const val APP_LINKS_CACHE_MILLIS = 60_000L
         val appLinksCache = ConcurrentHashMap<Int, AppLinksCacheEntry>()
+        // v1.145.15 文件缓存（24h）：冷启动秒开 + pm 失败降级旧数据
+        const val FILE_CACHE_MILLIS = 24 * 60 * 60 * 1000L
+        private val fileCacheLock = Any()
     }
 
     private data class PackageInstallCacheEntry(val installed: Boolean, val checkedAt: Long)

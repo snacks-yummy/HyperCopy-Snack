@@ -286,6 +286,12 @@ private fun SystemLinkActionsCard(
                     thread(name = "HyperCopySystemLinkCreateRule") {
                         val rule = buildRuleFromSystemApp(app)
                         val result = RuleRepository(context.applicationContext).saveRuleMerged(rule)
+                        // v1.145.15 诊断日志：生成规则结果（空域名/去重/成功定位）
+                        HyperLog.d(
+                            "HyperCopy",
+                            "system link create rule: pkg=${app.packageName} label=${app.label} " +
+                                "hosts=${app.domains.map { it.host }} result=$result name=${rule.name} regex=${rule.matchRegex.take(80)}",
+                        )
                         val message = when (result) {
                             io.github.hypercopy.data.rules.RuleSaveResult.Duplicate ->
                                 context.getString(R.string.rule_system_create_rule_duplicate, rule.name)

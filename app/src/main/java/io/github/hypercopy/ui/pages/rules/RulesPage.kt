@@ -257,13 +257,17 @@ fun RulesPage(
             // v1.145.15 域名搜索：支持按域名 host 过滤
             app.domains.any { it.host.contains(searchText, ignoreCase = true) }
     }
-    // v1.145.15 系统链接频率排序：按跳转历史包名计数（sortByFrequency 对系统分类同样生效）
+    // v1.145.15 系统链接自动按跳转命中频率排序（有命中在前，同次数按字母；无需手动开关）
     // 注意：repository 必须在无条件位置 remember（Compose 规范），不可放进 if 分支
     val systemLinkHistoryRepository = remember { io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext) }
-    val displayedSystemLinkApps = if (sortByFrequency) {
-        val counts = systemLinkHistoryRepository.countByPackage()
-        filteredSystemLinkApps.sortedByDescending { counts[it.packageName] ?: 0 }
-    } else filteredSystemLinkApps
+    val displayedSystemLinkApps = remember(filteredSystemLinkApps, selectedCategory) {
+        if (selectedCategory == RulePageCategory.System) {
+            val counts = systemLinkHistoryRepository.countByPackage()
+            filteredSystemLinkApps.sortedWith(
+                compareByDescending<SystemLinkApp> { counts[it.packageName] ?: 0 }.thenBy { it.label },
+            )
+        } else filteredSystemLinkApps
+    }
     val categoryRuleIds = categoryRules.map { it.id }.toSet()
     val selectionMode = selectedRuleIds.isNotEmpty() || editMode
 
@@ -381,7 +385,8 @@ fun RulesPage(
     }
 
     LaunchedEffect(systemLinkUserId) {
-        if (selectedCategory == RulePageCategory.System) loadSystemLinks()
+        // v1.145.15 首帧无条件预加载（文件缓存秒回）：tab 计数立即正确，切系统分类零等待
+        loadSystemLinks()
     }
 
     Box(modifier = modifier.fillMaxSize()) {
