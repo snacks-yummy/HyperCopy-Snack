@@ -9,7 +9,7 @@ import io.github.hypercopy.HyperLog
  * 使用独立 id 前缀 builtin_，保证开箱即用且与云规则下载互不冲突。
  */
 object BuiltinRules {
-    private const val TAG = "HyperCopy-BuiltinRules"
+    private const val TAG = "内置规则"
 
     const val ID_PREFIX = "builtin_"
 

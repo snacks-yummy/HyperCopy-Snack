@@ -217,7 +217,7 @@ fun CloudRulesPage(
                     CloudRulesCacheStore.isFresh(context, sourceConfig.key, category.folderName(), ttlMs)
                 if (skipNetwork) {
                     HyperLog.d(
-                        "HyperCopy-CloudRules",
+                        "云规则",
                         if (!autoCheck) "cloud auto check disabled, use cache only" else "cloud cache fresh (TTL ${ttlMs / 3600_000L}h), skip network",
                     )
                     return
@@ -330,7 +330,7 @@ fun CloudRulesPage(
                     .toSet()
             }.getOrDefault(emptySet())
             val merged = fromLauncher + fromInstalled
-            HyperLog.d("HyperCopy-CloudRules", "installedPackages: launcher=${fromLauncher.size}, installed=${
+            HyperLog.d("云规则", "installedPackages: launcher=${fromLauncher.size}, installed=${
                 fromInstalled.size
             }, merged=${merged.size}")
             merged
@@ -355,7 +355,7 @@ fun CloudRulesPage(
             val query = searchQuery.trim()
             // v1.142.6t 诊断：记录筛选入参，定位"仅已安装"无效问题
             HyperLog.d(
-                "HyperCopy-CloudRules",
+                "云规则",
                 "filter: showInstalledOnly=$showInstalledOnly, installedCount=${installedPackageNames.size}, " +
                     "total=${cloudRules.size}, emptyPkg=${cloudRules.count { it.packageName.isBlank() }}",
             )

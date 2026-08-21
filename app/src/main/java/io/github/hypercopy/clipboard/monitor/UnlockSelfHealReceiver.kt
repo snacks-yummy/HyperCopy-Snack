@@ -23,6 +23,6 @@ class UnlockSelfHealReceiver : BroadcastReceiver() {
     }
 
     private companion object {
-        const val TAG = "HyperCopy-UnlockHeal"
+        const val TAG = "解锁自愈"
     }
 }

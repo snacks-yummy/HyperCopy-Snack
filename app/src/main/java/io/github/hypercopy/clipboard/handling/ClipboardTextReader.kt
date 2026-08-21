@@ -16,7 +16,7 @@ import io.github.hypercopy.HyperLog
  * 解决：点击后延迟一小段时间再读（避开悬浮 Activity 窗口期），读取失败自动重试，最后统一回调主线程。
  */
 object ClipboardTextReader {
-    private const val TAG = "HyperCopy-ClipboardRead"
+    private const val TAG = "剪贴板读取"
 
     /** 初始延迟：等待 Shizuku 悬浮 Activity 退出、主 Activity 焦点恢复 */
     private const val INITIAL_DELAY_MILLIS = 250L

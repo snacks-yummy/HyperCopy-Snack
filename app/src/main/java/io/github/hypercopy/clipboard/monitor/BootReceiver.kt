@@ -27,6 +27,6 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     private companion object {
-        const val TAG = "HyperCopy-Boot"
+        const val TAG = "开机"
     }
 }

@@ -22,7 +22,7 @@ import io.github.hypercopy.ui.framework.MainActivity
  * 弹"点击处理"通知 → 用户点击 → MainActivity 前台读取成功（焦点规则允许）→ 跳转。
  */
 object ClipboardFallbackNotifier {
-    private const val TAG = "HyperCopy-Fallback"
+    private const val TAG = "兜底通知"
     private const val CHANNEL_ID = "hypercopy_clipboard_fallback"
     private const val NOTIFICATION_ID = 2002
     /** 通知节流：30s 内不重复打扰（复制内容读不到，无法按内容去重） */

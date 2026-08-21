@@ -195,7 +195,7 @@ class ClipboardFloatingActivity : Activity() {
     }
 
     private companion object {
-        const val TAG = "HyperCopy-Floating"
+        const val TAG = "悬浮窗"
         // v1.139.3 读取超时兜底阈值
         const val FALLBACK_TIMEOUT_MILLIS = 3000L
         // v1.140.14 优化：120→80ms。实测读取成功→焦点释放回调 ~60ms（finish 完成），

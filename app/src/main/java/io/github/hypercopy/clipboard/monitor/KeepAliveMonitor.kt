@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * - 独立于 AutoActivator（启动一次性 3 次重试），本监控长期循环，防服务被打断
  */
 object KeepAliveMonitor {
-    private const val TAG = "HyperCopy-KeepAlive"
+    private const val TAG = "保活巡检"
     private const val CHECK_INTERVAL_MS = 60_000L
     /** v1.114 fix：首次检查延迟（App 启动后无障碍服务绑定需要时间，避免误判"未绑定"触发自愈闪断） */
     private const val FIRST_CHECK_DELAY_MS = 20_000L

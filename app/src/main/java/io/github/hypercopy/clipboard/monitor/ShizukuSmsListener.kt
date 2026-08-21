@@ -21,7 +21,7 @@ import io.github.hypercopy.data.rules.findRule
  *  - 复用既有规则引擎 = 验证码提取 / 取件码 / 外卖取件跳转等所有已配置规则一律生效。
  */
 object ShizukuSmsListener {
-    private const val TAG = "HyperCopy-Sms"
+    private const val TAG = "短信"
     private const val POLL_INTERVAL_MILLIS = 2500L
     // 已处理的最大短信 _id（避免重复触发）
     @Volatile

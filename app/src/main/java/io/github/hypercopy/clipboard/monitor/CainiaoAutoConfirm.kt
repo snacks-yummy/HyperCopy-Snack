@@ -16,7 +16,7 @@ import io.github.hypercopy.data.settings.SettingsRepository
  * 日志：android.util.Log，TAG=HyperCopyA11y（绕过 HyperLog 级别过滤）。
  */
 object CainiaoAutoConfirm {
-    private const val TAG = "HyperCopyA11y"
+    private const val TAG = "无障碍"
     const val CAINIAO_PACKAGE = "com.cainiao.wireless"
     private const val RECENT_WINDOW_MS = 8_000L
     private const val MAX_DEPTH = 40

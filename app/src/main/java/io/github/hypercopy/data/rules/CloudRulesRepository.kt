@@ -404,7 +404,7 @@ class CloudRulesRepository(
     private data class HttpResult(val status: Int, val body: String)
 
     companion object {
-        private const val TAG = "HyperCopy-CloudRules"
+        private const val TAG = "云规则"
         private const val GITHUB_API_BASE = "https://api.github.com"
         // v1.140.18 三通道：GitHub 文件代理前缀（raw.githubusercontent 前缀转发）
         // v1.145.11 全网调研+实测更新（2026-08-21）：旧 ghfast.top/gh-proxy.com 已失效(000/404)，

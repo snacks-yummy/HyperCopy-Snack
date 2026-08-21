@@ -1473,7 +1473,7 @@ class RuleRepository(private val context: Context) {
             .getStringSet(KEY_DELETED_BUILTIN_IDS, emptySet()) ?: emptySet()
 
     companion object {
-        const val TAG = "HyperCopy-RuleRepo"
+        const val TAG = "规则仓库"
         private val ruleChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val changes = ruleChanges.asSharedFlow()
 
