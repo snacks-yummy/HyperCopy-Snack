@@ -144,11 +144,33 @@ object ClipboardTextHandler {
         // v1.145.1 同 key 退化规则（与 shouldBlockJumpLoop 一致）：pkg 空按内容指纹记录
         val key = if (targetPkg.isBlank()) "content:$content" else targetPkg
         lastJump = LastJump(key, content, System.currentTimeMillis())
+        // v1.145.3 处理中抑制：跳转提交即标记，走链期间同内容二次嗅探（残留剪贴板+失焦 Denying）直接跳过
+        markProcessing(content)
         // v1.140.24 跳转后浮窗免疫：成功跳转同步写防抖记录，使跳转触发后的
         // 剪贴板清理(clearClipboardAfterJump)/写回保险/第三方回写 引发的再次嗅探，
         // 在 5s 内被 ClipboardWriteGuard 拦截 → 不再反复拉起透明浮窗阅读 → 消除屏幕闪烁
         ClipboardWriteGuard.record(content)
     }
+
+    // ── v1.145.3 处理中抑制（防单次复制 2 次跳转）──
+    // 机制：跳转处理期间（走链 0.5~4s）残留剪贴板 + 浮动窗口失焦会触发系统新 Denying → 二次嗅探同内容
+    // → 二次跳转（07:49 实测 [3214]+[F6E1] 间隔 3.4s）。处理中同内容 4s 内直接跳过；
+    // 走链完成（resolved/cancel）后窗口自然过期 → 用户主动重试（跳转完成后再复制）不受影响。
+    // 与防循环（shouldBlockJumpLoop）区别：防循环拦"用户重复复制"（用户测试频繁被拦已撤销走链拦截）；
+    // 处理中抑制只拦"走链期间自动二次触发"。
+    @Volatile
+    private var processingContent: String? = null
+    @Volatile
+    private var processingUntil: Long = 0L
+    private val PROCESSING_WINDOW_MILLIS = 4_000L
+
+    private fun markProcessing(content: String) {
+        processingContent = content
+        processingUntil = System.currentTimeMillis() + PROCESSING_WINDOW_MILLIS
+    }
+
+    private fun isProcessing(content: String): Boolean =
+        processingContent == content && System.currentTimeMillis() < processingUntil
 
     fun handle(context: Context, text: String, source: String, skipSelfCheck: Boolean = false) {
         // v1.100 无条件入口日志（Log.i 直出，不受日志级别过滤）——定位广播链路是否到达
@@ -207,6 +229,12 @@ object ClipboardTextHandler {
             }
             lastText = input
             lastHandledAt = now
+        }
+        // v1.145.3 处理中同内容抑制：跳转处理期间（走链 0.5~4s）残留剪贴板 + 失焦 Denying 的二次嗅探
+        // 直接跳过（防单次复制 2 次跳转；跳转完成 4s 后窗口过期，用户主动重试不受影响）
+        if (isProcessing(input)) {
+            HyperLog.d(TAG, "处理中同内容抑制(防二次跳转): len=${input.length}")
+            return
         }
 
         val settingsRepository = SettingsRepository(appContext)
@@ -394,13 +422,9 @@ object ClipboardTextHandler {
                 }
                 RuleActionMode.WebViewResolveAndOpen -> {
                     if (shouldIgnoreJump(appContext, source, rule.target.packageName, ignoreJumpApp)) return
-                    // v1.145.2 补防循环：走链分支此前缺失 shouldBlockJumpLoop/recordJump（防循环只覆盖
-                    // matchRule 命中 + DirectOpen），美团 mt.cn 走链重复触发 → 2 次跳转仍现（07:49 实测
-                    // [3214]+[F6E1] 间隔 3.4s 同内容两次跳转）。与其余分支统一：pkg 空按内容指纹，8s 窗口拦截
-                    if (shouldBlockJumpLoop(rule.target.packageName, input)) {
-                        HyperLog.d(TAG, "同目标同内容30s内已跳转, 忽略(防循环): target=${rule.target.packageName}")
-                        return
-                    }
+                    // v1.145.2 防循环曾加于此（8s 窗口拦同内容重复复制），用户实测频繁测试被拦 → v1.145.3 撤销拦截。
+                    // 保留 recordJump（处理中抑制 markProcessing 依赖）：单次复制 2 次跳转由"处理中同内容抑制"
+                    // （走链期间残留剪贴板二次嗅探，4s 窗口，跳转完成即解除）解决，不影响用户主动重试
                     recordJump(rule.target.packageName, input)
                     stats.increment(rule.id)
                     startWebViewResolve(appContext, rule, input)
