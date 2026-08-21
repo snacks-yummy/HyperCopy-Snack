@@ -1,7 +1,7 @@
 {
   "name": "京东 · 链接",
   "category": "link",
-  "enabled": true,
+  "enabled": false,
   "actionMode": "direct_open",
   "priority": 0,
   "matchRegex": ".*[/.]3\\.cn.*|.*[/.]jd\\.com.*",

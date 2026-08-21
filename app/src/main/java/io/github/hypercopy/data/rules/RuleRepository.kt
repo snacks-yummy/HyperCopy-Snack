@@ -25,6 +25,8 @@ class RuleRepository(private val context: Context) {
         //（v1.138 首版构建时 ruleActionModeFromValue 缺 NotifyOnly 分支，
         //  本地已写入 ParseAndOpen 版；覆盖安装不更新已有规则 → 需显式修正）
         migrateNotifyOnlyRuleV138()
+        // v1.145.9 一次性迁移：京东链接规则默认关闭（仅迁移一次；用户手动重开后不会被再次关闭）
+        migrateJdLinkDisabledV1459()
         // v1.139.1 一次性迁移：旧版云端规则（cloud_xxx 无源标识）→ 作者源（cloud_1812z_xxx）
         migrateCloudSourcesV1391()
         // v1.139.2 幂等迁移：便捷下载规则补齐抖音提取正则 + 跳转模板（用户已编辑的规则同样受益）
@@ -662,6 +664,31 @@ class RuleRepository(private val context: Context) {
         }
     }
 
+    /**
+     * v1.145.9 一次性迁移：京东链接规则默认关闭。
+     * 背景：京东 3.cn/jd.com 链接规则装机默认开启（DirectOpen 拉京东 App），用户要求默认关闭、手动可重开。
+     * 仅迁移一次（KEY 标记）：用户之后手动开启不会被再次关闭。与 migrateExpressRulesV125 同模式，
+     * 但标记策略更优——扫描即标记（无论是否变更），新装用户（assets 已默认关闭）不重复扫描。
+     */
+    private fun migrateJdLinkDisabledV1459() {
+        val prefs = context.getSharedPreferences(Config.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_JD_LINK_DISABLED_V1459, false)) return
+        val jdId = "builtin_cloud_link_京东 · 链接_com.jingdong.app.mall"
+        var changed = false
+        val migrated = runCatching {
+            if (rulesFile().exists()) rulesFromJson(rulesFile().readText()) else emptyList()
+        }.getOrDefault(emptyList()).map { rule ->
+            if (rule.id == jdId && rule.enabled) {
+                changed = true
+                rule.copy(enabled = false)
+            } else rule
+        }
+        if (changed) {
+            persistRules(migrated)
+            HyperLog.d(TAG, "v1.145.9 migrate jd link rule: disabled (user can re-enable manually)")
+        }
+        prefs.edit().putBoolean(KEY_JD_LINK_DISABLED_V1459, true).apply()
+    }
     /** 从 assets 读取内置规则 JSON 并解析为 RuleConfig（供迁移使用） */
     private fun loadAssetExpressRule(fileName: String): RuleConfig? = runCatching {
         context.assets.open("builtin_rules/text/$fileName").use { input ->
@@ -1367,6 +1394,7 @@ class RuleRepository(private val context: Context) {
         private const val KEY_CAINIAO_RULE_V101 = "cainiao_rule_v101b"
         /** v1.125 一次性迁移标记：快递100默认关闭 + 菜鸟规则补全适配（对齐识别器35家） */
         private const val KEY_EXPRESS_RULES_V125 = "express_rules_v125"
+        private const val KEY_JD_LINK_DISABLED_V1459 = "jd_link_disabled_v1459"
         /** v1.132 一次性迁移标记：Chrome 通配规则降级（priority=-100） */
         private const val KEY_CHROME_RULE_V132 = "chrome_rule_v132"
         /** v1.134 一次性迁移标记：撤销 v1.133 错误写入的 clearClipboardAfterJump=true */
