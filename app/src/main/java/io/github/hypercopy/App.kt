@@ -16,10 +16,11 @@ class App : Application(), XposedServiceHelper.OnServiceListener {
         HyperLog.i("HyperCopy", "启动 v${BuildConfig.VERSION_NAME} commit=${BuildConfig.GIT_COMMIT}")
         // v1.142.7b 中文 UI 操作日志初始化（外部私有目录 Android/data/io.github.hypercopy/files/logs/）
         UiActionLogger.init(this)
+        // v1.145.16 外部备份自检必须在 ensureBuiltinRules 之前：数据被清后先恢复全量（含自定义），
+        // 否则 ensureBuiltinRules 会先把空库补成仅内置并覆盖外部备份，自定义规则将无法找回
+        runCatching { RuleRepository(this).ensureExternalBackup() }
         // 内置云规则：开箱即用，无需手动下载
         runCatching { RuleRepository(this).ensureBuiltinRules() }
-        // v1.145.16 外部备份补写：授权后重启即备份（防清除数据/卸载丢失）
-        runCatching { RuleRepository(this).ensureExternalBackup() }
         XposedServiceHelper.registerListener(this)
         ClipboardMonitorController.startForCurrentMode(this)
     }
