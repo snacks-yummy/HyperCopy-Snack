@@ -221,6 +221,13 @@ fun RulesPage(
     }
 
     LaunchedEffect(repository) {
+        // v1.145.15 规则页加载诊断（立即执行一次，不依赖 changes 事件）
+        // 输出总数+名称+启用态（定位"规则在库不显示/丢失/禁用"）
+        val current = repository.readRules()
+        HyperLog.d(
+            "HyperCopy",
+            "rules page loaded: total=${current.size} rules=${current.joinToString("|") { "${it.name}[${if (it.enabled) "on" else "off"}]" }.take(500)}",
+        )
         RuleRepository.changes.collect {
             rules = repository.readRules()
             trashEntries = repository.readTrash()

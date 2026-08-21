@@ -31,6 +31,7 @@ import io.github.hypercopy.data.rules.RuleConfig
 import io.github.hypercopy.data.rules.RuleRepository
 import io.github.hypercopy.data.rules.RuleTarget
 import io.github.hypercopy.data.rules.RuleTargetType
+import io.github.hypercopy.data.rules.sameContentAs
 import io.github.hypercopy.data.systemlink.SystemLinkApp
 import io.github.hypercopy.data.systemlink.SystemLinkDomain
 import io.github.hypercopy.data.systemlink.SystemLinkRepository

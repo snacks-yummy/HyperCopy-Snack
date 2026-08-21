@@ -357,6 +357,11 @@ class RuleRepository(private val context: Context) {
     }
 
     fun persistRules(rules: List<RuleConfig>) {
+        // v1.145.15 写库审计：记录写入动作（定位规则丢失/异常覆盖）
+        HyperLog.d(
+            "HyperCopy",
+            "persistRules: total=${rules.size} names=${rules.joinToString("|") { it.name }.take(300)} caller=${Thread.currentThread().stackTrace.getOrNull(3)?.let { "${it.className.substringAfterLast('.')}.${it.methodName}" }}",
+        )
         // Bug①修复：原子写（先写临时文件再 renameTo，避免多进程并发读写产生半截文件）
         val file = rulesFile()
         runCatching {
