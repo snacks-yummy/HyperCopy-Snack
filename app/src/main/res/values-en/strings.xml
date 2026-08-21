@@ -88,6 +88,15 @@
     <string name="cloud_rules_ttl_1h">1 hour</string>
     <string name="cloud_rules_ttl_6h">6 hours</string>
     <string name="cloud_rules_ttl_24h">24 hours</string>
+    <string name="rules_backup_title">Rule Backup</string>
+    <string name="rules_backup_summary">Export to workspace; recoverable after data clear/uninstall</string>
+    <string name="rules_backup_export">Export Backup Now</string>
+    <string name="rules_backup_restore">Restore from Backup</string>
+    <string name="rules_backup_restore_confirm">Restore from backup? Current rules will be overwritten</string>
+    <string name="rules_backup_exported">Exported %1$d rules to workspace</string>
+    <string name="rules_backup_restored">Restored %1$d rules from backup</string>
+    <string name="rules_backup_missing">No external backup found</string>
+
     <string name="cloud_rules_ttl_7d">7 days</string>
     <string name="cloud_toast_refresh_failed">Refresh failed: %1$s</string>
     <!-- v1.145.13 pull-to-refresh texts -->

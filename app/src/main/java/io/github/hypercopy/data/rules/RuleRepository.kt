@@ -407,14 +407,64 @@ class RuleRepository(private val context: Context) {
         }
     }
 
-    /** v1.145.16 启动补备份：外部备份缺失且内部库存在时立即备份一次（授权后重启即生效） */
+    /** 外部备份文件路径（工作区公共存储，App 数据清除/卸载不影响） */
+    private fun externalBackupFile(): java.io.File = java.io.File(
+        android.os.Environment.getExternalStorageDirectory(),
+        "Via/复制直达项目二改/_archive/rules_backup/rules.json"
+    )
+
+    /**
+     * v1.145.16 启动备份自检：
+     * ① 内部库异常（条数 < 内置数，如清除数据/丢失）且外部备份更完整 → 自动恢复 + 日志
+     * ② 外部备份缺失 → 补写
+     * 保守恢复条件：备份条数 >= 内置条数 && 备份包含当前库全部规则 id（防误恢复用户故意删除的）
+     */
     fun ensureExternalBackup() {
-        val extCur = java.io.File(
-            android.os.Environment.getExternalStorageDirectory(),
-            "Via/复制直达项目二改/_archive/rules_backup/rules.json"
-        )
-        if (extCur.exists()) return
+        val extCur = externalBackupFile()
+        val current = readRules()
+        val builtinCount = runCatching { BuiltinRules.loadAll(context).size }.getOrDefault(0)
+        // ① 自检：内部库异常 → 尝试自动恢复
+        if (current.size < builtinCount && extCur.exists()) {
+            val backup = runCatching { rulesFromJson(extCur.readText()) }.getOrNull()
+            if (backup != null && backup.size >= builtinCount && backup.size >= current.size) {
+                val currentIds = current.map { it.id }.toSet()
+                if (currentIds.all { id -> backup.any { it.id == id } }) {
+                    restoreRules(backup)
+                    HyperLog.d(TAG, "rules auto-recovered: ${backup.size} rules from external backup (was ${current.size})")
+                    return
+                }
+            }
+        }
+        // ② 外部备份缺失 → 补写
+        if (!extCur.exists()) backupRulesFile()
+    }
+
+    /** 原子写库（不走 persistRules，避免恢复时备份逻辑覆盖备份源） */
+    private fun restoreRules(rules: List<RuleConfig>) {
+        val file = rulesFile()
+        runCatching {
+            val tmp = java.io.File(file.parentFile, file.name + ".tmp")
+            tmp.writeText(rulesToJson(rules))
+            tmp.renameTo(file)
+        }.onFailure { runCatching { file.writeText(rulesToJson(rules)) } }
+        ruleChanges.tryEmit(Unit)
+    }
+
+    /** v1.145.16 手动导出：立即备份当前规则到工作区，返回条数 */
+    fun exportRulesBackup(): Int {
         backupRulesFile()
+        return readRules().size
+    }
+
+    /** v1.145.16 手动恢复：从外部备份恢复规则库，返回恢复条数；-1 = 无备份/备份无效 */
+    fun restoreFromBackup(): Int {
+        val extCur = externalBackupFile()
+        if (!extCur.exists()) return -1
+        val backup = runCatching { rulesFromJson(extCur.readText()) }.getOrNull() ?: return -1
+        if (backup.isEmpty()) return -1
+        restoreRules(backup)
+        HyperLog.d(TAG, "rules manually restored: ${backup.size} rules from external backup")
+        return backup.size
     }
 
     /** 功能⑫：一键合并遗留重复规则——内容相同（sameContentAs）的规则合并为一条（保留第一个，其余删除） */

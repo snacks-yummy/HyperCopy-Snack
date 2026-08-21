@@ -52,6 +52,7 @@ import io.github.hypercopy.data.settings.SettingsRepository
 import io.github.hypercopy.data.systemlink.AndroidUser
 import io.github.hypercopy.ui.components.SettingsAction
 import io.github.hypercopy.ui.components.CloudSourceManagerDialog
+import io.github.hypercopy.ui.components.RulesBackupDialog
 import io.github.hypercopy.data.rules.CloudSourceRegistry
 import io.github.hypercopy.data.rules.displayNameText
 import io.github.hypercopy.ui.components.SettingsActionWithArrow
@@ -169,9 +170,12 @@ fun SettingsPage(
     // v1.139.1 云端规则源管理（设置页入口）
     val settingsRepository = remember { SettingsRepository(context.applicationContext) }
     var showCloudSourceDialog by remember { mutableStateOf(false) }
+    // v1.145.16 规则备份对话框状态
+    var showRulesBackupDialog by remember { mutableStateOf(false) }
     // v1.142.8 返回栈修复：云规则源弹窗打开时返回键先关弹窗（不直接退出 App）
-    BackHandler(enabled = showCloudSourceDialog) {
+    BackHandler(enabled = showCloudSourceDialog || showRulesBackupDialog) {
         showCloudSourceDialog = false
+        showRulesBackupDialog = false
     }
     // v1.140.18 子页滚动位置记忆：返回后再次进入恢复上次位置
     val subListState = rememberLazyListState()
@@ -572,6 +576,17 @@ fun SettingsPage(
                 }
             }
         }
+        // v1.145.16 规则备份管理：导出到工作区 / 从备份恢复（防清除数据/卸载丢失）
+        item {
+            Card {
+                SettingsActionWithArrow(
+                    icon = MiuixIcons.File,
+                    title = stringResource(R.string.rules_backup_title),
+                    summary = stringResource(R.string.rules_backup_summary),
+                    onClick = { showRulesBackupDialog = true },
+                )
+            }
+        }
         // v1.68 软件设置拆 4 个子分组（原 18 项塞一个 Card 找设置困难）
             item { SmallTitle(text = stringResource(R.string.settings_group_notification)) }
             item {
@@ -708,6 +723,11 @@ fun SettingsPage(
                 cloudSourceKey = key
                 settingsRepository.persistCloudSource(key)
             },
+        )
+        // v1.145.16 规则备份对话框（导出到工作区 / 从备份恢复）
+        RulesBackupDialog(
+            show = showRulesBackupDialog,
+            onDismiss = { showRulesBackupDialog = false },
         )
 }
 
