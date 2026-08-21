@@ -98,6 +98,11 @@
     <string name="cloud_rules_ttl_24h">24 小时</string>
     <string name="cloud_rules_ttl_7d">7 天</string>
     <string name="cloud_toast_refresh_failed">刷新失败：%1$s</string>
+    <!-- v1.145.13 下拉刷新文案（PullToRefresh） -->
+    <string name="pull_refresh_pull">下拉刷新</string>
+    <string name="pull_refresh_release">松开刷新</string>
+    <string name="pull_refresh_refreshing">刷新中…</string>
+    <string name="pull_refresh_success">刷新成功</string>
     <string name="hide_from_recents">从最近任务隐藏</string>
     <string name="hide_from_recents_summary">开启后应用不会显示在系统最近任务列表中</string>
     <string name="hide_desktop_icon">隐藏桌面图标</string>
@@ -120,7 +125,7 @@
     <string name="support_development_summary">支持项目开发</string>
     <string name="open_home_page">打开主页</string>
     <string name="open_home_page_summary">打开 HyperCopy 项目主页</string>
-    <string name="fork_project">HyperCopy-snack 二改项目</string>
+    <string name="fork_project">HyperCopy-Snack 二改项目</string>
     <string name="fork_project_summary">基于 1812z/HyperCopy 二次开发 · 已获作者授权</string>
 
     <!-- 通用操作 -->

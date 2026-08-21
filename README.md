@@ -7,8 +7,8 @@
 <p align="center"><b>复制后直达目标 App 的 Android 链接跳转增强模块（中文二改版）</b></p>
 
 <p align="center">
-<a href="https://github.com/snacks-yummy/HyperCopy-snack/releases"><img src="https://img.shields.io/github/v/release/snacks-yummy/HyperCopy-snack?style=flat-square&logo=github&color=black" alt="GitHub Release"/></a>
-<img src="https://img.shields.io/github/downloads/snacks-yummy/HyperCopy-snack/total?style=flat-square" alt="Downloads"/>
+<a href="https://github.com/snacks-yummy/HyperCopy-Snack/releases"><img src="https://img.shields.io/github/v/release/snacks-yummy/HyperCopy-Snack?style=flat-square&logo=github&color=black" alt="GitHub Release"/></a>
+<img src="https://img.shields.io/github/downloads/snacks-yummy/HyperCopy-Snack/total?style=flat-square" alt="Downloads"/>
 <a href="https://android.com"><img src="https://img.shields.io/badge/Platform-Android-green?style=flat-square&logo=android" alt="Platform"/></a>
 <a href="https://github.com/LSPosed/LSPosed"><img src="https://img.shields.io/badge/Framework-LSPosed-blueviolet?style=flat-square" alt="LSPosed"/></a>
 <a href="https://shizuku.rikka.app/"><img src="https://img.shields.io/badge/Support-Shizuku-2196F3?style=flat-square" alt="Shizuku"/></a>
@@ -200,11 +200,11 @@
 > 📖 更多规则编写细节见 [规则编写指南](docs/规则编写指南.md) 与 [规则架构说明](docs/rules-architecture.md)。
 
 ## Star History
-<a href="https://www.star-history.com/?repos=snacks-yummy%2FHyperCopy-snack&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=snacks-yummy%2FHyperCopy-Snack&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-snack&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-snack&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-snack&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-Snack&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-Snack&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=snacks-yummy/HyperCopy-Snack&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -217,5 +217,5 @@
 
 <p align="center">
 Made with ❤️ for Android users<br/>
-<a href="https://github.com/snacks-yummy/HyperCopy-snack"><img src="https://img.shields.io/github/stars/snacks-yummy/HyperCopy-snack?style=social" alt="Star History"/></a>
+<a href="https://github.com/snacks-yummy/HyperCopy-Snack"><img src="https://img.shields.io/github/stars/snacks-yummy/HyperCopy-Snack?style=social" alt="Star History"/></a>
 </p>

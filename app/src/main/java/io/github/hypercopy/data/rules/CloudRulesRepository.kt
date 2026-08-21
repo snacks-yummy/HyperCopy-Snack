@@ -40,7 +40,7 @@ class CloudRulesRepository(
                 .putInt("${KEY_FAILURES}_${config.key}", failures)
                 .putLong("${KEY_COOLDOWN_UNTIL}_${config.key}", System.currentTimeMillis() + GITHUB_COOLDOWN_MILLIS)
                 .apply()
-            HyperLog.d(TAG, "GitHub 通道连续失败进入冷却 ${GITHUB_COOLDOWN_MILLIS / 1000}s(已持久化,重启不重置), 后续仅走加速通道")
+            HyperLog.d(TAG, "GitHub channel cooldown ${GITHUB_COOLDOWN_MILLIS / 1000}s (persisted, survives restart), accel-only mode")
         } else {
             prefs.edit().putInt("${KEY_FAILURES}_${config.key}", failures).apply()
         }
@@ -63,7 +63,7 @@ class CloudRulesRepository(
             // v1.145.10 修复：冷却期加速通道失败时回退 GitHub 直连
             // （实测代理/加速站全失效而 GitHub 直连可用——失效加速源不再阻塞链路）
             return@withContext runCatching { accelCall() }.getOrElse {
-                HyperLog.d(TAG, "加速通道失败(${it.message}), 冷却期回退 GitHub 直连")
+                HyperLog.d(TAG, "Accel channel failed(${it.message}), fallback to GitHub direct during cooldown")
                 listRulesFromGithub(folder)
             }
         }
@@ -102,7 +102,7 @@ class CloudRulesRepository(
                     return@withContext result
                 } catch (e: Exception) {
                     if (preferred == "github") recordGithubFailure()
-                    HyperLog.d(TAG, "首选通道 $preferred 失败, 回退多通道并行: ${e.message}")
+                    HyperLog.d(TAG, "Preferred channel $preferred failed, fallback to multi-channel parallel: ${e.message}")
                 }
             }
         }
@@ -122,7 +122,7 @@ class CloudRulesRepository(
     /** v1.140.13 GitHub 通道冷却判断：冷却期内返回 null（只走加速通道）；v1.145.10 冷却已持久化 */
     private fun <T> githubCallIfAvailable(block: () -> T): (() -> T)? {
         if (githubInCooldown()) {
-            HyperLog.d(TAG, "GitHub 通道冷却中(持久化), 仅走加速通道: remainingMs=${
+            HyperLog.d(TAG, "GitHub channel in cooldown (persisted), accel-only: remainingMs=${
                 cooldownPrefs().getLong("${KEY_COOLDOWN_UNTIL}_${config.key}", 0L) - System.currentTimeMillis()
             }")
             return null

@@ -90,6 +90,11 @@
     <string name="cloud_rules_ttl_24h">24 hours</string>
     <string name="cloud_rules_ttl_7d">7 days</string>
     <string name="cloud_toast_refresh_failed">Refresh failed: %1$s</string>
+    <!-- v1.145.13 pull-to-refresh texts -->
+    <string name="pull_refresh_pull">Pull down to refresh</string>
+    <string name="pull_refresh_release">Release to refresh</string>
+    <string name="pull_refresh_refreshing">Refreshing…</string>
+    <string name="pull_refresh_success">Refreshed</string>
     <string name="hide_from_recents">Hide from recents</string>
     <string name="hide_from_recents_summary">When enabled, the app is hidden from the system recent tasks list</string>
     <string name="hide_desktop_icon">Hide launcher icon</string>
@@ -712,7 +717,7 @@
     <string name="editor_test_jump_failed">Jump build failed, check target settings</string>
     <string name="editor_test_jump_sent">Test jump sent</string>
     <string name="editor_test_rendered">Rendered Result</string>
-    <string name="fork_project">HyperCopy-snack (Fork)</string>
+    <string name="fork_project">HyperCopy-Snack (Fork)</string>
     <string name="fork_project_summary">Fork of 1812z/HyperCopy · Authorized by original author</string>
     <string name="keep_alive_self_heal">Heal Now</string>
     <string name="keep_alive_self_heal_done">Heal check done, service refreshed</string>

@@ -108,8 +108,8 @@ class UpdateRepository(private val context: Context) {
 
     private companion object {
         // v1.142.6s 更新源切换到二改 fork 仓库（原指向 1812z/HyperCopy，原版发版会误提示覆盖二改）
-        const val LATEST_RELEASE_API_URL = "https://api.github.com/repos/snacks-yummy/HyperCopy-snack/releases/latest"
-        const val RELEASES_API_URL = "https://api.github.com/repos/snacks-yummy/HyperCopy-snack/releases"
-        const val RELEASE_URL = "https://github.com/snacks-yummy/HyperCopy-snack/releases"
+        const val LATEST_RELEASE_API_URL = "https://api.github.com/repos/snacks-yummy/HyperCopy-Snack/releases/latest"
+        const val RELEASES_API_URL = "https://api.github.com/repos/snacks-yummy/HyperCopy-Snack/releases"
+        const val RELEASE_URL = "https://github.com/snacks-yummy/HyperCopy-Snack/releases"
     }
 }

@@ -666,7 +666,7 @@ private fun workModeLabel(value: String): String = stringResource(
 private const val HOME_PAGE_URL = "https://hypercopy.1812z.top/"
 private const val SUPPORT_URL = "https://hypercopy.1812z.top/donors.html"
 // v1.140.18 二改项目地址（本仓库）
-private const val FORK_URL = "https://github.com/snacks-yummy/HyperCopy-snack"
+private const val FORK_URL = "https://github.com/snacks-yummy/HyperCopy-Snack"
 
 // ===== v1.74 新装一键配置 =====
 

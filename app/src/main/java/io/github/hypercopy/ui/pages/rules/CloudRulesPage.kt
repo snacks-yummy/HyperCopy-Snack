@@ -422,6 +422,13 @@ fun CloudRulesPage(
                         refreshing = true
                         loadRules(selectedCategory, forceRefresh = true)
                     },
+                    // v1.145.13 中英适配：默认文案为英文（Pull down to refresh 等），按语言传资源
+                    refreshTexts = listOf(
+                        stringResource(R.string.pull_refresh_pull),
+                        stringResource(R.string.pull_refresh_release),
+                        stringResource(R.string.pull_refresh_refreshing),
+                        stringResource(R.string.pull_refresh_success),
+                    ),
                 ) {
                     LazyColumn(
                     modifier = Modifier.fillMaxSize(),
