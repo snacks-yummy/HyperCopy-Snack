@@ -258,9 +258,10 @@ fun RulesPage(
             app.domains.any { it.host.contains(searchText, ignoreCase = true) }
     }
     // v1.145.15 系统链接频率排序：按跳转历史包名计数（sortByFrequency 对系统分类同样生效）
+    // 注意：repository 必须在无条件位置 remember（Compose 规范），不可放进 if 分支
+    val systemLinkHistoryRepository = remember { io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext) }
     val displayedSystemLinkApps = if (sortByFrequency) {
-        val counts = remember { io.github.hypercopy.data.rules.JumpHistoryRepository(context.applicationContext) }
-            .countByPackage()
+        val counts = systemLinkHistoryRepository.countByPackage()
         filteredSystemLinkApps.sortedByDescending { counts[it.packageName] ?: 0 }
     } else filteredSystemLinkApps
     val categoryRuleIds = categoryRules.map { it.id }.toSet()
