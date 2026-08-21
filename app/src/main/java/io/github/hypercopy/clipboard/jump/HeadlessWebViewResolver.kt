@@ -149,23 +149,11 @@ object HeadlessWebViewResolver {
                     override fun onPageFinished(view: WebView, url: String) {
                         // v1.141.44 页面加载完成耗时（peisong 页 JS 执行点）
                         HyperLog.d(TAG, "webview page finished: $url (t=+${System.currentTimeMillis() - startMs}ms)")
-                        // v1.145.5 JS 点击延迟 1.5s 执行：低内存（HyperOS MemFree 常 170MB）下 page finished 后立即
-                        // evaluateJavascript 大脚本 → 渲染进程崩溃（crashpad 实证：08:04:53/08:09:19 两次
-                        // page finished 后 1~1.3s 崩溃，且 HyperOS 渲染崩溃不回调 onRenderProcessGone → 宿主被杀）。
-                        // scheme 捕获走 shouldOverrideUrlLoading 实时拦截（页面自动 location.href，07:56 实证
-                        // scheme captured +1390ms 早于 page finished +1509ms），JS 仅为点击兜底 → 延迟执行无副作用
-                        handler.postDelayed({
-                            if (finished) return@postDelayed
-                            view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
-                        }, 1_500L)
-                        // v1.145.1 快速兜底：页面加载完成 4s 内无 scheme 捕获 → 提前 fallback（原等满 8s 超时）。
-                        // 安全边界：mt.cn 快链路 <600ms 已捕获；peisong 慢链路历史实测 3.4s < 4s；dpurl 静态壳等 4s 即兜底。
-                        handler.postDelayed({
-                            if (!finished) {
-                                HyperLog.d(TAG, "webview page finished but no scheme in 4s, early fallback (t=+${System.currentTimeMillis() - startMs}ms)")
-                                fallback()
-                            }
-                        }, 4000L)
+                        // v1.145.6 回归基线工作链：立即执行 JS 点击（基线 v1.144.9 实测稳定）。
+                        // 撤销 v1.145.5 的 1.5s 延迟与 v1.145.1 的 4s 快速兜底——低内存渲染慢时
+                        // 延迟 JS 会错过 scheme（部分 token 页依赖 JS 点"打开"），提前兜底则误开浏览器。
+                        // 保留：页面自动 location.href（shouldOverrideUrlLoading 实时拦截）+ 8s 超时兜底（基线同款）
+                        view.evaluateJavascript(AUTO_CLICK_ONCE_JS, null)
                     }
 
                     // v1.145.0 渲染进程崩溃兜底：默认行为是杀主进程（闪退→监听/无障碍全停→跳转中断）。
