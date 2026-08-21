@@ -138,11 +138,29 @@ class SystemLinkRepository(private val context: Context) {
     private fun cacheFile(userId: Int): java.io.File =
         context.filesDir.resolve("system_links_u$userId.json")
 
-    /** v1.145.15 set 成功后失效缓存（内存+文件），强制下次 pm 拉新态（防 toggle 后开关回弹） */
-    private fun invalidateCache(userId: Int) {
-        appLinksCache.remove(userId)
-        runCatching { cacheFile(userId).delete() }
-            .onFailure { HyperLog.d(tag, "delete system link file cache failed: user=$userId", it) }
+    /** v1.145.15 toggle 后乐观更新缓存（内存+文件）：只改该 App 状态，不失效缓存。
+     *  避免旧方案（set 成功删缓存）导致 toggle 后 loadApp 强制全量 pm（3s+ 解析 188 个）的卡顿。
+     *  文件更新失败静默（内存 60s 兜底，下次 pm 自然校准）。 */
+    private fun updateCachedApp(userId: Int, packageName: String, transform: (SystemLinkApp) -> SystemLinkApp) {
+        appLinksCache[userId]?.let { entry ->
+            appLinksCache[userId] = entry.copy(
+                apps = entry.apps.map { if (it.packageName == packageName) transform(it) else it },
+                checkedAt = System.currentTimeMillis(),
+            )
+        }
+        synchronized(fileCacheLock) {
+            runCatching {
+                val file = cacheFile(userId)
+                if (!file.exists()) return@runCatching
+                val apps = readCachedFromFile(userId, ignoreFreshness = true) ?: return@runCatching
+                persistToFile(
+                    userId,
+                    apps.map { if (it.packageName == packageName) transform(it) else it },
+                )
+            }.onFailure {
+                HyperLog.d(tag, "update system link file cache failed: user=$userId", it)
+            }
+        }
     }
 
     fun readUsers(): List<AndroidUser> {
@@ -180,7 +198,16 @@ class SystemLinkRepository(private val context: Context) {
             "pm set-app-links-user-selection --user $userId --package ${IntentAmStartCommand.shellQuote(packageName)} $value ${IntentAmStartCommand.shellQuote(host)}",
         )
         HyperLog.d(tag, "set domain link user=$userId package=$packageName host=$host enabled=$enabled code=${result.exitCode}")
-        if (result.exitCode == 0) invalidateCache(userId) // v1.145.15 set 成功失效缓存，防 toggle 后回弹
+        if (result.exitCode == 0) {
+            // v1.145.15 乐观更新缓存（不失效，避免 toggle 后全量 pm 卡顿）
+            updateCachedApp(userId, packageName) { app ->
+                app.copy(
+                    domains = app.domains.map {
+                        if (it.host == host) it.copy(enabled = enabled, state = if (enabled) "selected" else "disabled") else it
+                    },
+                )
+            }
+        }
         return result.exitCode == 0
     }
 
@@ -189,7 +216,10 @@ class SystemLinkRepository(private val context: Context) {
             "pm set-app-links-allowed --user $userId --package ${IntentAmStartCommand.shellQuote(packageName)} $enabled",
         )
         HyperLog.d(tag, "set app link allowed user=$userId package=$packageName enabled=$enabled code=${result.exitCode}")
-        if (result.exitCode == 0) invalidateCache(userId) // v1.145.15 set 成功失效缓存，防 toggle 后回弹
+        if (result.exitCode == 0) {
+            // v1.145.15 乐观更新缓存（不失效，避免 toggle 后全量 pm 卡顿）
+            updateCachedApp(userId, packageName) { it.copy(linkHandlingAllowed = enabled) }
+        }
         return result.exitCode == 0
     }
 

@@ -148,6 +148,8 @@ fun SystemLinkAppDetailPage(
                                         AppLinkAllowedCard(
                                             app = app,
                                             onEnabledChange = { enabled ->
+                                                // v1.145.15 乐观 UI：立即更新本地状态（开关无延迟），后台 set + 重载校准
+                                                systemLinkApp = systemLinkApp?.copy(linkHandlingAllowed = enabled)
                                                 thread(name = "HyperCopySystemLinkAppToggle") {
                                                     runCatching { systemLinkRepository.setLinkHandlingAllowed(userId, app.packageName, enabled) }
                                                         .onFailure { HyperLog.d("HyperCopy", "toggle app system link failed", it) }
@@ -177,6 +179,14 @@ fun SystemLinkAppDetailPage(
                                             DomainCard(
                                                 domain = domain,
                                                 onEnabledChange = { enabled ->
+                                                    // v1.145.15 乐观 UI：立即更新本地状态（开关无延迟），后台 set + 重载校准
+                                                    systemLinkApp = systemLinkApp?.let { app ->
+                                                        app.copy(
+                                                            domains = app.domains.map {
+                                                                if (it.host == domain.host) it.copy(enabled = enabled) else it
+                                                            },
+                                                        )
+                                                    }
                                                     thread(name = "HyperCopySystemLinkDomainToggle") {
                                                         runCatching { systemLinkRepository.setDomainEnabled(userId, app.packageName, domain.host, enabled) }
                                                             .onFailure { HyperLog.d("HyperCopy", "toggle domain link failed", it) }
