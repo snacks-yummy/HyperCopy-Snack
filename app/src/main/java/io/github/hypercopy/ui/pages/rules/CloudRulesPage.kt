@@ -83,10 +83,13 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 后续打开秒开显示缓存，后台静默刷新，网络失败保留缓存展示。
  */
 private object CloudRulesCacheStore {
+    // v1.145.10 低频检查：磁盘缓存 24h 内视为新鲜，打开页面零网络请求
+    private const val TTL_MS = 24 * 60 * 60 * 1000L
     private fun dir(context: Context): File = File(context.cacheDir, "cloud_rules_cache")
     private fun file(context: Context, sourceKey: String, folder: String): File =
         File(dir(context), "${sourceKey}_${folder}.json")
-
+    private fun tsFile(context: Context, sourceKey: String, folder: String): File =
+        File(dir(context), "${sourceKey}_${folder}.ts")
     fun save(context: Context, sourceKey: String, folder: String, rules: List<CloudRule>) {
         runCatching {
             val json = JSONArray().apply { rules.forEach { put(it.toJson()) } }
@@ -94,9 +97,9 @@ private object CloudRulesCacheStore {
                 parentFile?.mkdirs()
                 writeText(json.toString())
             }
+            tsFile(context, sourceKey, folder).writeText(System.currentTimeMillis().toString())
         }
     }
-
     fun load(context: Context, sourceKey: String, folder: String): List<CloudRule>? = runCatching {
         val f = file(context, sourceKey, folder)
         if (!f.exists()) return null
@@ -107,6 +110,11 @@ private object CloudRulesCacheStore {
             }
         }
     }.getOrNull()
+    /** v1.145.10: 缓存是否在 TTL 内（24h），命中则打开页面零网络 */
+    fun isFresh(context: Context, sourceKey: String, folder: String): Boolean = runCatching {
+        val ts = tsFile(context, sourceKey, folder).readText().toLong()
+        System.currentTimeMillis() - ts < TTL_MS
+    }.getOrDefault(false)
 }
 
 @Composable
@@ -127,7 +135,7 @@ fun CloudRulesPage(
     val sourceConfig = remember(cloudSource) {
         CloudSourceRegistry.byKey(context, cloudSource) ?: CloudSourceRegistry.AUTHOR
     }
-    val cloudRepository = remember(sourceConfig) { CloudRulesRepository(sourceConfig) }
+    val cloudRepository = remember(sourceConfig) { CloudRulesRepository(sourceConfig, context.applicationContext) }
     // v1.139.1 源选择器状态
     var showSourceDialog by remember { mutableStateOf(false) }
     val localRepository = remember { RuleRepository(context.applicationContext) }
@@ -192,6 +200,11 @@ fun CloudRulesPage(
                 cloudRules = cached
                 error = null
                 refreshDownloadedIds()
+                // v1.145.10 低频检查：缓存 24h 内直接返回零网络（不需要频繁更新检查）
+                if (CloudRulesCacheStore.isFresh(context, sourceConfig.key, category.folderName())) {
+                    HyperLog.d("HyperCopy-CloudRules", "cloud cache fresh (TTL 24h), skip network")
+                    return
+                }
             }
         } else if (cloudRules.isEmpty()) {
             // v1.140.18 修复：强制刷新且当前列表为空（如刚切源）时预读当前源磁盘缓存，

@@ -17,11 +17,34 @@ import java.net.URL
 /**
  * 远端规则仓库。支持从 GitHub API 或加速源拉取规则。
  */
-class CloudRulesRepository(private val config: CloudSourceConfig) {
-    // v1.140.18 修复：GitHub 冷却状态改为实例级（按源隔离）——作者仓库 GitHub 失败
-    // 不再拖累无加速通道的零食仓库等其它源
-    private val githubConsecutiveFailures = AtomicInteger(0)
-    private val githubCooldownUntil = AtomicLong(0L)
+class CloudRulesRepository(
+    private val config: CloudSourceConfig,
+    private val appContext: android.content.Context,
+) {
+    // v1.145.10 冷却状态持久化（SP 按源隔离，跨进程重启保留）——本网络 GitHub 直连
+    // 实测可用(1s)而代理/加速站全失效，冷却记忆持久化避免每次启动重复探测失败通道
+    private fun cooldownPrefs() =
+        appContext.getSharedPreferences("cloud_rules_cooldown", android.content.Context.MODE_PRIVATE)
+    private fun githubInCooldown(): Boolean =
+        cooldownPrefs().getLong("${KEY_COOLDOWN_UNTIL}_${config.key}", 0L) > System.currentTimeMillis()
+    private fun recordGithubSuccess() {
+        cooldownPrefs().edit()
+            .putInt("${KEY_FAILURES}_${config.key}", 0)
+            .putLong("${KEY_COOLDOWN_UNTIL}_${config.key}", 0L).apply()
+    }
+    private fun recordGithubFailure() {
+        val prefs = cooldownPrefs()
+        val failures = prefs.getInt("${KEY_FAILURES}_${config.key}", 0) + 1
+        if (failures >= GITHUB_FAILURE_THRESHOLD) {
+            prefs.edit()
+                .putInt("${KEY_FAILURES}_${config.key}", failures)
+                .putLong("${KEY_COOLDOWN_UNTIL}_${config.key}", System.currentTimeMillis() + GITHUB_COOLDOWN_MILLIS)
+                .apply()
+            HyperLog.d(TAG, "GitHub 通道连续失败进入冷却 ${GITHUB_COOLDOWN_MILLIS / 1000}s(已持久化,重启不重置), 后续仅走加速通道")
+        } else {
+            prefs.edit().putInt("${KEY_FAILURES}_${config.key}", failures).apply()
+        }
+    }
     // v1.140.18 通道记忆：probe 确认的最快通道作为后续下载首选；下载实际成功通道动态更新
     @Volatile private var preferredChannel: String? = null
     private val lastSuccessChannel = AtomicReference<String?>(null)
@@ -34,9 +57,16 @@ class CloudRulesRepository(private val config: CloudSourceConfig) {
             return@withContext (accelCall?.invoke() ?: throw CloudRuleException(CloudRuleError.NetworkError))
         }
         // v1.140.13 修复：GitHub API 不可达环境下每次并发发起无效请求 + E 级错误噪音；
-        // 连续失败进入冷却期，冷却期内只走加速通道（加速失败时立即重试 GitHub）
+        // 连续失败进入冷却期，冷却期内只走加速通道
         val githubCall = githubCallIfAvailable { listRulesFromGithub(folder) }
-        if (githubCall == null && accelCall != null) return@withContext accelCall()
+        if (githubCall == null && accelCall != null) {
+            // v1.145.10 修复：冷却期加速通道失败时回退 GitHub 直连
+            // （实测代理/加速站全失效而 GitHub 直连可用——失效加速源不再阻塞链路）
+            return@withContext runCatching { accelCall() }.getOrElse {
+                HyperLog.d(TAG, "加速通道失败(${it.message}), 冷却期回退 GitHub 直连")
+                listRulesFromGithub(folder)
+            }
+        }
         fetchFastest("github" to githubCall, "accel" to accelCall)
     }
     suspend fun downloadRule(cloudRule: CloudRule): RuleConfig = withContext(Dispatchers.IO) {
@@ -83,10 +113,12 @@ class CloudRulesRepository(private val config: CloudSourceConfig) {
         result
     }
 
-    /** v1.140.13 GitHub 通道冷却判断：冷却期内返回 null（只走加速通道） */
+    /** v1.140.13 GitHub 通道冷却判断：冷却期内返回 null（只走加速通道）；v1.145.10 冷却已持久化 */
     private fun <T> githubCallIfAvailable(block: () -> T): (() -> T)? {
         if (githubInCooldown()) {
-            HyperLog.d(TAG, "GitHub 通道冷却中, 仅走加速通道: remainingMs=${githubCooldownUntil.get() - System.currentTimeMillis()}")
+            HyperLog.d(TAG, "GitHub 通道冷却中(持久化), 仅走加速通道: remainingMs=${
+                cooldownPrefs().getLong("${KEY_COOLDOWN_UNTIL}_${config.key}", 0L) - System.currentTimeMillis()
+            }")
             return null
         }
         return block
@@ -380,18 +412,9 @@ class CloudRulesRepository(private val config: CloudSourceConfig) {
         // v1.140.18 冷却状态已移至实例级（按源隔离），此处仅保留阈值常量
         private const val GITHUB_FAILURE_THRESHOLD = 2
         private const val GITHUB_COOLDOWN_MILLIS = 120_000L
-    }
-
-    private fun githubInCooldown(): Boolean = System.currentTimeMillis() < githubCooldownUntil.get()
-    private fun recordGithubSuccess() {
-        githubConsecutiveFailures.set(0)
-        githubCooldownUntil.set(0L)
-    }
-    private fun recordGithubFailure() {
-        if (githubConsecutiveFailures.incrementAndGet() >= GITHUB_FAILURE_THRESHOLD) {
-            githubCooldownUntil.set(System.currentTimeMillis() + GITHUB_COOLDOWN_MILLIS)
-            HyperLog.d(TAG, "GitHub 通道连续失败进入冷却 ${GITHUB_COOLDOWN_MILLIS / 1000}s, 后续仅走加速通道")
-        }
+        // v1.145.10 冷却持久化 key（按源隔离后缀）
+        private const val KEY_FAILURES = "github_failures"
+        private const val KEY_COOLDOWN_UNTIL = "github_cooldown_until"
     }
 }
 data class CloudRule(
