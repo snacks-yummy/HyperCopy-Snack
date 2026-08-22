@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "schemaVersion": 3,
+  "rules": [
+    {
+      "id": "builtin_cloud_link_滴滴 · 口令",
+      "name": "滴滴 · 口令",
+      "category": "link",
+      "enabled": true,
+      "actionMode": "direct_open",
+      "matchRegex": "(?i).*(滴滴出行|滴滴口令|复制.{0,6}滴滴|打开.{0,6}滴滴).*",
+      "parameterRegex": "(?i)(滴滴出行|滴滴口令|复制.{0,6}滴滴|打开.{0,6}滴滴)",
+      "triggerRegexes": [
+        "(?i).*(滴滴出行|滴滴口令|复制.{0,6}滴滴|打开.{0,6}滴滴).*"
+      ],
+      "extractionRegexes": [
+        "(?i)(滴滴出行|滴滴口令|复制.{0,6}滴滴|打开.{0,6}滴滴)"
+      ],
+      "parseAfterRedirect": false,
+      "target": {
+        "type": "url",
+        "template": "",
+        "packageName": "com.sdu.didi.psnger",
+        "action": "android.intent.action.VIEW"
+      },
+      "createdAt": 1787400000000
+    }
+  ]
+}
